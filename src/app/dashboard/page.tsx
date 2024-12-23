@@ -17,13 +17,13 @@ import {
   ChartNoAxesCombined,
 } from "lucide-react";
 
-// Define the KindeUser interface based on the documentation
+// Define the KindeUser type with nullable fields
 interface KindeUser {
-  id: string | null;
-  given_name: string | null;
-  family_name: string | null;
   email: string | null;
   picture: string | null;
+  company?: string | null;
+  title?: string | null;
+  [key: string]: any; // Catch-all for additional fields
 }
 
 export default function Dashboard() {
@@ -45,26 +45,27 @@ export default function Dashboard() {
     if (isAuthenticated) {
       const rawUserData = getUser();
       if (rawUserData) {
-        // Transform rawUserData to replace null with fallback values or undefined
+        // Transform and sanitize user data
         const transformedUser: KindeUser = {
-          id: rawUserData.id || null,
-          given_name: rawUserData.given_name || null,
-          family_name: rawUserData.family_name || null,
           email: rawUserData.email || null,
           picture: rawUserData.picture || null,
+          company: rawUserData.company || null,
+          title: rawUserData.title || null,
+          ...rawUserData, // Include any other fields returned by Kinde
         };
 
         setUser(transformedUser);
         setProfileData({
           email: transformedUser.email || "",
-          company: "",
-          title: "",
+          company: transformedUser.company || "",
+          title: transformedUser.title || "",
         });
       }
     }
   }, [isAuthenticated]);
 
-  const handleProfileChange = (e) => {
+  // Properly typed event handler
+  const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setProfileData((prevData) => ({
       ...prevData,
@@ -161,18 +162,12 @@ export default function Dashboard() {
               <div className="flex flex-col space-y-6">
                 <div className="flex items-center justify-center">
                   <div className="relative w-24 h-24">
-                    {user?.picture ? (
-                      <Image
-                        src={user.picture}
-                        alt="Profile Picture"
-                        layout="fill"
-                        className="rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center text-3xl font-bold text-gray-700">
-                        {user?.email?.charAt(0).toUpperCase() || "?"}
-                      </div>
-                    )}
+                    <Image
+                      src={getProfilePicture()}
+                      alt="Profile Picture"
+                      layout="fill"
+                      className="rounded-full object-cover"
+                    />
                     <label
                       htmlFor="profile-picture"
                       className="absolute bottom-0 right-0 bg-gray-700 text-white p-2 rounded-full cursor-pointer"
@@ -202,6 +197,30 @@ export default function Dashboard() {
                       disabled
                     />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Company
+                    </label>
+                    <input
+                      type="text"
+                      name="company"
+                      value={profileData.company}
+                      onChange={handleProfileChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-lg p-3"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Title
+                    </label>
+                    <input
+                      type="text"
+                      name="title"
+                      value={profileData.title}
+                      onChange={handleProfileChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-lg p-3"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex justify-end space-x-4">
@@ -215,8 +234,52 @@ export default function Dashboard() {
               </div>
             </div>
           )}
+
+          {activeTab === "subscription" && (
+            <div className="bg-white rounded-lg shadow-lg p-8 max-w-4xl mx-auto">
+              <h2 className="text-2xl font-bold mb-6">Subscription</h2>
+              <p>Subscription details and plans will go here.</p>
+            </div>
+          )}
+
+          {activeTab === "settings" && (
+            <div>
+              <h2 className="text-2xl font-bold mb-4">Settings</h2>
+              <p>Settings content goes here.</p>
+            </div>
+          )}
         </main>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-black py-12 text-center text-white mt-auto">
+        <div className="flex flex-col items-center">
+          <Image
+            src="/top-black.png"
+            alt="Medirate Logo"
+            width={100}
+            height={50}
+          />
+          <div className="mt-4 flex space-x-6">
+            <Link href="https://facebook.com" target="_blank" rel="noreferrer">
+              <Facebook className="w-8 h-8 text-white hover:text-blue-600 transition-colors" />
+            </Link>
+            <Link
+              href="https://linkedin.com"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Linkedin className="w-8 h-8 text-white hover:text-blue-400 transition-colors" />
+            </Link>
+          </div>
+          <p className="mt-6 max-w-2xl text-gray-300 text-sm">
+            Praesent sit amet nulla a libero luctus dictum eu vitae risus.
+            Nullam efficitur at lorem vitae tristique. Nunc malesuada accumsan
+            convallis. Praesent eros sem, imperdiet ac ante vitae, ultricies
+            fringilla justo.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
