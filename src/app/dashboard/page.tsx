@@ -264,6 +264,7 @@ export default function Dashboard() {
         </main>
       </div>
 
+      
       {/* Footer */}
       <footer className="bg-black py-12 text-center text-white mt-auto">
         <div className="flex flex-col items-center">
