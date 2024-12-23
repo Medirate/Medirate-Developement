@@ -45,13 +45,15 @@ export default function Dashboard() {
     if (isAuthenticated) {
       const rawUserData = getUser();
       if (rawUserData) {
-        // Transform and sanitize user data
+        // Destructure to avoid duplicate fields
+        const { email, picture, company, title, ...otherFields } = rawUserData;
+
         const transformedUser: KindeUser = {
-          email: rawUserData.email || null,
-          picture: rawUserData.picture || null,
-          company: rawUserData.company || null,
-          title: rawUserData.title || null,
-          ...rawUserData, // Include any additional fields from rawUserData
+          email: email || null,
+          picture: picture || null,
+          company: company || null,
+          title: title || null,
+          ...otherFields, // Spread remaining fields without duplicates
         };
 
         setUser(transformedUser);
@@ -212,8 +214,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
-                      Title
-                    </label>
+                      Title\n                    </label>
                     <input
                       type="text"
                       name="title"
