@@ -15,16 +15,16 @@ export default function ContactUs() {
     message: "",
   });
 
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
     setErrors({ ...errors, [name]: "" }); // Clear the error for the field as the user types
   };
 
   const validateForm = () => {
-    const newErrors = {};
+    const newErrors: Record<string, string> = {};
     if (!formData.firstName) newErrors.firstName = "First name is required.";
     if (!formData.lastName) newErrors.lastName = "Last name is required.";
     if (!formData.company) newErrors.company = "Company is required.";
@@ -38,7 +38,7 @@ export default function ContactUs() {
     return newErrors;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const validationErrors = validateForm();
@@ -47,7 +47,6 @@ export default function ContactUs() {
       return;
     }
 
-    // Send the message as an email (using a backend API or SMTP server)
     try {
       const response = await fetch("/api/send-email", {
         method: "POST",
@@ -90,14 +89,11 @@ export default function ContactUs() {
               CONTACT US
             </h1>
             <p className="text-gray-700 leading-relaxed mb-6">
-              Submit your questions and/or feedback. A
-              customer service representative will follow up with you shortly.
+              Submit your questions and/or feedback. A customer service representative will follow up with you shortly.
             </p>
             <p className="text-gray-700 leading-relaxed">
-              MediRate strives to serve a broad array of Medicaid stakeholders. If
-              there’s any information you’d like to see us add to our database,
-              including service lines that are not currently captured, please
-              share it with us.
+              MediRate strives to serve a broad array of Medicaid stakeholders. If there’s any information you’d like to see us add to our database,
+              including service lines that are not currently captured, please share it with us.
             </p>
           </div>
 
