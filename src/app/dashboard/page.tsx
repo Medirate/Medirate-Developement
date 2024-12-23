@@ -17,13 +17,11 @@ import {
   ChartNoAxesCombined,
 } from "lucide-react";
 
-// Define the KindeUser type with nullable fields
+// Define the KindeUser type with guaranteed fields
 interface KindeUser {
   email: string | null;
   picture: string | null;
-  company?: string | null;
-  title?: string | null;
-  [key: string]: any; // Catch-all for additional fields
+  [key: string]: any; // Allow additional properties from rawUserData
 }
 
 export default function Dashboard() {
@@ -45,17 +43,16 @@ export default function Dashboard() {
     if (isAuthenticated) {
       const rawUserData = getUser();
       if (rawUserData) {
-        // Transform and sanitize user data, excluding duplicate fields
-        const { email, picture, company, title, ...otherFields } = rawUserData;
+        // Dynamically extract user properties and ensure type safety
         const transformedUser: KindeUser = {
-          email: email || null,
-          picture: picture || null,
-          company: company || null,
-          title: title || null,
-          ...otherFields, // Add remaining fields from rawUserData
+          email: rawUserData?.email || null,
+          picture: rawUserData?.picture || null,
+          ...rawUserData, // Include any additional fields from rawUserData
         };
 
         setUser(transformedUser);
+
+        // Dynamically access company and title (if they exist)
         setProfileData({
           email: transformedUser.email || "",
           company: transformedUser.company || "",
