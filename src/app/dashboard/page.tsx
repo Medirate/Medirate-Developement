@@ -27,6 +27,7 @@ export default function Dashboard() {
   const { getUser, isAuthenticated } = useKindeBrowserClient();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+  const [user, setUser] = useState<KindeUser | null>(null);
   const [profileData, setProfileData] = useState({
     email: "",
     company: "",
@@ -40,17 +41,23 @@ export default function Dashboard() {
   useEffect(() => {
     if (isAuthenticated) {
       const rawUserData = getUser();
-      if (rawUserData) {
-        // Pre-fill only the email field
+      // Ensure rawUserData matches KindeUser type
+      if (rawUserData && typeof rawUserData.email === "string") {
+        const transformedUser: KindeUser = {
+          email: rawUserData.email || null,
+          picture: rawUserData.picture || null,
+        };
+        setUser(transformedUser); // Pass correctly typed data
         setProfileData((prevData) => ({
           ...prevData,
           email: rawUserData.email || "",
         }));
+      } else {
+        setUser(null); // Handle unexpected data gracefully
       }
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, getUser]);
 
-  // Properly typed event handler
   const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setProfileData((prevData) => ({
@@ -64,6 +71,7 @@ export default function Dashboard() {
   };
 
   const getProfilePicture = () => {
+    if (user?.picture) return user.picture;
     if (profileData.email)
       return `https://www.gravatar.com/avatar/${md5(profileData.email)}?d=retro`;
     return "/default-avatar.png";
