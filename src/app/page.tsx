@@ -43,30 +43,36 @@ export default function Home() {
       </div>
 
       {/* About MediRate Section */}
-      <section className="py-16 bg-white relative overflow-hidden">
-        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#012C61]/30 to-transparent opacity-50 blur-3xl" />
-        <div className="max-w-7xl mx-auto px-6 lg:flex lg:items-center lg:justify-between">
-          {/* Text Content */}
-          <div className="lg:w-1/2">
-            <h2 className="text-4xl font-lemonMilkRegular text-[#012C61] mb-6 font-lightBold">
-              ABOUT MEDIRATE TEST-1
-            </h2>
-            <p className="text-gray-700 leading-relaxed mb-6">
-              MediRate is the nation’s only comprehensive database of Medicaid
-              fee schedule data, enabling users to search and monitor
-              fee-for-service payment rates by state, service, billing code, and
-              date.
-            </p>
-            <p className="text-gray-700 leading-relaxed mb-6">
-              MediRate’s solution is designed to support Medicaid provider
-              organizations and other stakeholders in tracking payment rate
-              trends for key service lines and to inform market and product
-              expansion opportunities.
-            </p>
-            <p className="text-gray-700 leading-relaxed mb-8">
-              We take the mystery out of finding and tracking state Medicaid
-              reimbursement information.
-            </p>
+      <section className="py-16 relative overflow-hidden reusable-gradient-bg">
+  {/* Gradient Background */}
+  <div
+    className="absolute inset-0 -z-10 bg-gradient-to-r from-blue-200 via-blue-300 to-blue-400 opacity-50 blur-3xl"
+    style={{ top: "-px" }}
+  ></div>
+
+  {/* Content */}
+  <div className="max-w-7xl mx-auto px-6 lg:flex lg:items-center lg:justify-between">
+    {/* Text Content */}
+    <div className="lg:w-1/2">
+      <h2 className="text-4xl font-lemonMilkRegular text-[#012C61] mb-6 font-lightBold">
+        ABOUT MEDIRATE
+      </h2>
+      <p className="text-gray-700 leading-relaxed mb-6">
+        MediRate is the nation’s only comprehensive database of Medicaid
+        fee schedule data, enabling users to search and monitor
+        fee-for-service payment rates by state, service, billing code, and
+        date.
+      </p>
+      <p className="text-gray-700 leading-relaxed mb-6">
+        MediRate’s solution is designed to support Medicaid provider
+        organizations and other stakeholders in tracking payment rate
+        trends for key service lines and to inform market and product
+        expansion opportunities.
+      </p>
+      <p className="text-gray-700 leading-relaxed mb-8">
+        We take the mystery out of finding and tracking state Medicaid
+        reimbursement information.
+      </p>
 
             {/* Buttons */}
             <div className="flex space-x-4">
@@ -77,7 +83,7 @@ export default function Home() {
                 Subscribe Today
               </a>
               <a
-                href="/read-more"
+                href="/oursolution"
                 className="bg-[#012C61] text-white px-6 py-3 rounded-md transition-colors duration-300 hover:bg-transparent hover:border hover:border-[#012C61] hover:text-[#012C61]"
               >
                 Read More
@@ -102,7 +108,7 @@ export default function Home() {
       <section className="bg-[#012C61] py-16">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Card 1: Our Solution */}
-          <Link href="/our-solution" passHref>
+          <Link href="/oursolution" passHref>
             <div className="bg-white rounded-lg overflow-hidden shadow-lg cursor-pointer transition-transform transform hover:scale-105">
               <Image
                 src="/images/doctor-looking-at-screen.png"

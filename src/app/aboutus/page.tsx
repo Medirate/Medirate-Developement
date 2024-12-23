@@ -4,7 +4,7 @@ import { Facebook, Linkedin } from "lucide-react";
 
 export default function AboutUs() {
   return (
-    <div>
+    <div className="relative">
       {/* Hero Section */}
       <section className="relative w-full h-[400px] md:h-[500px]">
         <Image
@@ -22,8 +22,11 @@ export default function AboutUs() {
         </div>
       </section>
 
-      {/* About Us Content */}
-      <section className="py-12 px-6 bg-white">
+      {/* About Us Content with Gradient */}
+      <section className="relative py-12 px-6 overflow-hidden">
+        {/* Gradient Background */}
+        <div className="absolute inset-0 -z-10 reusable-gradient-bg"></div>
+
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-start lg:space-x-12">
           {/* Greg's Image */}
           <div className="w-full lg:w-1/3 flex justify-center mb-8 lg:mb-0">
@@ -65,7 +68,7 @@ export default function AboutUs() {
       </section>
 
       {/* Footer Section */}
-      <footer className="bg-black py-12 text-center text-white">
+      <footer className="relative bg-black py-12 text-center text-white z-10">
         <div className="flex flex-col items-center">
           <Image
             src="/top-black.png"
