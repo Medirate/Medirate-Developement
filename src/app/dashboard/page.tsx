@@ -17,19 +17,15 @@ import {
   ChartNoAxesCombined,
 } from "lucide-react";
 
-// Define the KindeUser type with guaranteed fields
+// Define the KindeUser type
 interface KindeUser {
   email: string | null;
   picture: string | null;
-  company?: string | null;
-  title?: string | null;
-  [key: string]: any; // Allow additional properties from rawUserData
 }
 
 export default function Dashboard() {
   const { getUser, isAuthenticated } = useKindeBrowserClient();
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [user, setUser] = useState<KindeUser | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [profileData, setProfileData] = useState({
     email: "",
@@ -45,24 +41,11 @@ export default function Dashboard() {
     if (isAuthenticated) {
       const rawUserData = getUser();
       if (rawUserData) {
-        // Destructure to avoid duplicate fields
-        const { email, picture, company, title, ...otherFields } = rawUserData;
-
-        const transformedUser: KindeUser = {
-          email: email || null,
-          picture: picture || null,
-          company: company || null,
-          title: title || null,
-          ...otherFields, // Spread remaining fields without duplicates
-        };
-
-        setUser(transformedUser);
-
-        setProfileData({
-          email: transformedUser.email || "",
-          company: transformedUser.company || "",
-          title: transformedUser.title || "",
-        });
+        // Pre-fill only the email field
+        setProfileData((prevData) => ({
+          ...prevData,
+          email: rawUserData.email || "",
+        }));
       }
     }
   }, [isAuthenticated]);
@@ -81,9 +64,8 @@ export default function Dashboard() {
   };
 
   const getProfilePicture = () => {
-    if (user?.picture) return user.picture;
-    if (user?.email)
-      return `https://www.gravatar.com/avatar/${md5(user.email)}?d=retro`;
+    if (profileData.email)
+      return `https://www.gravatar.com/avatar/${md5(profileData.email)}?d=retro`;
     return "/default-avatar.png";
   };
 
@@ -214,7 +196,8 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
-                      Title\n                    </label>
+                      Title
+                    </label>
                     <input
                       type="text"
                       name="title"
