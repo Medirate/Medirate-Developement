@@ -17,14 +17,10 @@ import {
   ChartNoAxesCombined,
 } from "lucide-react";
 
-// Define the KindeUser type with flexible field handling
+// Define the KindeUser type with necessary fields
 type KindeUser = {
-  given_name?: string; // Allows undefined, matching Kinde's types
-  family_name?: string;
   email?: string;
   picture?: string;
-  company?: string;
-  title?: string;
   [key: string]: any; // Catch-all for additional fields
 };
 
@@ -34,11 +30,9 @@ export default function Dashboard() {
   const [user, setUser] = useState<KindeUser | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [profileData, setProfileData] = useState({
-    firstName: "",
-    lastName: "",
+    email: "",
     company: "",
     title: "",
-    email: "",
   });
 
   const toggleSidebar = () => {
@@ -47,26 +41,14 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      const rawUserData = getUser(); // Original user data
+      const rawUserData = getUser();
       if (rawUserData) {
-        // Transform rawUserData to match the KindeUser type
-        const transformedUser: KindeUser = {
-          given_name: rawUserData.given_name || undefined,
-          family_name: rawUserData.family_name || undefined,
-          email: rawUserData.email || undefined,
-          picture: rawUserData.picture || undefined,
-          company: rawUserData.company || undefined,
-          title: rawUserData.title || undefined,
-          ...rawUserData, // Include other fields as is
-        };
-
-        setUser(transformedUser); // Set transformed data into state
+        // Set the user directly and extract necessary fields
+        setUser(rawUserData);
         setProfileData({
-          firstName: transformedUser.given_name || "",
-          lastName: transformedUser.family_name || "",
-          company: transformedUser.company || "",
-          title: transformedUser.title || "",
-          email: transformedUser.email || "",
+          email: rawUserData.email || "",
+          company: rawUserData.company || "",
+          title: rawUserData.title || "",
         });
       }
     }
@@ -199,26 +181,15 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
-                      First Name
+                      Email Address
                     </label>
                     <input
-                      type="text"
-                      name="firstName"
-                      value={profileData.firstName}
+                      type="email"
+                      name="email"
+                      value={profileData.email}
                       onChange={handleProfileChange}
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-lg p-3"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Last Name
-                    </label>
-                    <input
-                      type="text"
-                      name="lastName"
-                      value={profileData.lastName}
-                      onChange={handleProfileChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-lg p-3"
+                      disabled
                     />
                   </div>
                   <div>
@@ -243,19 +214,6 @@ export default function Dashboard() {
                       value={profileData.title}
                       onChange={handleProfileChange}
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-lg p-3"
-                    />
-                  </div>
-                  <div className="col-span-1 md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={profileData.email}
-                      onChange={handleProfileChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-lg p-3"
-                      disabled
                     />
                   </div>
                 </div>
