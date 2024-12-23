@@ -16,11 +16,12 @@ import {
   CircleDollarSign,
   ChartNoAxesCombined,
 } from "lucide-react";
+import type { KindeUser } from "@kinde-oss/kinde-auth-nextjs"; // Correctly importing KindeUser type
 
 export default function Dashboard() {
   const { getUser, isAuthenticated } = useKindeBrowserClient();
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [user, setUser] = useState<KindeUser<Record<string, string>> | null>(null);
+  const [user, setUser] = useState<KindeUser | null>(null); // Updated with KindeUser type
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [profileData, setProfileData] = useState({
     firstName: "",
@@ -38,7 +39,7 @@ export default function Dashboard() {
     if (isAuthenticated) {
       const userData = getUser();
       if (userData) {
-        setUser(userData);
+        setUser(userData); // Set the user data into state
         setProfileData({
           firstName: userData.given_name || "",
           lastName: userData.family_name || "",
@@ -266,7 +267,6 @@ export default function Dashboard() {
         </main>
       </div>
 
-      
       {/* Footer */}
       <footer className="bg-black py-12 text-center text-white mt-auto">
         <div className="flex flex-col items-center">
