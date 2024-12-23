@@ -43,16 +43,17 @@ export default function Dashboard() {
     if (isAuthenticated) {
       const rawUserData = getUser();
       if (rawUserData) {
-        // Dynamically extract user properties and ensure type safety
+        // Remove explicit fields from rawUserData before spreading
+        const { email, picture, ...otherFields } = rawUserData;
+
         const transformedUser: KindeUser = {
-          email: rawUserData?.email || null,
-          picture: rawUserData?.picture || null,
-          ...rawUserData, // Include any additional fields from rawUserData
+          email: email || null,
+          picture: picture || null,
+          ...otherFields, // Include any additional fields from rawUserData
         };
 
         setUser(transformedUser);
 
-        // Dynamically access company and title (if they exist)
         setProfileData({
           email: transformedUser.email || "",
           company: transformedUser.company || "",
