@@ -20,7 +20,7 @@ import {
 export default function Dashboard() {
   const { getUser, isAuthenticated } = useKindeBrowserClient();
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<KindeUser<Record<string, string>> | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [profileData, setProfileData] = useState({
     firstName: "",
@@ -37,14 +37,16 @@ export default function Dashboard() {
   useEffect(() => {
     if (isAuthenticated) {
       const userData = getUser();
-      setUser(userData);
-      setProfileData({
-        firstName: userData?.given_name || "",
-        lastName: userData?.family_name || "",
-        company: userData?.company || "",
-        title: userData?.title || "",
-        email: userData?.email || "",
-      });
+      if (userData) {
+        setUser(userData);
+        setProfileData({
+          firstName: userData.given_name || "",
+          lastName: userData.family_name || "",
+          company: userData.company || "",
+          title: userData.title || "",
+          email: userData.email || "",
+        });
+      }
     }
   }, [isAuthenticated]);
 
