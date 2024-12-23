@@ -17,15 +17,15 @@ import {
   ChartNoAxesCombined,
 } from "lucide-react";
 
-// Define the KindeUser type manually
+// Define the KindeUser type with flexible field handling
 type KindeUser = {
-  given_name?: string;
+  given_name?: string; // Allows undefined, matching Kinde's types
   family_name?: string;
   email?: string;
   picture?: string;
   company?: string;
   title?: string;
-  [key: string]: any;
+  [key: string]: any; // Catch-all for additional fields
 };
 
 export default function Dashboard() {
@@ -47,15 +47,26 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      const userData = getUser();
-      if (userData) {
-        setUser(userData);
+      const rawUserData = getUser(); // Original user data
+      if (rawUserData) {
+        // Transform rawUserData to match the KindeUser type
+        const transformedUser: KindeUser = {
+          given_name: rawUserData.given_name || undefined,
+          family_name: rawUserData.family_name || undefined,
+          email: rawUserData.email || undefined,
+          picture: rawUserData.picture || undefined,
+          company: rawUserData.company || undefined,
+          title: rawUserData.title || undefined,
+          ...rawUserData, // Include other fields as is
+        };
+
+        setUser(transformedUser); // Set transformed data into state
         setProfileData({
-          firstName: userData.given_name || "",
-          lastName: userData.family_name || "",
-          company: userData.company || "",
-          title: userData.title || "",
-          email: userData.email || "",
+          firstName: transformedUser.given_name || "",
+          lastName: transformedUser.family_name || "",
+          company: transformedUser.company || "",
+          title: transformedUser.title || "",
+          email: transformedUser.email || "",
         });
       }
     }
