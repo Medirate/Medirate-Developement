@@ -21,6 +21,8 @@ import {
 interface KindeUser {
   email: string | null;
   picture: string | null;
+  company?: string | null;
+  title?: string | null;
   [key: string]: any; // Allow additional properties from rawUserData
 }
 
@@ -43,13 +45,13 @@ export default function Dashboard() {
     if (isAuthenticated) {
       const rawUserData = getUser();
       if (rawUserData) {
-        // Remove explicit fields from rawUserData before spreading
-        const { email, picture, ...otherFields } = rawUserData;
-
+        // Transform and sanitize user data
         const transformedUser: KindeUser = {
-          email: email || null,
-          picture: picture || null,
-          ...otherFields, // Include any additional fields from rawUserData
+          email: rawUserData.email || null,
+          picture: rawUserData.picture || null,
+          company: rawUserData.company || null,
+          title: rawUserData.title || null,
+          ...rawUserData, // Include any additional fields from rawUserData
         };
 
         setUser(transformedUser);
