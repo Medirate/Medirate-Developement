@@ -45,13 +45,14 @@ export default function Dashboard() {
     if (isAuthenticated) {
       const rawUserData = getUser();
       if (rawUserData) {
-        // Transform and sanitize user data
+        // Transform and sanitize user data, excluding duplicate fields
+        const { email, picture, company, title, ...otherFields } = rawUserData;
         const transformedUser: KindeUser = {
-          email: rawUserData.email || null,
-          picture: rawUserData.picture || null,
-          company: rawUserData.company || null,
-          title: rawUserData.title || null,
-          ...rawUserData, // Include any other fields returned by Kinde
+          email: email || null,
+          picture: picture || null,
+          company: company || null,
+          title: title || null,
+          ...otherFields, // Add remaining fields from rawUserData
         };
 
         setUser(transformedUser);
@@ -232,20 +233,6 @@ export default function Dashboard() {
                   </button>
                 </div>
               </div>
-            </div>
-          )}
-
-          {activeTab === "subscription" && (
-            <div className="bg-white rounded-lg shadow-lg p-8 max-w-4xl mx-auto">
-              <h2 className="text-2xl font-bold mb-6">Subscription</h2>
-              <p>Subscription details and plans will go here.</p>
-            </div>
-          )}
-
-          {activeTab === "settings" && (
-            <div>
-              <h2 className="text-2xl font-bold mb-4">Settings</h2>
-              <p>Settings content goes here.</p>
             </div>
           )}
         </main>
