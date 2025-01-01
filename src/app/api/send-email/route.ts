@@ -6,31 +6,35 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, email, message } = body;
+    const { firstName, lastName, company, title, email, message } = body;
 
-    // Construct the email message
+    // Ensure all fields are filled
+    if (!firstName || !lastName || !company || !title || !email || !message) {
+      return NextResponse.json(
+        { success: false, error: 'All fields are required.' },
+        { status: 400 }
+      );
+    }
+
     const msg = {
-      to: 'devreddy923@gmail.com', // Change to your recipient email
-      from: 'medirate.net@gmail.com', // Verified sender email
-      subject: `New Contact Us Message from ${name || 'Unknown'}`,
-      text: `You have received a new message from ${name || 'Unknown'} (${email || 'No email provided'}):\n\n${message || 'No message provided.'}`,
-      html: `
-        <h3>New Contact Us Message</h3>
-        <p><strong>Name:</strong> ${name || 'Unknown'}</p>
-        <p><strong>Email:</strong> ${email || 'No email provided'}</p>
-        <p><strong>Message:</strong></p>
-        <p>${message || 'No message provided.'}</p>
-      `,
+      to: 'devreddy923@gmail.com',
+      from: 'medirate.net@gmail.com',
+      subject: `Message from ${firstName} ${lastName}`,
+      text: message,
+      html: `<p>${message}</p>`,
     };
 
-    // Send the email using SendGrid
     await sgMail.send(msg);
 
     return NextResponse.json({ success: true, message: 'Email sent successfully.' });
-  } catch (error) {
-    console.error('Error sending email:', error.response?.body || error);
+  } catch (error: any) {
+    if (error.response) {
+      // Handle SendGrid-specific errors
+      console.error('Error sending email:', error.response.body || error.message);
+    } else {
+      console.error('Unexpected error:', error);
+    }
 
-    // Check for specific SendGrid errors
     return NextResponse.json(
       { success: false, error: 'Failed to send email.' },
       { status: 500 }
