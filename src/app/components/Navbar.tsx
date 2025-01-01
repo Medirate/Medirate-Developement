@@ -16,7 +16,10 @@ const Navbar = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setDropdownOpen(false);
       }
     };
@@ -27,11 +30,16 @@ const Navbar = () => {
     };
   }, []);
 
+  const navbarStyle = {
+    backgroundColor: "rgb(1, 44, 97)",
+    height: "5.5rem",
+  };
+
   if (isLoading) {
     return (
       <nav
         className="sticky inset-x-0 top-0 z-30 w-full border-b backdrop-blur-lg transition-all"
-        style={{ backgroundColor: "#012C61", height: "5.5rem" }}
+        style={navbarStyle}
       >
         <MaxWidthWrapper>
           <div className="flex h-[5.5rem] items-center justify-center">
@@ -47,7 +55,7 @@ const Navbar = () => {
     return (
       <nav
         className="sticky inset-x-0 top-0 z-30 w-full border-b backdrop-blur-lg transition-all"
-        style={{ backgroundColor: "#012C61", height: "5.5rem" }}
+        style={navbarStyle}
       >
         <MaxWidthWrapper>
           <div className="flex h-[5.5rem] items-center justify-between px-4 lg:px-6">
@@ -114,7 +122,7 @@ const Navbar = () => {
   return (
     <nav
       className="sticky inset-x-0 top-0 z-30 w-full border-b backdrop-blur-lg transition-all"
-      style={{ backgroundColor: "#012C61", height: "5.5rem" }}
+      style={navbarStyle}
     >
       <MaxWidthWrapper>
         <div className="flex h-[5.5rem] items-center justify-start px-4 lg:px-6">
@@ -168,7 +176,7 @@ const Navbar = () => {
             {isAuthenticated ? (
               <Link
                 href="/dashboard"
-                className="flex items-center border border-white bg-white px-4 py-2 rounded-md text-[#012C61] font-semibold transition-colors hover:bg-transparent hover:text-white"
+                className="flex items-center border border-white bg-white px-4 py-2 rounded-md text-[#000000] font-semibold transition-colors hover:bg-transparent hover:text-white"
               >
                 Dashboard
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -176,7 +184,7 @@ const Navbar = () => {
             ) : (
               <Link
                 href="/api/auth/login"
-                className="flex items-center border border-white bg-white px-4 py-2 rounded-md text-[#012C61] font-semibold transition-colors hover:bg-transparent hover:text-white"
+                className="flex items-center border border-white bg-white px-4 py-2 rounded-md text-[#000000] font-semibold transition-colors hover:bg-transparent hover:text-white"
               >
                 Sign In
                 <ArrowRight className="ml-2 h-4 w-4" />

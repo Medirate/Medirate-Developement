@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Facebook, Linkedin } from "lucide-react";
 import { useState } from "react";
+import Footer from "@/app/components/footer"; // Import the Footer component
 
 export default function ContactUs() {
   const [formData, setFormData] = useState({
@@ -218,34 +219,7 @@ export default function ContactUs() {
       </main>
 
       {/* Footer Section */}
-      <footer className="bg-black py-12 text-center text-white">
-        <div className="flex flex-col items-center">
-          <Image
-            src="/top-black.png"
-            alt="Medirate Logo"
-            width={100}
-            height={50}
-          />
-          <div className="mt-4 flex space-x-6">
-            <Link href="https://facebook.com" target="_blank" rel="noreferrer">
-              <Facebook className="w-8 h-8 text-white hover:text-blue-600 transition-colors" />
-            </Link>
-            <Link
-              href="https://linkedin.com"
-              target="_blank"
-              rel="noreferrer"
-            >
-              <Linkedin className="w-8 h-8 text-white hover:text-blue-400 transition-colors" />
-            </Link>
-          </div>
-          <p className="mt-6 max-w-2xl text-gray-300 text-sm">
-            Praesent sit amet nulla a libero luctus dictum eu vitae risus.
-            Nullam efficitur at lorem vitae tristique. Nunc malesuada accumsan
-            convallis. Praesent eros sem, imperdiet ac ante vitae, ultricies
-            fringilla justo.
-          </p>
-        </div>
-      </footer>
+      <Footer /> {/* Replace the inline footer with the Footer component */}
     </div>
   );
 }

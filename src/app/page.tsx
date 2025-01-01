@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Facebook, Linkedin } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import Footer from "@/app/components/footer"; // Import the Footer component
 
 export default function Home() {
   return (
@@ -44,35 +45,31 @@ export default function Home() {
 
       {/* About MediRate Section */}
       <section className="py-16 relative overflow-hidden reusable-gradient-bg">
-  {/* Gradient Background */}
-  <div
-    className="absolute inset-0 -z-10 bg-gradient-to-r from-blue-200 via-blue-300 to-blue-400 opacity-50 blur-3xl"
-    style={{ top: "-px" }}
-  ></div>
+        
 
-  {/* Content */}
-  <div className="max-w-7xl mx-auto px-6 lg:flex lg:items-center lg:justify-between">
-    {/* Text Content */}
-    <div className="lg:w-1/2">
-      <h2 className="text-4xl font-lemonMilkRegular text-[#012C61] mb-6 font-lightBold">
-        ABOUT MEDIRATE
-      </h2>
-      <p className="text-gray-700 leading-relaxed mb-6">
-        MediRate is the nation’s only comprehensive database of Medicaid
-        fee schedule data, enabling users to search and monitor
-        fee-for-service payment rates by state, service, billing code, and
-        date.
-      </p>
-      <p className="text-gray-700 leading-relaxed mb-6">
-        MediRate’s solution is designed to support Medicaid provider
-        organizations and other stakeholders in tracking payment rate
-        trends for key service lines and to inform market and product
-        expansion opportunities.
-      </p>
-      <p className="text-gray-700 leading-relaxed mb-8">
-        We take the mystery out of finding and tracking state Medicaid
-        reimbursement information.
-      </p>
+        {/* Content */}
+        <div className="max-w-7xl mx-auto px-6 lg:flex lg:items-center lg:justify-between">
+          {/* Text Content */}
+          <div className="lg:w-1/2">
+            <h2 className="text-4xl font-lemonMilkRegular text-[#012C61] mb-6 font-lightBold">
+              ABOUT MEDIRATE
+            </h2>
+            <p className="text-gray-700 leading-relaxed mb-6">
+              MediRate is the nation’s only comprehensive database of Medicaid
+              fee schedule data, enabling users to search and monitor
+              fee-for-service payment rates by state, service, billing code, and
+              date.
+            </p>
+            <p className="text-gray-700 leading-relaxed mb-6">
+              MediRate’s solution is designed to support Medicaid provider
+              organizations and other stakeholders in tracking payment rate
+              trends for key service lines and to inform market and product
+              expansion opportunities.
+            </p>
+            <p className="text-gray-700 leading-relaxed mb-8">
+              We take the mystery out of finding and tracking state Medicaid
+              reimbursement information.
+            </p>
 
             {/* Buttons */}
             <div className="flex space-x-4">
@@ -164,36 +161,7 @@ export default function Home() {
       </section>
 
       {/* Footer Section */}
-      <footer className="bg-black py-12 text-center text-white">
-        <div className="flex flex-col items-center">
-          <Image
-            src="/top-black.png"
-            alt="Medirate Logo"
-            width={100}
-            height={50}
-          />
-          <div className="mt-4 flex space-x-6">
-            {/* Facebook */}
-            <Link href="https://facebook.com" target="_blank" rel="noreferrer">
-              <Facebook className="w-8 h-8 text-white hover:text-blue-600 transition-colors" />
-            </Link>
-            {/* LinkedIn */}
-            <Link
-              href="https://linkedin.com"
-              target="_blank"
-              rel="noreferrer"
-            >
-              <Linkedin className="w-8 h-8 text-white hover:text-blue-400 transition-colors" />
-            </Link>
-          </div>
-          <p className="mt-6 max-w-2xl text-gray-300 text-sm">
-            Praesent sit amet nulla a libero luctus dictum eu vitae risus.
-            Nullam efficitur at lorem vitae tristique. Nunc malesuada accumsan
-            convallis. Praesent eros sem, imperdiet ac ante vitae, ultricies
-            fringilla justo.
-          </p>
-        </div>
-      </footer>
+      <Footer /> {/* Replace the inline footer with the Footer component */}
     </div>
   );
 }

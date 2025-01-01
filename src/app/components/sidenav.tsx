@@ -1,57 +1,76 @@
+// components/sidenav.tsx
+
+"use client";
+
 import { useState } from "react";
-import { Home, User, Settings, ChartNoAxesCombined } from "lucide-react";
-import Link from "next/link";
+import { 
+  Menu, 
+  X, 
+  User, 
+  Settings, 
+  CircleDollarSign, 
+  ChartNoAxesCombined, 
+  Bell 
+} from "lucide-react";
 
-const Sidebar = () => {
-  const [isOpen, setIsOpen] = useState(false);
+interface SideNavProps {
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+  isSidebarCollapsed: boolean;
+  toggleSidebar: () => void;
+}
 
-  const toggleSidebar = () => setIsOpen(!isOpen);
-
-  const menuItems = [
-    { name: "Dashboard", icon: <ChartNoAxesCombined />, href: "/dashboard" },
-    { name: "Profile", icon: <User />, href: "/dashboard/profile" },
-    { name: "Settings", icon: <Settings />, href: "/dashboard/settings" },
-  ];
-
+const SideNav = ({
+  activeTab,
+  setActiveTab,
+  isSidebarCollapsed,
+  toggleSidebar,
+}: SideNavProps) => {
   return (
-    <div className={`flex`}>
-      {/* Sidebar */}
-      <aside
-        className={`${
-          isOpen ? "w-64" : "w-16"
-        } bg-[#012C61] text-white h-screen transition-width duration-300 ease-in-out`}
-      >
-        {/* Toggle Button */}
-        <div className="p-4">
-          <button onClick={toggleSidebar} className="text-white">
-            {isOpen ? "×" : "☰"}
-          </button>
-        </div>
-        {/* Menu Items */}
-        <nav className="mt-4">
-          <ul>
-            {menuItems.map((item, index) => (
-              <li
-                key={index}
-                className="flex items-center p-4 hover:bg-[#05488A] transition-colors"
+    <aside
+      className={`transition-all duration-500 ease-in-out shadow-lg ${
+        isSidebarCollapsed ? "w-16" : "w-64"
+      }`}
+      style={{ backgroundColor: "rgb(1, 44, 97)", color: "white" }}
+    >
+      <div className="flex justify-end p-4">
+        <button
+          onClick={toggleSidebar}
+          className="p-2 text-white hover:bg-gray-800 rounded-md"
+        >
+          {isSidebarCollapsed ? <Menu size={20} /> : <X size={20} />}
+        </button>
+      </div>
+      <nav className="mt-6">
+        <ul className="space-y-2">
+          {[
+            { tab: "dashboard", icon: <ChartNoAxesCombined size={20} />, label: "Dashboard" },
+            { tab: "profile", icon: <User size={20} />, label: "Profile" },
+            { tab: "subscription", icon: <CircleDollarSign size={20} />, label: "Subscription" },
+            { tab: "providerAlerts", icon: <Bell size={20} />, label: "Provider Alerts" },
+            { tab: "settings", icon: <Settings size={20} />, label: "Settings" },
+          ].map(({ tab, icon, label }) => (
+            <li
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex items-center p-4 hover:bg-gray-200/20 cursor-pointer ${
+                activeTab === tab ? "bg-gray-200/20" : ""
+              }`}
+            >
+              <div className="flex items-center justify-center w-6 h-6">{icon}</div>
+              <span
+                className={`ml-4 font-semibold transition-opacity duration-300 ease-in-out ${
+                  isSidebarCollapsed ? "opacity-0 invisible" : "opacity-100 visible"
+                }`}
               >
-                <div className="w-6">{item.icon}</div>
-                {isOpen && (
-                  <Link href={item.href} className="ml-4 font-semibold">
-                    {item.name}
-                  </Link>
-                )}
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </aside>
-      {/* Content */}
-      <main className="flex-grow p-6">
-        <h1 className="text-3xl font-bold">Welcome to MediRate Dashboard</h1>
-      </main>
-    </div>
+                {label}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </aside>
   );
 };
 
-export default Sidebar;
+export default SideNav;
