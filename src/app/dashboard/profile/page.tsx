@@ -4,13 +4,21 @@ import { useState, useEffect } from "react";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import Image from "next/image";
 
+type KindeUser = {
+  given_name?: string;
+  family_name?: string;
+  email?: string;
+  picture?: string;
+};
+
 export default function ProfilePage() {
   const { getUser, isAuthenticated } = useKindeBrowserClient();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<KindeUser | null>(null);
 
   useEffect(() => {
     if (isAuthenticated) {
-      setUser(getUser());
+      const fetchedUser = getUser();
+      setUser(fetchedUser || null); // Ensure the returned value matches type
     }
   }, [isAuthenticated, getUser]);
 
@@ -50,6 +58,7 @@ export default function ProfilePage() {
                 type="text"
                 className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 placeholder="First Name"
+                defaultValue={user?.given_name || ""}
               />
             </div>
             <div>
@@ -58,6 +67,7 @@ export default function ProfilePage() {
                 type="text"
                 className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 placeholder="Last Name"
+                defaultValue={user?.family_name || ""}
               />
             </div>
             <div>
@@ -82,6 +92,7 @@ export default function ProfilePage() {
                 type="email"
                 className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 placeholder="Email Address"
+                defaultValue={user?.email || ""}
               />
             </div>
           </div>
