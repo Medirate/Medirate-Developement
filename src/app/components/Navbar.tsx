@@ -14,7 +14,6 @@ const Navbar = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -51,7 +50,7 @@ const Navbar = () => {
     );
   }
 
-  // Navbar for Dashboard
+  // Dashboard-specific Navbar
   if (pathname === "/dashboard" && isAuthenticated) {
     return (
       <nav
@@ -60,7 +59,7 @@ const Navbar = () => {
       >
         <MaxWidthWrapper>
           <div className="flex h-[5.5rem] items-center justify-between px-4 lg:px-6">
-            {/* Logo */}
+            {/* Logo/Brand */}
             <div className="flex-shrink-0">
               <Link href="/" className="flex items-center">
                 <Image
@@ -73,7 +72,7 @@ const Navbar = () => {
               </Link>
             </div>
 
-            {/* Dropdown */}
+            {/* Profile Dropdown */}
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -104,7 +103,6 @@ const Navbar = () => {
                   </div>
                   <div className="py-2 border-t">
                     <LogoutLink
-                      redirectUri="https://medirate-developement.vercel.app"
                       className="w-full flex items-center px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-100"
                     >
                       <LogOut className="w-5 h-5 mr-2" />
@@ -120,7 +118,7 @@ const Navbar = () => {
     );
   }
 
-  // Default Navbar
+  // Default Navbar for all other pages
   return (
     <nav
       className="sticky inset-x-0 top-0 z-30 w-full border-b backdrop-blur-lg transition-all"
@@ -128,7 +126,7 @@ const Navbar = () => {
     >
       <MaxWidthWrapper>
         <div className="flex h-[5.5rem] items-center justify-start px-4 lg:px-6">
-          {/* Logo */}
+          {/* Logo/Brand */}
           <div className="flex-shrink-0 mr-auto">
             <Link href="/" className="flex items-center">
               <Image
@@ -174,7 +172,7 @@ const Navbar = () => {
               Subscribe
             </Link>
 
-            {/* Sign In or Dashboard */}
+            {/* Sign In or Dashboard Button */}
             {isAuthenticated ? (
               <Link
                 href="/dashboard"
