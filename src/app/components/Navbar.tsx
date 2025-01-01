@@ -103,6 +103,7 @@ const Navbar = () => {
                   </div>
                   <div className="py-2 border-t">
                     <LogoutLink
+                      postLogoutRedirectURL="https://medirate-developement.vercel.app/" // Explicit redirect URL
                       className="w-full flex items-center px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-100"
                     >
                       <LogOut className="w-5 h-5 mr-2" />
