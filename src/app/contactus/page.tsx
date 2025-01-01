@@ -1,93 +1,96 @@
-'use client'; // Add this line at the very top of the file
+'use client';
 
-import Link from "next/link";
-import Image from "next/image";
-import { Facebook, Linkedin } from "lucide-react";
-import { useState } from "react";
-import Footer from "@/app/components/footer"; // Import the Footer component
+import { useState } from 'react';
+import Footer from '@/app/components/footer'; // Assuming you have a Footer component
 
-export default function ContactUs() {
+const ContactUs = () => {
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    company: "",
-    title: "",
-    email: "",
-    message: "",
+    firstName: '',
+    lastName: '',
+    company: '',
+    title: '',
+    email: '',
+    message: '',
   });
-
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [status, setStatus] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
-    setErrors({ ...errors, [name]: "" }); // Clear the error for the field as the user types
+    setErrors({ ...errors, [name]: '' }); // Clear specific field error
+    setStatus(''); // Clear overall status
   };
 
-  const validateForm = () => {
+  const validateFields = () => {
     const newErrors: Record<string, string> = {};
-    if (!formData.firstName) newErrors.firstName = "First name is required.";
-    if (!formData.lastName) newErrors.lastName = "Last name is required.";
-    if (!formData.company) newErrors.company = "Company is required.";
-    if (!formData.title) newErrors.title = "Title is required.";
+    if (!formData.firstName) newErrors.firstName = 'First name is required.';
+    if (!formData.lastName) newErrors.lastName = 'Last name is required.';
+    if (!formData.company) newErrors.company = 'Company is required.';
+    if (!formData.title) newErrors.title = 'Title is required.';
     if (!formData.email) {
-      newErrors.email = "Email is required.";
+      newErrors.email = 'Email is required.';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Enter a valid email address.";
+      newErrors.email = 'Enter a valid email address.';
     }
-    if (!formData.message) newErrors.message = "Message is required.";
+    if (!formData.message) newErrors.message = 'Message is required.';
     return newErrors;
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setLoading(true);
 
-    const validationErrors = validateForm();
+    const validationErrors = validateFields();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
+      setLoading(false);
       return;
     }
 
     try {
-      const response = await fetch("/api/send-email", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ ...formData, toEmail: "devreddy923@gmail.com" }),
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
       });
 
-      if (response.ok) {
-        alert("Your message has been sent successfully!");
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setStatus('Email sent successfully!');
         setFormData({
-          firstName: "",
-          lastName: "",
-          company: "",
-          title: "",
-          email: "",
-          message: "",
+          firstName: '',
+          lastName: '',
+          company: '',
+          title: '',
+          email: '',
+          message: '',
         });
       } else {
-        alert("Failed to send your message. Please try again later.");
+        setStatus(`Error: ${data.error || 'Failed to send email'}`);
       }
     } catch (error) {
-      console.error("Error sending email:", error);
-      alert("An error occurred. Please try again later.");
+      console.error('Error submitting form:', error);
+      setStatus('Error: Failed to send email');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="relative flex flex-col min-h-screen">
-      {/* Main Content Section with Gradient */}
-      <main className="relative flex-grow py-12 px-6 overflow-hidden">
-        {/* Gradient Background */}
-        <div className="absolute inset-0 -z-10 reusable-gradient-bg"></div>
+      {/* Reusable Gradient Background */}
+      <div className="absolute inset-0 -z-10 reusable-gradient-bg"></div>
 
+      {/* Main Content */}
+      <main className="relative flex-grow py-12 px-6 overflow-hidden">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           {/* Left Side: Heading and Text */}
           <div>
             <h1 className="text-5xl md:text-6xl text-[#012C61] font-lemonMilkRegular uppercase mb-6">
-              CONTACT US
+              Contact Us
             </h1>
             <p className="text-gray-700 leading-relaxed mb-6">
               Submit your questions and/or feedback. A customer service representative will follow up with you shortly.
@@ -108,16 +111,14 @@ export default function ContactUs() {
                     name="firstName"
                     placeholder="First Name"
                     className={`w-full p-3 border ${
-                      errors.firstName ? "border-red-500" : "border-gray-300"
+                      errors.firstName ? 'border-red-500' : 'border-gray-300'
                     } rounded-md focus:outline-none focus:ring-2 ${
-                      errors.firstName ? "focus:ring-red-500" : "focus:ring-[#012C61]"
+                      errors.firstName ? 'focus:ring-red-500' : 'focus:ring-[#012C61]'
                     }`}
                     value={formData.firstName}
                     onChange={handleInputChange}
                   />
-                  {errors.firstName && (
-                    <p className="text-red-500 text-sm mt-1">{errors.firstName}</p>
-                  )}
+                  {errors.firstName && <p className="text-red-500 text-sm mt-1">{errors.firstName}</p>}
                 </div>
                 <div>
                   <input
@@ -125,16 +126,14 @@ export default function ContactUs() {
                     name="lastName"
                     placeholder="Last Name"
                     className={`w-full p-3 border ${
-                      errors.lastName ? "border-red-500" : "border-gray-300"
+                      errors.lastName ? 'border-red-500' : 'border-gray-300'
                     } rounded-md focus:outline-none focus:ring-2 ${
-                      errors.lastName ? "focus:ring-red-500" : "focus:ring-[#012C61]"
+                      errors.lastName ? 'focus:ring-red-500' : 'focus:ring-[#012C61]'
                     }`}
                     value={formData.lastName}
                     onChange={handleInputChange}
                   />
-                  {errors.lastName && (
-                    <p className="text-red-500 text-sm mt-1">{errors.lastName}</p>
-                  )}
+                  {errors.lastName && <p className="text-red-500 text-sm mt-1">{errors.lastName}</p>}
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -144,16 +143,14 @@ export default function ContactUs() {
                     name="company"
                     placeholder="Company"
                     className={`w-full p-3 border ${
-                      errors.company ? "border-red-500" : "border-gray-300"
+                      errors.company ? 'border-red-500' : 'border-gray-300'
                     } rounded-md focus:outline-none focus:ring-2 ${
-                      errors.company ? "focus:ring-red-500" : "focus:ring-[#012C61]"
+                      errors.company ? 'focus:ring-red-500' : 'focus:ring-[#012C61]'
                     }`}
                     value={formData.company}
                     onChange={handleInputChange}
                   />
-                  {errors.company && (
-                    <p className="text-red-500 text-sm mt-1">{errors.company}</p>
-                  )}
+                  {errors.company && <p className="text-red-500 text-sm mt-1">{errors.company}</p>}
                 </div>
                 <div>
                   <input
@@ -161,16 +158,14 @@ export default function ContactUs() {
                     name="title"
                     placeholder="Title"
                     className={`w-full p-3 border ${
-                      errors.title ? "border-red-500" : "border-gray-300"
+                      errors.title ? 'border-red-500' : 'border-gray-300'
                     } rounded-md focus:outline-none focus:ring-2 ${
-                      errors.title ? "focus:ring-red-500" : "focus:ring-[#012C61]"
+                      errors.title ? 'focus:ring-red-500' : 'focus:ring-[#012C61]'
                     }`}
                     value={formData.title}
                     onChange={handleInputChange}
                   />
-                  {errors.title && (
-                    <p className="text-red-500 text-sm mt-1">{errors.title}</p>
-                  )}
+                  {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}
                 </div>
               </div>
               <div>
@@ -179,16 +174,14 @@ export default function ContactUs() {
                   name="email"
                   placeholder="Email Address"
                   className={`w-full p-3 border ${
-                    errors.email ? "border-red-500" : "border-gray-300"
+                    errors.email ? 'border-red-500' : 'border-gray-300'
                   } rounded-md focus:outline-none focus:ring-2 ${
-                    errors.email ? "focus:ring-red-500" : "focus:ring-[#012C61]"
+                    errors.email ? 'focus:ring-red-500' : 'focus:ring-[#012C61]'
                   }`}
                   value={formData.email}
                   onChange={handleInputChange}
                 />
-                {errors.email && (
-                  <p className="text-red-500 text-sm mt-1">{errors.email}</p>
-                )}
+                {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
               </div>
               <div>
                 <textarea
@@ -196,30 +189,42 @@ export default function ContactUs() {
                   name="message"
                   placeholder="Message"
                   className={`w-full p-3 border ${
-                    errors.message ? "border-red-500" : "border-gray-300"
+                    errors.message ? 'border-red-500' : 'border-gray-300'
                   } rounded-md focus:outline-none focus:ring-2 ${
-                    errors.message ? "focus:ring-red-500" : "focus:ring-[#012C61]"
+                    errors.message ? 'focus:ring-red-500' : 'focus:ring-[#012C61]'
                   }`}
                   value={formData.message}
                   onChange={handleInputChange}
                 ></textarea>
-                {errors.message && (
-                  <p className="text-red-500 text-sm mt-1">{errors.message}</p>
-                )}
+                {errors.message && <p className="text-red-500 text-sm mt-1">{errors.message}</p>}
               </div>
               <button
                 type="submit"
-                className="w-full bg-[#012C61] text-white py-3 rounded-md hover:bg-[#011B40] transition-colors"
+                disabled={loading}
+                className={`w-full py-3 px-4 text-white font-semibold rounded-md ${
+                  loading ? 'bg-gray-400' : 'bg-[#012C61] hover:bg-[#011B40]'
+                }`}
               >
-                Submit
+                {loading ? 'Sending...' : 'Submit'}
               </button>
             </form>
+            {status && (
+              <div
+                className={`mt-4 text-center p-3 rounded ${
+                  status.includes('successfully') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                }`}
+              >
+                {status}
+              </div>
+            )}
           </div>
         </div>
       </main>
 
       {/* Footer Section */}
-      <Footer /> {/* Replace the inline footer with the Footer component */}
+      <Footer />
     </div>
   );
-}
+};
+
+export default ContactUs;
