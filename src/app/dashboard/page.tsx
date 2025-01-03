@@ -22,6 +22,11 @@ export default function Dashboard() {
   const [user, setUser] = useState<KindeUser | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
 
+  const [subUsers, setSubUsers] = useState<{ subUser1: string; subUser2: string }>({
+    subUser1: "",
+    subUser2: "",
+  });
+
   useEffect(() => {
     if (isAuthenticated) {
       const rawUserData = getUser();
@@ -43,6 +48,10 @@ export default function Dashboard() {
     if (user?.email)
       return `https://www.gravatar.com/avatar/${md5(user.email)}?d=retro`;
     return "/default-avatar.png";
+  };
+
+  const handleAddSubUser = (field: "subUser1" | "subUser2") => {
+    setSubUsers({ ...subUsers, [field]: "" });
   };
 
   return (
@@ -102,6 +111,43 @@ export default function Dashboard() {
                   <p className="text-gray-700">
                     <strong>Email:</strong> {user?.email}
                   </p>
+                  {/* Sub User Fields */}
+                  <div>
+                    <div className="flex items-center space-x-4">
+                      <input
+                        type="text"
+                        value={subUsers.subUser1}
+                        onChange={(e) =>
+                          setSubUsers({ ...subUsers, subUser1: e.target.value })
+                        }
+                        placeholder="Sub User 1"
+                        className="flex-grow px-4 py-2 border rounded-md"
+                      />
+                      <button
+                        onClick={() => handleAddSubUser("subUser1")}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md"
+                      >
+                        Add
+                      </button>
+                    </div>
+                    <div className="flex items-center space-x-4 mt-4">
+                      <input
+                        type="text"
+                        value={subUsers.subUser2}
+                        onChange={(e) =>
+                          setSubUsers({ ...subUsers, subUser2: e.target.value })
+                        }
+                        placeholder="Sub User 2"
+                        className="flex-grow px-4 py-2 border rounded-md"
+                      />
+                      <button
+                        onClick={() => handleAddSubUser("subUser2")}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
