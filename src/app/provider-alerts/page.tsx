@@ -3,11 +3,19 @@
 import { useEffect, useState } from "react";
 import AppLayout from "@/app/components/applayout";
 
+// Define the type for an alert
+interface Alert {
+  title: string;
+  date: string;
+  state_name?: string; // Optional, as it may not always be present
+  attachment_url?: string; // Optional, as it may not always be present
+}
+
 export default function ProviderAlerts() {
-  const [alerts, setAlerts] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [states, setStates] = useState<string[]>([]);
-  const [selectedState, setSelectedState] = useState("");
+  const [alerts, setAlerts] = useState<Alert[]>([]); // Specify alerts as an array of Alert
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [states, setStates] = useState<string[]>([]); // Ensure states is an array of strings
+  const [selectedState, setSelectedState] = useState<string>("");
 
   useEffect(() => {
     // Fetch Provider Alerts
@@ -18,25 +26,32 @@ export default function ProviderAlerts() {
         }
         return response.json();
       })
-      .then((data) => {
+      .then((data: Alert[]) => {
         // Sort alerts by date (latest first)
         const sortedData = data.sort(
-          (a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
         );
 
         setAlerts(sortedData);
 
         // Extract unique states for the filter
-        const uniqueStates = Array.from(
-          new Set(sortedData.map((alert: any) => alert.state_name).filter(Boolean))
+        const uniqueStates: string[] = Array.from(
+          new Set(
+            sortedData
+              .map((alert) => alert.state_name || "") // Default to an empty string if state_name is undefined
+              .filter((state) => state !== "") // Exclude empty strings
+          )
         );
+
         setStates(uniqueStates);
       })
-      .catch((error) => console.error("Error fetching provider alerts:", error));
+      .catch((error) =>
+        console.error("Error fetching provider alerts:", error)
+      );
   }, []);
 
   // Filter alerts based on search query and selected state
-  const filteredAlerts = alerts.filter((alert: any) => {
+  const filteredAlerts = alerts.filter((alert) => {
     const matchesSearch =
       alert.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesState = selectedState
@@ -76,7 +91,7 @@ export default function ProviderAlerts() {
 
       {/* Alerts List with Scroll */}
       <div className="border rounded-md max-h-[600px] overflow-y-auto bg-gray-50 shadow-lg">
-        {filteredAlerts.map((alert: any, index: number) => (
+        {filteredAlerts.map((alert, index) => (
           <div
             key={index}
             className="flex justify-between items-center p-4 border-b last:border-b-0 hover:bg-gray-100 transition duration-300"

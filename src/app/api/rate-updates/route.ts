@@ -9,7 +9,11 @@ export async function GET() {
     // Return the rows as JSON
     return NextResponse.json(rows);
   } catch (error) {
-    console.error("Error fetching data:", error.message, error.stack);
+    if (error instanceof Error) {
+      console.error("Error fetching data:", error.message, error.stack);
+    } else {
+      console.error("Unknown error occurred:", error);
+    }
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
