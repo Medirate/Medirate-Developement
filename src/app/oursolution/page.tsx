@@ -1,7 +1,17 @@
+"use client";
+
 import Image from "next/image";
-import Link from "next/link";
-import { Facebook, Linkedin, Cross, Video, Mail } from "lucide-react";
-import Footer from "@/app/components/footer"; // Import the Footer component
+import Footer from "@/app/components/footer";
+import {
+  Cross,
+  DollarSign,
+  FileText,
+  TrendingUp,
+  MapPin,
+  ThumbsUp,
+  Briefcase,
+  Mail,
+} from "lucide-react";
 
 export default function OurSolution() {
   return (
@@ -18,30 +28,29 @@ export default function OurSolution() {
         />
         <div className="absolute inset-0 flex items-center justify-center">
           <h1 className="text-5xl md:text-6xl text-white font-lemonMilkRegular uppercase tracking-wide">
-            OUR SOLUTION
+            Our Solution
           </h1>
         </div>
       </section>
 
-      {/* Combined Section with Gradient */}
-      <div className="overflow-hidden">
-        <section className="py-12 px-6 relative reusable-gradient-bg">
-          <div className="max-w-7xl mx-auto text-center text-gray-700">
-            {/* Text Content */}
-            <p className="text-lg mb-8 leading-relaxed">
+      {/* Main Content */}
+      <section className="py-12 px-6 reusable-gradient-bg">
+        <div className="max-w-7xl mx-auto">
+          {/* Introductory Content */}
+          <div className="text-center mb-8">
+            <p className="text-lg mb-6 leading-relaxed">
               MediRate’s solution is designed to take the mystery out of
               identifying and monitoring fee schedule payment rates for
               Medicaid-reimbursed services.
             </p>
             <p className="leading-relaxed">
               MediRate is a comprehensive, national database of Medicaid
-              fee-for-service reimbursement rates for key provider service lines.
-              We curate Medicaid fee schedules, provider manuals, provider
-              bulletins, legislative and appropriations documents, regulatory
-              actions, and other sources to aggregate fee-for-service payment
-              amounts by CPT/HCPCS billing code across all 50 states and the
-              District of Columbia. Currently, we offer payment rate data for the
-              following categories of service with more to follow:
+              fee-for-service reimbursement rates for key provider service
+              lines. We curate Medicaid fee schedules, provider manuals,
+              provider bulletins, legislative and appropriations documents,
+              regulatory actions, and other sources to aggregate
+              fee-for-service payment amounts by CPT/HCPCS billing code across
+              all 50 states and the District of Columbia.
             </p>
             <ul className="mt-6 space-y-3">
               <li className="flex items-center justify-center">
@@ -52,59 +61,84 @@ export default function OurSolution() {
                 <Cross className="w-6 h-6 text-[#012C61] mr-2" />
                 <span>Autism/applied behavioral analysis (ABA)</span>
               </li>
-              <li className="flex items-center justify-center">
-                <Cross className="w-6 h-6 text-[#012C61] mr-2" />
-                <span>Behavioral health services</span>
-              </li>
-              <li className="flex items-center justify-center">
-                <Cross className="w-6 h-6 text-[#012C61] mr-2" />
-                <span>
-                  Services for individuals living with addiction/substance use
-                  disorders
-                </span>
-              </li>
             </ul>
-            {/* Secondary Content */}
-            <div className="mt-12 flex flex-col lg:flex-row items-center">
-              <div className="w-full lg:w-1/2 px-6 mb-8 lg:mb-0">
-                <Image
-                  src="/images/close-up-people-back-office_23-2149097923.jpg"
-                  alt="Close up of people in office"
-                  width={600}
-                  height={400}
-                  className="rounded-lg shadow-lg"
-                />
-              </div>
-              <div className="w-full lg:w-1/2 px-6">
-                <p className="leading-relaxed">
-                  Subscribers can search for payment rates by service line
-                  category, billing code, state, program, and date, track them
-                  over time, and compare them to other state payment amounts and
-                  national averages.
-                </p>
-                <p className="leading-relaxed mt-4">
-                  MediRate’s reimbursement tracking service offers real-time
-                  updates and customizable email alerts that identify pending or
-                  actual changes to the fee schedules as they occur.
-                </p>
-                <ul className="mt-6 space-y-3">
-                  <li className="flex items-center">
-                    <Video className="w-6 h-6 text-[#012C61] mr-2" />
-                    <span>Video presentation walking through the product features</span>
-                  </li>
-                  <li className="flex items-center">
-                    <Mail className="w-6 h-6 text-[#012C61] mr-2" />
-                    <span>Email link to request a demo</span>
-                  </li>
-                </ul>
+            <p className="leading-relaxed mt-6">
+              Subscribers can search for payment rates by service line category,
+              billing code, state, program, and date, track them over time, and
+              compare them to other state payment amounts and national
+              averages.
+            </p>
+          </div>
+
+          {/* Video and Points Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mt-12">
+            {/* Left: Video Section */}
+            <div>
+              <h2 className="text-m font-lemonMilkRegular text-[#012C61] mb-4">
+                Learn more about how MediRate can help your business succeed
+                with a video presentation:
+              </h2>
+              <div className="aspect-video">
+                <iframe
+                  className="w-full h-full rounded-lg shadow-lg"
+                  src="https://www.youtube.com/embed/jPQlEpInwTE"
+                  title="MediRate Video Presentation"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
               </div>
             </div>
-          </div>
-        </section>
-      </div>
 
-      {/* Footer Section */}
-      <Footer /> {/* Replace the inline footer with the Footer component */}
+            {/* Right: Additional Points */}
+            <div className="flex flex-col justify-center">
+              <p className="text-lg font-semibold mb-4">
+                MediRate’s services are designed to improve price transparency
+                and help provider organizations:
+              </p>
+              <ul className="space-y-4">
+                <li className="flex items-center">
+                  <DollarSign className="w-6 h-6 text-[#012C61] mr-2" />
+                  <span>Maximize revenue</span>
+                </li>
+                <li className="flex items-center">
+                  <FileText className="w-6 h-6 text-[#012C61] mr-2" />
+                  <span>Improve contracting with MCOs</span>
+                </li>
+                <li className="flex items-center">
+                  <TrendingUp className="w-6 h-6 text-[#012C61] mr-2" />
+                  <span>Inform value-based contracting initiatives</span>
+                </li>
+                <li className="flex items-center">
+                  <MapPin className="w-6 h-6 text-[#012C61] mr-2" />
+                  <span>Identify expansion markets</span>
+                </li>
+                <li className="flex items-center">
+                  <ThumbsUp className="w-6 h-6 text-[#012C61] mr-2" />
+                  <span>Support advocacy efforts</span>
+                </li>
+                <li className="flex items-center">
+                  <Briefcase className="w-6 h-6 text-[#012C61] mr-2" />
+                  <span>Diligence potential acquisition opportunities</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Email Demo Link */}
+          <div className="mt-12 text-center">
+            <a
+              href="mailto:info@medirate.com"
+              className="text-[#012C61] hover:underline flex justify-center items-center space-x-2"
+            >
+              <Mail className="w-6 h-6" />
+              <span>Email link to request a demo</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }

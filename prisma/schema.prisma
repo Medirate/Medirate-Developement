@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  userId             Int       @id @default(autoincrement())
+  kindeId            String    @unique
+  email              String    @unique
+  firstName          String?
+  lastName           String?
+  fullName           String?   // New field from Kinde API
+  picture            String?   // New field from Kinde API
+  isSuspended        Boolean   @default(false) // New field from Kinde API
+  lastSignedIn       DateTime? // New field from Kinde API
+  totalSignIns       Int       @default(0)     // New field from Kinde API
+  failedSignIns      Int       @default(0)     // New field from Kinde API
+  createdOn          DateTime? // New field from Kinde API
+  role               String    @default("user")
+  passwordHash       String?
+  subscriptionStatus String?
+  primaryUserId      Int?
+  planId             Int?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  payments           Payment[]
+  Plan               Plan?     @relation(fields: [planId], references: [planId])
+  primaryUser        User?     @relation("PrimaryUserRelation", fields: [primaryUserId], references: [userId])
+  secondaryUsers     User[]    @relation("PrimaryUserRelation")
+}
+
+
+
+model Plan {
+  planId             Int       @id @default(autoincrement())
+  planName           String
+  price              Float
+  maxUsers           Int
+  additionalUserCost Float?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  payments           Payment[]
+  Users              User[]
+}
+
+model Payment {
+  paymentId     Int      @id @default(autoincrement())
+  userId        Int
+  planId        Int
+  amount        Float
+  paymentStatus String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  plan          Plan     @relation(fields: [planId], references: [planId])
+  user          User     @relation(fields: [userId], references: [userId])
+}

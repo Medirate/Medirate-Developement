@@ -1,5 +1,6 @@
-"use client"; // Indicate this is a client component
-import { LogOut, ArrowRight } from "lucide-react"; // Import icons
+"use client";
+
+import { LogOut, ArrowRight } from "lucide-react";
 import MaxWidthWrapper from "./MaxWidthWrapper";
 import Link from "next/link";
 import Image from "next/image";
@@ -35,6 +36,15 @@ const Navbar = () => {
     height: "5.5rem",
   };
 
+  const authenticatedPages = [
+    "/dashboard",
+    "/profile",
+    "/settings",
+    "/provider-alerts",
+    "/subscription",
+    "/legislative-updates"
+  ];
+
   if (isLoading) {
     return (
       <nav
@@ -50,8 +60,7 @@ const Navbar = () => {
     );
   }
 
-  // Dashboard-specific Navbar
-  if (pathname === "/dashboard" && isAuthenticated) {
+  if (isAuthenticated && authenticatedPages.includes(pathname)) {
     return (
       <nav
         className="sticky inset-x-0 top-0 z-30 w-full border-b backdrop-blur-lg transition-all"
@@ -103,7 +112,7 @@ const Navbar = () => {
                   </div>
                   <div className="py-2 border-t">
                     <LogoutLink
-                      postLogoutRedirectURL="https://medirate-developement.vercel.app/" // Explicit redirect URL
+                      postLogoutRedirectURL="/"
                       className="w-full flex items-center px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-100"
                     >
                       <LogOut className="w-5 h-5 mr-2" />
@@ -119,7 +128,7 @@ const Navbar = () => {
     );
   }
 
-  // Default Navbar for all other pages
+  // Default Navbar for unauthenticated or non-matching pages
   return (
     <nav
       className="sticky inset-x-0 top-0 z-30 w-full border-b backdrop-blur-lg transition-all"
