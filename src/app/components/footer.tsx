@@ -8,8 +8,8 @@ import { Facebook, Linkedin } from "lucide-react";
 const Footer = () => {
   return (
     <footer
-      className="py-12 text-center text-white"
-      style={{ backgroundColor: "rgb(1, 44, 97)" }}
+      className="py-12 text-center text-white border-t"
+      style={{ backgroundColor: "rgb(1, 44, 97)", borderColor: "#E5E7EB" }} // Matches navbar border color
     >
       <div className="flex flex-col items-center">
         <Image src="/top-black.png" alt="MediRate Logo" width={100} height={50} />
