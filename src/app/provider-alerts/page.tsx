@@ -67,18 +67,31 @@ export default function ProviderAlerts() {
       </h1>
 
       {/* Filters Section */}
-      <div className="flex flex-col md:flex-row gap-4 mb-4">
+      <div
+        className="flex items-center justify-between p-4 rounded-lg mb-6" // Added mb-6 for spacing
+        style={{
+          backgroundColor: "#004aad", // Matches the blue color in the image
+          borderRadius: "10px",
+        }}
+      >
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search Provider Alerts"
-          className="w-full px-4 py-2 border rounded-md"
+          className="flex-1 px-4 py-2 rounded-md border-none placeholder-white text-white"
+          style={{
+            backgroundColor: "#5c95e6", // Light blue background for input
+            color: "white", // Ensures the text inside is white
+          }}
         />
         <select
           value={selectedState}
           onChange={(e) => setSelectedState(e.target.value)}
-          className="w-full px-4 py-2 border rounded-md"
+          className="ml-4 px-4 py-2 rounded-md border-none text-white"
+          style={{
+            backgroundColor: "#5c95e6", // Light blue background for dropdown
+          }}
         >
           <option value="">All States</option>
           {states.map((state, index) => (
