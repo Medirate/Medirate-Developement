@@ -7,7 +7,10 @@ import { Facebook, Linkedin } from "lucide-react";
 
 const Footer = () => {
   return (
-    <footer className="py-12 text-center text-white bg-black">
+    <footer
+      className="py-12 text-center text-white"
+      style={{ backgroundColor: "rgb(1, 44, 97)" }}
+    >
       <div className="flex flex-col items-center">
         <Image src="/top-black.png" alt="MediRate Logo" width={100} height={50} />
         <div className="mt-4 flex space-x-6">
