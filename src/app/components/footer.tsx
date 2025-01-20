@@ -1,5 +1,3 @@
-// components/footer.tsx
-
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -8,8 +6,13 @@ import { Facebook, Linkedin } from "lucide-react";
 const Footer = () => {
   return (
     <footer
-      className="py-12 text-center text-white border-t"
-      style={{ backgroundColor: "rgb(1, 44, 97)", borderColor: "#E5E7EB" }} // Matches navbar border color
+      className="py-6 text-center text-white border-t"
+      style={{
+        backgroundColor: "rgb(1, 44, 97)",
+        borderColor: "#E5E7EB", // Matches navbar border
+        position: "relative", // Ensures it's positioned properly in the stacking context
+        zIndex: 100, // Higher than the sidenav
+      }}
     >
       <div className="flex flex-col items-center">
         <Image src="/top-black.png" alt="MediRate Logo" width={100} height={50} />

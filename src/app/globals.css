@@ -70,6 +70,9 @@
       #8bdce0 55deg,
       transparent 360deg
     );
+
+    /* Add universal background color */
+    --app-background: #FAF9F6; /* Replace with your desired color */
   }
 
   .dark {
@@ -105,12 +108,16 @@
 
   body {
     @apply bg-background text-foreground;
+    background-color: var(--app-background); /* Set universal background */
+    margin: 0;
+    padding: 0;
   }
 
   /* Reusable gradient background */
   .reusable-gradient-bg {
     position: relative; /* Keep gradient within its section */
     overflow: hidden; /* Prevent gradient from exceeding container */
+    background-color: var(--app-background); /* Blend with universal background */
   }
 
   .reusable-gradient-bg::before,

@@ -50,7 +50,16 @@ const SideNav = ({
       className={`transition-all duration-500 ease-in-out shadow-lg ${
         isSidebarCollapsed ? "w-16" : "w-64"
       }`}
-      style={{ backgroundColor: "rgb(1, 44, 97)", color: "white" }}
+      style={{
+        backgroundColor: "rgb(1, 44, 97)",
+        color: "white",
+        position: "fixed", // Keeps it fixed
+        top: "5.5rem", // Height of the Navbar
+        bottom: "0", // Extend to the bottom of the viewport
+        left: 0, // Aligns to the left of the viewport
+        height: "calc(100vh - 5.5rem)", // Full height minus navbar
+        zIndex: 50, // Ensures it stays above the content
+      }}
     >
       {/* Sidebar Toggle Button */}
       <div className="flex justify-end p-4">

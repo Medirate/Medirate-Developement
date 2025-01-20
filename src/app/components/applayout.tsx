@@ -11,7 +11,6 @@ interface AppLayoutProps {
 
 const AppLayout = ({ children, activeTab }: AppLayoutProps) => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
-    // Retrieve the saved sidebar state from localStorage
     if (typeof window !== "undefined") {
       return JSON.parse(localStorage.getItem("isSidebarCollapsed") || "true");
     }
@@ -21,7 +20,6 @@ const AppLayout = ({ children, activeTab }: AppLayoutProps) => {
   const toggleSidebar = () => {
     setIsSidebarCollapsed((prev) => {
       const newState = !prev;
-      // Save the new state to localStorage
       if (typeof window !== "undefined") {
         localStorage.setItem("isSidebarCollapsed", JSON.stringify(newState));
       }
@@ -30,7 +28,6 @@ const AppLayout = ({ children, activeTab }: AppLayoutProps) => {
   };
 
   useEffect(() => {
-    // Sync state with localStorage on mount
     if (typeof window !== "undefined") {
       const savedState = JSON.parse(localStorage.getItem("isSidebarCollapsed") || "true");
       setIsSidebarCollapsed(savedState);
@@ -38,9 +35,8 @@ const AppLayout = ({ children, activeTab }: AppLayoutProps) => {
   }, []);
 
   return (
-    <div className="relative min-h-screen flex flex-col">
-      <div className="reusable-gradient-bg absolute inset-0 z-[-1]"></div>
-
+    <div className="flex flex-col min-h-screen">
+      {/* Main Content Container */}
       <div className="flex flex-grow">
         {/* Side Navigation */}
         <SideNav
@@ -51,7 +47,17 @@ const AppLayout = ({ children, activeTab }: AppLayoutProps) => {
         />
 
         {/* Page Content */}
-        <main className="flex-grow container mx-auto px-4 py-6">{children}</main>
+        <main
+          className={`flex-grow transition-all duration-300 ease-in-out px-6 py-8 ${
+            isSidebarCollapsed ? "ml-16" : "ml-64"
+          }`} // Adjust margin dynamically based on sidebar state
+        >
+          <div
+            className="w-full max-w-[1400px] mx-auto" // Adjust width dynamically and center content
+          >
+            {children}
+          </div>
+        </main>
       </div>
 
       {/* Footer */}

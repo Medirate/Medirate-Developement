@@ -7,12 +7,12 @@ export default function Dashboard() {
     <AppLayout activeTab="dashboard">
       <div className="w-full aspect-video rounded-lg overflow-hidden shadow-lg border">
         <iframe
-          src="https://lookerstudio.google.com/embed/reporting/63c9ff09-019b-4855-a466-4d0116936105/page/zRnXE"
-          title="Looker Studio Report"
+          title="MediRate_14Jan"
           width="100%"
           height="100%"
-          allowFullScreen
+          src="https://app.powerbi.com/reportEmbed?reportId=78da698e-c2e0-4113-b58b-b82d860d9531&autoAuth=true&ctid=ea69e699-88e7-447d-b936-54f7c3d698a3"
           frameBorder="0"
+          allowFullScreen={true}
         ></iframe>
       </div>
     </AppLayout>

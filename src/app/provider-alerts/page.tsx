@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AppLayout from "@/app/components/applayout";
+import { Search } from "lucide-react"; // Importing the magnifying glass icon from Lucide
 
 // Define the type for an alert
 interface Alert {
@@ -66,31 +67,35 @@ export default function ProviderAlerts() {
         Provider Alerts
       </h1>
 
-      {/* Filters Section */}
+      {/* Enhanced Filters Section */}
       <div
-        className="flex items-center justify-between p-4 rounded-lg mb-6" // Added mb-6 for spacing
+        className="flex items-center justify-between p-4 rounded-lg mb-6 shadow-lg"
         style={{
           backgroundColor: "#004aad", // Matches the blue color in the image
           borderRadius: "10px",
         }}
       >
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search Provider Alerts"
-          className="flex-1 px-4 py-2 rounded-md border-none placeholder-white text-white"
-          style={{
-            backgroundColor: "#5c95e6", // Light blue background for input
-            color: "white", // Ensures the text inside is white
-          }}
-        />
+        {/* Search Bar */}
+        <div className="flex items-center flex-1 px-4 py-2 bg-[#4682d1] rounded-md">
+          <Search size={20} className="text-white mr-2" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search Provider Alerts"
+            className="flex-1 bg-transparent border-none placeholder-white text-white focus:outline-none"
+          />
+        </div>
+
+        {/* Dropdown */}
         <select
           value={selectedState}
           onChange={(e) => setSelectedState(e.target.value)}
-          className="ml-4 px-4 py-2 rounded-md border-none text-white"
+          className="ml-4 px-4 py-2 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-300"
           style={{
-            backgroundColor: "#5c95e6", // Light blue background for dropdown
+            backgroundColor: "#4682d1", // Same blue as search bar
+            border: "none",
+            color: "white",
           }}
         >
           <option value="">All States</option>
