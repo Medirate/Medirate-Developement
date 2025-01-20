@@ -2,60 +2,55 @@
 
 import { useEffect, useState } from "react";
 import AppLayout from "@/app/components/applayout";
+import { Search } from "lucide-react";
 
-// Define the type for an alert
-interface Alert {
-  title: string;
-  date: string;
-  state_name?: string; // This might be optional
-  attachment_url?: string;
+// Define the type for a bill
+interface Bill {
+  id: number;
+  state_code: string;
+  state_bill_id: string;
+  bill_name: string;
+  last_action: string;
+  sponsor_list: string[] | null;
+  bill_progress: number | null;
+  link: string;
 }
 
 export default function LegislativeUpdates() {
-  const [alerts, setAlerts] = useState<Alert[]>([]); // Specify alerts as an array of `Alert`
+  const [bills, setBills] = useState<Bill[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [states, setStates] = useState<string[]>([]); // Ensure states is always an array of strings
+  const [states, setStates] = useState<string[]>([]);
   const [selectedState, setSelectedState] = useState<string>("");
 
   useEffect(() => {
-    // Fetch Provider Alerts (same API as provider alerts)
-    fetch("/api/rate-updates")
+    fetch("/api/legislative-updates")
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch data");
         }
         return response.json();
       })
-      .then((data: Alert[]) => {
-        // Sort alerts by date (latest first)
-        const sortedData = data.sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      .then((data: Bill[]) => {
+        const sortedData = data.sort((a, b) =>
+          a.state_code.localeCompare(b.state_code)
         );
+        setBills(sortedData);
 
-        setAlerts(sortedData);
-
-        // Extract unique states for the filter
-        const uniqueStates: string[] = Array.from(
-          new Set(
-            sortedData
-              .map((alert) => alert.state_name || "") // Default to an empty string if state_name is undefined
-              .filter((state) => state !== "") // Remove empty strings
-          )
-        );
+        const uniqueStates = Array.from(
+          new Set(sortedData.map((bill) => bill.state_code))
+        ).sort();
 
         setStates(uniqueStates);
       })
-      .catch((error) =>
-        console.error("Error fetching legislative updates:", error)
-      );
+      .catch((error) => console.error("Error fetching bills:", error));
   }, []);
 
-  // Filter alerts based on search query and selected state
-  const filteredAlerts = alerts.filter((alert) => {
-    const matchesSearch =
-      alert.title.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredBills = bills.filter((bill) => {
+    const matchesSearch = bill.bill_name
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
     const matchesState = selectedState
-      ? alert.state_name === selectedState
+      ? bill.state_code === selectedState
       : true;
     return matchesSearch && matchesState;
   });
@@ -67,18 +62,33 @@ export default function LegislativeUpdates() {
       </h1>
 
       {/* Filters Section */}
-      <div className="flex flex-col md:flex-row gap-4 mb-4">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search Legislative Updates"
-          className="w-full px-4 py-2 border rounded-md"
-        />
+      <div
+        className="flex items-center justify-between p-4 rounded-lg mb-6 shadow-lg"
+        style={{
+          backgroundColor: "#004aad",
+          borderRadius: "10px",
+        }}
+      >
+        <div className="flex items-center flex-1 px-4 py-2 bg-[#4682d1] rounded-md">
+          <Search size={20} className="text-white mr-2" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search Legislative Updates"
+            className="flex-1 bg-transparent border-none placeholder-white text-white focus:outline-none"
+          />
+        </div>
+
         <select
           value={selectedState}
           onChange={(e) => setSelectedState(e.target.value)}
-          className="w-full px-4 py-2 border rounded-md"
+          className="ml-4 px-4 py-2 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-300"
+          style={{
+            backgroundColor: "#4682d1",
+            border: "none",
+            color: "white",
+          }}
         >
           <option value="">All States</option>
           {states.map((state, index) => (
@@ -89,37 +99,78 @@ export default function LegislativeUpdates() {
         </select>
       </div>
 
-      {/* Alerts List with Scroll */}
+      {/* Bills Table */}
       <div className="border rounded-md max-h-[600px] overflow-y-auto bg-gray-50 shadow-lg">
-        {filteredAlerts.map((alert, index) => (
-          <div
-            key={index}
-            className="flex justify-between items-center p-4 border-b last:border-b-0 hover:bg-gray-100 transition duration-300"
-          >
-            {/* Title and Read More */}
-            <div className="flex-1 break-words">
-              <div className="flex items-center">
-                <span className="font-semibold text-lg text-[#012C61]">
-                  {alert.title}
-                </span>
-                {alert.attachment_url && (
+        <table
+          className="min-w-full bg-white border-collapse"
+          style={{ tableLayout: "fixed" }} // Ensures fixed layout for the table
+        >
+          <thead>
+            <tr className="border-b">
+              <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                State Code
+              </th>
+              <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                State Bill ID
+              </th>
+              <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                Bill Name
+              </th>
+              <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                Last Action
+              </th>
+              <th
+                className="text-left p-4 font-semibold text-sm text-[#012C61] border-b"
+                style={{ width: "150px" }} // Set a fixed width for the Sponsor List column
+              >
+                Sponsors
+              </th>
+              <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                Progress
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredBills.map((bill) => (
+              <tr key={bill.id} className="border-b hover:bg-gray-100">
+                <td className="p-4 text-sm text-gray-700 border-b">
+                  {bill.state_code}
+                </td>
+                <td className="p-4 text-sm text-blue-500 border-b">
                   <a
-                    href={alert.attachment_url.split(",")[0].trim()} // Use the first URL from attachment_url
+                    href={bill.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-500 hover:underline text-sm ml-2"
+                    className="hover:underline"
                   >
-                    [Read More]
+                    {bill.state_bill_id}
                   </a>
-                )}
-              </div>
-            </div>
-            {/* Date */}
-            <div className="text-gray-600 text-sm">
-              {new Date(alert.date).toLocaleDateString()}
-            </div>
-          </div>
-        ))}
+                </td>
+                <td className="p-4 text-sm text-gray-700 border-b">
+                  {bill.bill_name}
+                </td>
+                <td className="p-4 text-sm text-gray-700 border-b">
+                  {bill.last_action}
+                </td>
+                <td
+                  className="p-4 text-sm text-gray-700 border-b"
+                  style={{
+                    width: "150px", // Set a fixed width for the Sponsor List column
+                    wordWrap: "break-word", // Allows content to wrap within the cell
+                    whiteSpace: "normal", // Ensures text wraps to the next line
+                  }}
+                >
+                  {bill.sponsor_list ? bill.sponsor_list.join(", ") : "Null"}
+                </td>
+                <td className="p-4 text-sm text-gray-700 border-b">
+                  {bill.bill_progress !== null
+                    ? `${bill.bill_progress}%`
+                    : "Null"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </AppLayout>
   );

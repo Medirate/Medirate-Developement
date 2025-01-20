@@ -34,7 +34,7 @@ const SideNav = ({
     const tabMapping: { [key: string]: string } = {
       "/dashboard": "dashboard",
       "/provider-alerts": "providerAlerts",
-      "/legislative-updates": "legislativeAlerts",
+      "/legislative-updates": "legislativeUpdates",
       "/profile": "profile",
       "/subscription": "subscription",
       "/settings": "settings",
