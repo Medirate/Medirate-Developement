@@ -11,6 +11,7 @@ import {
   ChartNoAxesCombined,
   Bell,
   Gavel,
+  Megaphone,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -35,6 +36,7 @@ const SideNav = ({
       "/dashboard": "dashboard",
       "/provider-alerts": "providerAlerts",
       "/legislative-updates": "legislativeUpdates",
+      "/rate-developments": "rateDevelopments",
       "/profile": "profile",
       "/subscription": "subscription",
       "/settings": "settings",
@@ -88,10 +90,16 @@ const SideNav = ({
               href: "/provider-alerts",
             },
             {
-              tab: "legislativeAlerts",
+              tab: "legislativeUpdates",
               icon: <Gavel size={20} />,
               label: "Legislative Updates",
               href: "/legislative-updates",
+            },
+            {
+              tab: "rateDevelopments",
+              icon: <Megaphone size={20} />, // Add the Megaphone icon here
+              label: "Rate Developments",
+              href: "/rate-developments",
             },
             {
               tab: "profile",

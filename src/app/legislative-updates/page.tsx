@@ -103,9 +103,9 @@ export default function LegislativeUpdates() {
       <div className="border rounded-md max-h-[600px] overflow-y-auto bg-gray-50 shadow-lg">
         <table
           className="min-w-full bg-white border-collapse"
-          style={{ tableLayout: "fixed" }} // Ensures fixed layout for the table
+          style={{ tableLayout: "fixed" }}
         >
-          <thead>
+          <thead className="sticky top-0 bg-white shadow">
             <tr className="border-b">
               <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
                 State Code
@@ -121,7 +121,7 @@ export default function LegislativeUpdates() {
               </th>
               <th
                 className="text-left p-4 font-semibold text-sm text-[#012C61] border-b"
-                style={{ width: "150px" }} // Set a fixed width for the Sponsor List column
+                style={{ width: "150px" }}
               >
                 Sponsors
               </th>
@@ -131,8 +131,8 @@ export default function LegislativeUpdates() {
             </tr>
           </thead>
           <tbody>
-            {filteredBills.map((bill) => (
-              <tr key={bill.id} className="border-b hover:bg-gray-100">
+            {filteredBills.map((bill, index) => (
+              <tr key={`${bill.id}-${index}`} className="border-b hover:bg-gray-100">
                 <td className="p-4 text-sm text-gray-700 border-b">
                   {bill.state_code}
                 </td>
@@ -155,9 +155,9 @@ export default function LegislativeUpdates() {
                 <td
                   className="p-4 text-sm text-gray-700 border-b"
                   style={{
-                    width: "150px", // Set a fixed width for the Sponsor List column
-                    wordWrap: "break-word", // Allows content to wrap within the cell
-                    whiteSpace: "normal", // Ensures text wraps to the next line
+                    width: "150px",
+                    wordWrap: "break-word",
+                    whiteSpace: "normal",
                   }}
                 >
                   {bill.sponsor_list ? bill.sponsor_list.join(", ") : "Null"}

@@ -42,7 +42,8 @@ const Navbar = () => {
     "/settings",
     "/provider-alerts",
     "/subscription",
-    "/legislative-updates"
+    "/legislative-updates",
+    "/rate-developments", // Added Rate Developments page here
   ];
 
   if (isLoading) {
