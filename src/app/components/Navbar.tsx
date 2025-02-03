@@ -8,29 +8,55 @@ import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import { LogoutLink } from "@kinde-oss/kinde-auth-nextjs/components";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
+import { createClient } from "@supabase/supabase-js";
+import { KindeUser } from "@kinde-oss/kinde-auth-nextjs/types";
+
+// ✅ Initialize Supabase
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 const Navbar = () => {
   const { isAuthenticated, isLoading, user } = useKindeBrowserClient();
   const pathname = usePathname();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [userInfo, setUserInfo] = useState<{ name: string; email: string; picture?: string }>({
+    name: "User",
+    email: "",
+    picture: undefined,
+  });
 
-  // 🔹 Automatically sync user to Supabase after login
+  // ✅ Fetch user info from Supabase if Gmail login is disabled
   useEffect(() => {
     if (user && user.email) {
-      fetch("/api/sync-kinde-user", { method: "POST" })
-        .then((res) => res.json())
-        .then((data) => console.log("✅ Kinde User Sync:", data))
-        .catch((err) => console.error("❌ Kinde Sync Error:", err));
+      fetchUserFromSupabase(user.email);
     }
   }, [user]);
 
+  const fetchUserFromSupabase = async (email: string) => {
+    console.log("Fetching user from Supabase:", email);
+    const { data, error } = await supabase
+      .from("User")
+      .select("FirstName, LastName, Email, Picture")
+      .eq("Email", email)
+      .single();
+
+    if (error) {
+      console.error("❌ Supabase Fetch Error:", error);
+    } else {
+      setUserInfo({
+        name: data.FirstName || data.LastName || "User",
+        email: data.Email,
+        picture: data.Picture || undefined,
+      });
+    }
+  };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDropdownOpen(false);
       }
     };
@@ -58,10 +84,7 @@ const Navbar = () => {
 
   if (isLoading) {
     return (
-      <nav
-        className="sticky inset-x-0 top-0 z-30 w-full border-b backdrop-blur-lg transition-all"
-        style={navbarStyle}
-      >
+      <nav className="sticky inset-x-0 top-0 z-30 w-full border-b backdrop-blur-lg transition-all" style={navbarStyle}>
         <MaxWidthWrapper>
           <div className="flex h-[5.5rem] items-center justify-center">
             <span className="text-white">Loading...</span>
@@ -73,21 +96,12 @@ const Navbar = () => {
 
   if (isAuthenticated && authenticatedPages.includes(pathname)) {
     return (
-      <nav
-        className="sticky inset-x-0 top-0 z-30 w-full border-b backdrop-blur-lg transition-all"
-        style={navbarStyle}
-      >
+      <nav className="sticky inset-x-0 top-0 z-30 w-full border-b backdrop-blur-lg transition-all" style={navbarStyle}>
         <MaxWidthWrapper>
           <div className="flex h-[5.5rem] items-center justify-between px-4 lg:px-6">
             <div className="flex-shrink-0">
               <Link href="/" className="flex items-center">
-                <Image
-                  src="/top-black.png"
-                  alt="MediRate Logo"
-                  width={150}
-                  height={70}
-                  priority
-                />
+                <Image src="/top-black.png" alt="MediRate Logo" width={150} height={70} priority />
               </Link>
             </div>
 
@@ -96,34 +110,22 @@ const Navbar = () => {
                 onClick={() => setDropdownOpen(!dropdownOpen)}
                 className="relative w-10 h-10 rounded-full overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white"
               >
-                {user?.picture ? (
-                  <Image
-                    src={user.picture}
-                    alt="User Avatar"
-                    className="object-cover w-full h-full"
-                    fill
-                  />
+                {userInfo.picture ? (
+                  <Image src={userInfo.picture} alt="User Avatar" className="object-cover w-full h-full" fill />
                 ) : (
                   <div className="flex items-center justify-center w-full h-full bg-purple-500 text-white font-bold">
-                    {user?.given_name?.charAt(0) || user?.email?.charAt(0) || "?"}
+                    {userInfo.name.charAt(0).toUpperCase() || "U"}
                   </div>
                 )}
               </button>
               {dropdownOpen && (
                 <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg py-4">
                   <div className="px-4 pb-4 border-b">
-                    <p className="text-sm font-medium text-gray-900">
-                      {user?.given_name || "User Name"}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {user?.email || "user@example.com"}
-                    </p>
+                    <p className="text-sm font-medium text-gray-900">{userInfo.name}</p>
+                    <p className="text-xs text-gray-500">{userInfo.email}</p>
                   </div>
                   <div className="py-2 border-t">
-                    <LogoutLink
-                      postLogoutRedirectURL="/"
-                      className="w-full flex items-center px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-100"
-                    >
+                    <LogoutLink postLogoutRedirectURL="/" className="w-full flex items-center px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-100">
                       <LogOut className="w-5 h-5 mr-2" />
                       Sign Out
                     </LogoutLink>
@@ -138,21 +140,12 @@ const Navbar = () => {
   }
 
   return (
-    <nav
-      className="sticky inset-x-0 top-0 z-30 w-full border-b backdrop-blur-lg transition-all"
-      style={navbarStyle}
-    >
+    <nav className="sticky inset-x-0 top-0 z-30 w-full border-b backdrop-blur-lg transition-all" style={navbarStyle}>
       <MaxWidthWrapper>
         <div className="flex h-[5.5rem] items-center justify-start px-4 lg:px-6">
           <div className="flex-shrink-0 mr-auto">
             <Link href="/" className="flex items-center">
-              <Image
-                src="/top-black.png"
-                alt="MediRate Logo"
-                width={150}
-                height={70}
-                priority
-              />
+              <Image src="/top-black.png" alt="MediRate Logo" width={150} height={70} priority />
             </Link>
           </div>
 
