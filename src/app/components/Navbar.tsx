@@ -15,6 +15,16 @@ const Navbar = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // 🔹 Automatically sync user to Supabase after login
+  useEffect(() => {
+    if (user && user.email) {
+      fetch("/api/sync-kinde-user", { method: "POST" })
+        .then((res) => res.json())
+        .then((data) => console.log("✅ Kinde User Sync:", data))
+        .catch((err) => console.error("❌ Kinde Sync Error:", err));
+    }
+  }, [user]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -43,7 +53,7 @@ const Navbar = () => {
     "/provider-alerts",
     "/subscription",
     "/legislative-updates",
-    "/rate-developments", // Added Rate Developments page here
+    "/rate-developments",
   ];
 
   if (isLoading) {
@@ -69,7 +79,6 @@ const Navbar = () => {
       >
         <MaxWidthWrapper>
           <div className="flex h-[5.5rem] items-center justify-between px-4 lg:px-6">
-            {/* Logo/Brand */}
             <div className="flex-shrink-0">
               <Link href="/" className="flex items-center">
                 <Image
@@ -82,7 +91,6 @@ const Navbar = () => {
               </Link>
             </div>
 
-            {/* Profile Dropdown */}
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -129,7 +137,6 @@ const Navbar = () => {
     );
   }
 
-  // Default Navbar for unauthenticated or non-matching pages
   return (
     <nav
       className="sticky inset-x-0 top-0 z-30 w-full border-b backdrop-blur-lg transition-all"
@@ -137,7 +144,6 @@ const Navbar = () => {
     >
       <MaxWidthWrapper>
         <div className="flex h-[5.5rem] items-center justify-start px-4 lg:px-6">
-          {/* Logo/Brand */}
           <div className="flex-shrink-0 mr-auto">
             <Link href="/" className="flex items-center">
               <Image
@@ -150,53 +156,30 @@ const Navbar = () => {
             </Link>
           </div>
 
-          {/* Navbar Links */}
           <div className="flex items-center space-x-6">
-            <Link
-              href="/oursolution"
-              className="border border-transparent px-4 py-2 rounded-md text-white transition-colors hover:border-white hover:bg-transparent"
-            >
+            <Link href="/oursolution" className="border border-transparent px-4 py-2 rounded-md text-white transition-colors hover:border-white hover:bg-transparent">
               Our Solution
             </Link>
-            <Link
-              href="/ourcustomers"
-              className="border border-transparent px-4 py-2 rounded-md text-white transition-colors hover:border-white hover:bg-transparent"
-            >
+            <Link href="/ourcustomers" className="border border-transparent px-4 py-2 rounded-md text-white transition-colors hover:border-white hover:bg-transparent">
               Our Customers
             </Link>
-            <Link
-              href="/aboutus"
-              className="border border-transparent px-4 py-2 rounded-md text-white transition-colors hover:border-white hover:bg-transparent"
-            >
+            <Link href="/aboutus" className="border border-transparent px-4 py-2 rounded-md text-white transition-colors hover:border-white hover:bg-transparent">
               About Us
             </Link>
-            <Link
-              href="/contactus"
-              className="border border-transparent px-4 py-2 rounded-md text-white transition-colors hover:border-white hover:bg-transparent"
-            >
+            <Link href="/contactus" className="border border-transparent px-4 py-2 rounded-md text-white transition-colors hover:border-white hover:bg-transparent">
               Contact Us
             </Link>
-            <Link
-              href="/subscribe"
-              className="border border-transparent px-4 py-2 rounded-md text-white transition-colors hover:border-white hover:bg-transparent"
-            >
+            <Link href="/subscribe" className="border border-transparent px-4 py-2 rounded-md text-white transition-colors hover:border-white hover:bg-transparent">
               Subscribe
             </Link>
 
-            {/* Sign In or Dashboard Button */}
             {isAuthenticated ? (
-              <Link
-                href="/dashboard"
-                className="flex items-center border border-white bg-white px-4 py-2 rounded-md text-[#000000] font-semibold transition-colors hover:bg-transparent hover:text-white"
-              >
+              <Link href="/dashboard" className="flex items-center border border-white bg-white px-4 py-2 rounded-md text-[#000000] font-semibold transition-colors hover:bg-transparent hover:text-white">
                 Dashboard
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             ) : (
-              <Link
-                href="/api/auth/login"
-                className="flex items-center border border-white bg-white px-4 py-2 rounded-md text-[#000000] font-semibold transition-colors hover:bg-transparent hover:text-white"
-              >
+              <Link href="/api/auth/login" className="flex items-center border border-white bg-white px-4 py-2 rounded-md text-[#000000] font-semibold transition-colors hover:bg-transparent hover:text-white">
                 Sign In
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>

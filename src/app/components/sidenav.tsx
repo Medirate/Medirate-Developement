@@ -9,8 +9,6 @@ import {
   Settings,
   CircleDollarSign,
   ChartNoAxesCombined,
-  Bell,
-  Gavel,
   Megaphone,
 } from "lucide-react";
 import Link from "next/link";
@@ -34,8 +32,6 @@ const SideNav = ({
   useEffect(() => {
     const tabMapping: { [key: string]: string } = {
       "/dashboard": "dashboard",
-      "/provider-alerts": "providerAlerts",
-      "/legislative-updates": "legislativeUpdates",
       "/rate-developments": "rateDevelopments",
       "/profile": "profile",
       "/subscription": "subscription",
@@ -82,18 +78,6 @@ const SideNav = ({
               icon: <ChartNoAxesCombined size={20} />,
               label: "Dashboard",
               href: "/dashboard",
-            },
-            {
-              tab: "providerAlerts",
-              icon: <Bell size={20} />,
-              label: "Provider Alerts",
-              href: "/provider-alerts",
-            },
-            {
-              tab: "legislativeUpdates",
-              icon: <Gavel size={20} />,
-              label: "Legislative Updates",
-              href: "/legislative-updates",
             },
             {
               tab: "rateDevelopments",
