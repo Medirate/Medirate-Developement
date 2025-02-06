@@ -138,8 +138,8 @@ export default function RateDevelopments() {
 
   const filteredLegislativeUpdates = legislativeUpdates.filter((bill) => {
     const matchesSearch = bill.bill_name
-      .toLowerCase()
-      .includes(legislativeSearch.toLowerCase());
+      ? bill.bill_name.toLowerCase().includes(legislativeSearch.toLowerCase())
+      : false;
     const matchesState = selectedState
       ? bill.state_code === selectedState
       : true;
