@@ -4,7 +4,7 @@ import pool from "@/lib/db";
 export async function GET() {
   try {
     // Query the 'bills' table
-    const { rows } = await pool.query("SELECT * FROM bill_track_50");
+    const { rows } = await pool.query("SELECT * FROM bills");
 
     // Return the rows as JSON
     return NextResponse.json(rows);
