@@ -38,17 +38,6 @@ const StripePricingTableWithFooter = () => {
           <span className="text-lg">Card</span>
         </div>
 
-        {/* Additional Information Below the Pricing Table */}
-        <div className="mt-8 p-6 bg-gray-100 rounded-lg shadow-md w-full max-w-3xl text-center">
-          <h3 className="text-lg font-semibold mb-2">Why Choose Our Subscription?</h3>
-          <p className="text-sm text-gray-700">
-            Our subscription provides comprehensive access to Medicaid reimbursement data,
-            allowing you to compare rates across different states and track policy changes in real time.
-          </p>
-          <p className="text-sm text-gray-700 mt-2">
-            Gain insights, maximize revenue, and enhance negotiations with MCOs and other healthcare organizations.
-          </p>
-        </div>
 
         {/* Terms and Conditions Link */}
         <div className="mt-6 text-center">
