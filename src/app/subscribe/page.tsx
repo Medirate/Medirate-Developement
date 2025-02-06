@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Footer from "@/app/components/footer";
+import { CreditCard } from "lucide-react"; // Using Lucide icon
 
 const StripePricingTableWithFooter = () => {
   const [showTerms, setShowTerms] = useState(false);
@@ -14,7 +15,7 @@ const StripePricingTableWithFooter = () => {
     document.body.appendChild(script);
 
     return () => {
-      document.body.removeChild(script); // Clean up the script when the component unmounts
+      document.body.removeChild(script); // Clean up when component unmounts
     };
   }, []);
 
@@ -22,15 +23,19 @@ const StripePricingTableWithFooter = () => {
     <div className="flex flex-col min-h-screen">
       {/* Main Content */}
       <main className="flex-grow flex flex-col items-center justify-center px-4">
-        <div
-          className="w-full max-w-4xl transform scale-110" // Adjust width and scale
-          style={{ transformOrigin: "center" }}
-        >
+        <div className="w-full max-w-4xl transform scale-110" style={{ transformOrigin: "center" }}>
           {React.createElement("stripe-pricing-table", {
-            "pricing-table-id": "prctbl_1QhgA9EA5fbmDyeFHEeLwdrJ", // Replace with your actual Pricing Table ID
+            "pricing-table-id": "prctbl_1QhgA9EA5fbmDyeFHEeLwdrJ", // Replace with actual Pricing Table ID
             "publishable-key":
-              "pk_test_51QhZ80EA5fbmDyeFadp5z5QeaxeFyaUhRpS4nq3rXQh6Zap8nsAKw5D3lalc3ewBtBpecpBzeULgZx7H1jxragFs00IAS0L60o", // Replace with your actual Publishable Key
+              "pk_test_51QhZ80EA5fbmDyeFadp5z5QeaxeFyaUhRpS4nq3rXQh6Zap8nsAKw5D3lalc3ewBtBpecpBzeULgZx7H1jxragFs00IAS0L60o", // Replace with actual Publishable Key
           })}
+        </div>
+
+        {/* Accepted Payment Methods */}
+        <div className="mt-6 p-4 bg-gray-100 rounded-lg shadow-md flex items-center space-x-2">
+          <span className="text-lg font-semibold">Accepted Payment Methods:</span>
+          <CreditCard className="w-6 h-6 text-blue-600" /> {/* Lucide icon */}
+          <span className="text-lg">Card</span>
         </div>
 
         {/* Additional Information Below the Pricing Table */}
@@ -47,13 +52,15 @@ const StripePricingTableWithFooter = () => {
 
         {/* Terms and Conditions Link */}
         <div className="mt-6 text-center">
-          <button onClick={() => setShowTerms(true)} className="text-blue-600 underline">Terms and Conditions</button>
+          <button onClick={() => setShowTerms(true)} className="text-blue-600 underline">
+            Terms and Conditions
+          </button>
         </div>
       </main>
 
       {/* Terms and Conditions Modal */}
       {showTerms && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center p-4 z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-2xl w-full">
             <h2 className="text-lg font-semibold mb-4">USE OF THE MEDIRATE SOLUTION IS SUBJECT TO THE FOLLOWING TERMS AND CONDITIONS</h2>
             <p className="text-sm text-gray-700 mb-2">1. CPT® Content is copyrighted by the American Medical Association and CPT is a registered trademark of the AMA.</p>
@@ -67,7 +74,9 @@ const StripePricingTableWithFooter = () => {
             <p className="text-sm text-gray-700 mb-2">9. AMA shall be named as a third-party beneficiary of the End User Agreement.</p>
             <p className="text-sm text-gray-700 mb-2">10. End User expressly consents to the release of its name to the AMA.</p>
             <p className="text-sm text-gray-700 mb-2">11. The responsibility for the content of any “National Correct Coding Policy” included in this product is with the Centers for Medicare and Medicaid Services...</p>
-            <button onClick={() => setShowTerms(false)} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded">Close</button>
+            <button onClick={() => setShowTerms(false)} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded">
+              Close
+            </button>
           </div>
         </div>
       )}
