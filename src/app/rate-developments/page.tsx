@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AppLayout from "@/app/components/applayout";
-import { Search } from "lucide-react";
+import { Search, LayoutGrid, LayoutList, ChevronLeft, ChevronRight } from "lucide-react";
 
 // Define the type for the datasets
 interface Alert {
@@ -90,6 +90,12 @@ export default function RateDevelopments() {
   const [legislativeSearch, setLegislativeSearch] = useState<string>("");
 
   const [selectedState, setSelectedState] = useState<string>("");
+
+  const [layout, setLayout] = useState<"vertical" | "horizontal">("vertical");
+  const [activeTable, setActiveTable] = useState<"provider" | "legislative">("provider");
+
+  // CSS variable for toggle button position
+  const toggleOffset = "20px"; // Adjust this value to move the toggle button horizontally
 
   useEffect(() => {
     // Fetch Provider Alerts
@@ -188,105 +194,258 @@ export default function RateDevelopments() {
         </div>
       </div>
 
-      {/* Tables */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Provider Alerts Table */}
-        <div>
-          <div className="border rounded-md max-h-[600px] overflow-y-auto bg-gray-50 shadow-lg">
-            <table className="min-w-full bg-white border-collapse">
-              <thead className="sticky top-0 bg-white shadow">
-                <tr className="border-b">
-                  <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-                    State Name
-                  </th>
-                  <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-                    Title
-                  </th>
-                  <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-                    Date
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProviderAlerts.map((alert, index) => (
-                  <tr key={index} className="border-b hover:bg-gray-100">
-                    <td className="p-4 text-sm text-gray-700 border-b">
-                      {alert.state_name || "N/A"}
-                    </td>
-                    <td className="p-4 text-sm text-gray-700 border-b">
-                      {alert.title}
-                    </td>
-                    <td className="p-4 text-sm text-gray-700 border-b">
-                      {new Date(alert.date).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Legislative Updates Table */}
-        <div>
-          <div className="border rounded-md max-h-[600px] overflow-y-auto bg-gray-50 shadow-lg">
-            <table className="min-w-full bg-white border-collapse">
-              <thead className="sticky top-0 bg-white shadow">
-                <tr className="border-b">
-                  <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-                    State Code
-                  </th>
-                  <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-                    State Bill ID
-                  </th>
-                  <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-                    Bill Name
-                  </th>
-                  <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-                    Last Action
-                  </th>
-                  <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-                    Sponsors
-                  </th>
-                  <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-                    Progress
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLegislativeUpdates.map((bill, index) => (
-                  <tr key={index} className="border-b hover:bg-gray-100">
-                    <td className="p-4 text-sm text-gray-700 border-b">
-                      {bill.state_code}
-                    </td>
-                    <td className="p-4 text-sm text-blue-500 border-b">
-                      <a
-                        href={bill.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:underline"
-                      >
-                        {bill.state_bill_id}
-                      </a>
-                    </td>
-                    <td className="p-4 text-sm text-gray-700 border-b">
-                      {bill.bill_name}
-                    </td>
-                    <td className="p-4 text-sm text-gray-700 border-b">
-                      {bill.last_action}
-                    </td>
-                    <td className="p-4 text-sm text-gray-700 border-b">
-                      {bill.sponsor_list ? bill.sponsor_list.join(", ") : "N/A"}
-                    </td>
-                    <td className="p-4 text-sm text-gray-700 border-b">
-                      {bill.bill_progress || "N/A"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      {/* Layout Toggle Buttons */}
+      <div className="flex justify-center space-x-4 mb-6">
+        <button
+          onClick={() => setLayout("vertical")}
+          className={`p-2 rounded-md flex items-center ${
+            layout === "vertical" ? "bg-[#004aad] text-white" : "bg-gray-200"
+          }`}
+        >
+          <LayoutGrid size={20} className="mr-2" />
+          <span>Vertical Layout</span>
+        </button>
+        <button
+          onClick={() => setLayout("horizontal")}
+          className={`p-2 rounded-md flex items-center ${
+            layout === "horizontal" ? "bg-[#004aad] text-white" : "bg-gray-200"
+          }`}
+        >
+          <LayoutList size={20} className="mr-2" />
+          <span>Horizontal Layout</span>
+        </button>
       </div>
+
+      {/* Tables */}
+      {layout === "vertical" ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Provider Alerts Table */}
+          <div>
+            <h2 className="text-xl font-semibold text-[#012C61] mb-2">
+              Provider Alerts
+            </h2>
+            <div className="border rounded-md max-h-[600px] overflow-y-auto bg-gray-50 shadow-lg">
+              <table className="min-w-full bg-white border-collapse">
+                <thead className="sticky top-0 bg-white shadow">
+                  <tr className="border-b">
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      State Name
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Title
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Date
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredProviderAlerts.map((alert, index) => (
+                    <tr key={index} className="border-b hover:bg-gray-100">
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {alert.state_name || "N/A"}
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {alert.title}
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {new Date(alert.date).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Legislative Updates Table */}
+          <div>
+            <h2 className="text-xl font-semibold text-[#012C61] mb-2">
+              Legislative Updates
+            </h2>
+            <div className="border rounded-md max-h-[600px] overflow-y-auto bg-gray-50 shadow-lg">
+              <table className="min-w-full bg-white border-collapse">
+                <thead className="sticky top-0 bg-white shadow">
+                  <tr className="border-b">
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      State Code
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      State Bill ID
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Bill Name
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Last Action
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Sponsors
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Progress
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredLegislativeUpdates.map((bill, index) => (
+                    <tr key={index} className="border-b hover:bg-gray-100">
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {bill.state_code}
+                      </td>
+                      <td className="p-4 text-sm text-blue-500 border-b">
+                        <a
+                          href={bill.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:underline"
+                        >
+                          {bill.state_bill_id}
+                        </a>
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {bill.bill_name}
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {bill.last_action}
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {bill.sponsor_list ? bill.sponsor_list.join(", ") : "N/A"}
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {bill.bill_progress || "N/A"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="relative overflow-hidden">
+          {/* Table Heading */}
+          <h2 className="text-xl font-semibold text-[#012C61] mb-2">
+            {activeTable === "provider" ? "Provider Alerts" : "Legislative Updates"}
+          </h2>
+
+          {/* Table Toggle Button */}
+          <button
+            onClick={() =>
+              setActiveTable(activeTable === "provider" ? "legislative" : "provider")
+            }
+            className={`absolute ${
+              activeTable === "provider" ? "right-5" : "-left-5"
+            } top-1/2 transform -translate-y-1/2 p-2 bg-[#004aad] text-white rounded-full shadow-lg z-20`}
+            style={{
+              transform: `translateY(-50%) translateX(${toggleOffset})`,
+            }}
+          >
+            {activeTable === "provider" ? (
+              <ChevronRight size={20} />
+            ) : (
+              <ChevronLeft size={20} />
+            )}
+          </button>
+
+          {/* Tables Container */}
+          <div className="flex transition-transform duration-300 ease-in-out"
+               style={{ transform: `translateX(${activeTable === "provider" ? "0%" : "-100%"})` }}>
+            {/* Provider Alerts Table */}
+            <div className="min-w-full border rounded-md max-h-[600px] overflow-y-auto bg-gray-50 shadow-lg relative">
+              <table className="min-w-full bg-white border-collapse">
+                <thead className="sticky top-0 bg-white shadow">
+                  <tr className="border-b">
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      State Name
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Title
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Date
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredProviderAlerts.map((alert, index) => (
+                    <tr key={index} className="border-b hover:bg-gray-100">
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {alert.state_name || "N/A"}
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {alert.title}
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {new Date(alert.date).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Legislative Updates Table */}
+            <div className="min-w-full border rounded-md max-h-[600px] overflow-y-auto bg-gray-50 shadow-lg relative">
+              <table className="min-w-full bg-white border-collapse">
+                <thead className="sticky top-0 bg-white shadow">
+                  <tr className="border-b">
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      State Code
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      State Bill ID
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Bill Name
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Last Action
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Sponsors
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Progress
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredLegislativeUpdates.map((bill, index) => (
+                    <tr key={index} className="border-b hover:bg-gray-100">
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {bill.state_code}
+                      </td>
+                      <td className="p-4 text-sm text-blue-500 border-b">
+                        <a
+                          href={bill.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:underline"
+                        >
+                          {bill.state_bill_id}
+                        </a>
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {bill.bill_name}
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {bill.last_action}
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {bill.sponsor_list ? bill.sponsor_list.join(", ") : "N/A"}
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {bill.bill_progress || "N/A"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }

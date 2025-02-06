@@ -30,7 +30,7 @@ export default function OurCustomers() {
 
         <div className="max-w-7xl mx-auto text-center text-gray-700">
           <p className="text-lg font-semibold mb-8 leading-relaxed">
-            MediRate’s reimbursement tracking service is designed to support a
+            MediRate’s Medicaid reimbursement tracking service is designed to support a
             broad array of Medicaid stakeholders including:
           </p>
 
@@ -38,7 +38,7 @@ export default function OurCustomers() {
             {/* Left Image */}
             <div className="w-full lg:w-1/2">
               <Image
-                src="/images/medical-expert-patient-meeting-check-up-appointment.jpg" // Second Image
+                src="/images/dashboard-screenshot.png" // Second Image
                 alt="Medical Expert with Patient"
                 width={600}
                 height={400}

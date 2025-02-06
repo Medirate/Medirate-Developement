@@ -11,7 +11,7 @@ export default function Home() {
       <div className="relative w-full h-screen">
         {/* Background Image */}
         <Image
-          src="/images/lady-looking-at-screen.jpg"
+          src="/images/doc looking at screen.jpg"
           alt="Lady Looking at Screen"
           layout="fill"
           objectFit="cover"
@@ -89,12 +89,12 @@ export default function Home() {
           </div>
 
           {/* Image Section */}
-          <div className="mt-10 lg:mt-0 lg:w-1/2 lg:flex lg:justify-end">
+          <div className="mt-10 lg:mt-0 lg:w-1/2 lg:flex lg:justify-end -mr-7">
             <Image
-              src="/images/doctor-hand-on-laptop.png"
+              src="/images/Historical-Screenshot.png"
               alt="Doctor working on laptop"
-              width={600}
-              height={400}
+              width={1000} // Increase size
+              height={750} // Increase size
               className="rounded-lg shadow-lg"
             />
           </div>
@@ -108,7 +108,7 @@ export default function Home() {
           <Link href="/oursolution" passHref>
             <div className="bg-white rounded-lg overflow-hidden shadow-lg cursor-pointer transition-transform transform hover:scale-105">
               <Image
-                src="/images/doctor-looking-at-screen.png"
+                src="/images/doclookingattab2.jpg"
                 alt="Our Solution"
                 width={600}
                 height={400}
@@ -126,7 +126,7 @@ export default function Home() {
           <Link href="/ourcustomers" passHref>
             <div className="bg-white rounded-lg overflow-hidden shadow-lg cursor-pointer transition-transform transform hover:scale-105">
               <Image
-                src="/images/nurse-looking-into-screen.png"
+                src="/images/sadfdsf.jpg"
                 alt="Our Customers"
                 width={600}
                 height={400}
@@ -144,7 +144,7 @@ export default function Home() {
           <Link href="/subscribe" passHref>
             <div className="bg-white rounded-lg overflow-hidden shadow-lg cursor-pointer transition-transform transform hover:scale-105">
               <Image
-                src="/images/Files-thing.png"
+                src="/images/subscribe.jpg"
                 alt="Subscribe"
                 width={600}
                 height={400}
