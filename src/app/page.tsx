@@ -91,7 +91,7 @@ export default function Home() {
           {/* Image Section */}
           <div className="mt-10 lg:mt-0 lg:w-1/2 lg:flex lg:justify-end -mr-7">
             <Image
-              src="/images/Historical-Screenshot.png"
+              src="/images/screenshot-proper.png"
               alt="Doctor working on laptop"
               width={1000} // Increase size
               height={750} // Increase size
