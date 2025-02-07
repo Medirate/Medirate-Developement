@@ -14,13 +14,13 @@ interface Alert {
 
 interface Bill {
   id: number;
-  state_code: string;
-  state_bill_id: string;
-  bill_name: string;
+  state: string;
+  bill_number: string;
+  name: string;
   last_action: string;
   sponsor_list: string[] | null;
   bill_progress: string | null;
-  link: string;
+  url: string;
 }
 
 // Map state names to codes
@@ -137,11 +137,11 @@ export default function RateDevelopments() {
   });
 
   const filteredLegislativeUpdates = legislativeUpdates.filter((bill) => {
-    const matchesSearch = bill.bill_name
-      ? bill.bill_name.toLowerCase().includes(legislativeSearch.toLowerCase())
-      : false;
+    const matchesSearch = bill.name
+      .toLowerCase()
+      .includes(legislativeSearch.toLowerCase());
     const matchesState = selectedState
-      ? bill.state_code === selectedState
+      ? bill.state === selectedState
       : true;
     return matchesSearch && matchesState;
   });
@@ -291,27 +291,28 @@ export default function RateDevelopments() {
                   {filteredLegislativeUpdates.map((bill, index) => (
                     <tr key={index} className="border-b hover:bg-gray-100">
                       <td className="p-4 text-sm text-gray-700 border-b">
-                        {bill.state_code}
+                        {bill.state}
                       </td>
                       <td className="p-4 text-sm text-blue-500 border-b">
                         <a
-                          href={bill.link}
+                          href={bill.url}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="hover:underline"
                         >
-                          {bill.state_bill_id}
+                          {bill.bill_number}
                         </a>
                       </td>
                       <td className="p-4 text-sm text-gray-700 border-b">
-                        {bill.bill_name}
+                        {bill.name}
                       </td>
                       <td className="p-4 text-sm text-gray-700 border-b">
                         {bill.last_action}
                       </td>
                       <td className="p-4 text-sm text-gray-700 border-b">
-                        {bill.sponsor_list ? bill.sponsor_list.join(", ") : "N/A"}
-                      </td>
+  {bill.sponsor_list || "N/A"}
+</td>
+
                       <td className="p-4 text-sm text-gray-700 border-b">
                         {bill.bill_progress || "N/A"}
                       </td>
@@ -414,27 +415,28 @@ export default function RateDevelopments() {
                   {filteredLegislativeUpdates.map((bill, index) => (
                     <tr key={index} className="border-b hover:bg-gray-100">
                       <td className="p-4 text-sm text-gray-700 border-b">
-                        {bill.state_code}
+                        {bill.state}
                       </td>
                       <td className="p-4 text-sm text-blue-500 border-b">
                         <a
-                          href={bill.link}
+                          href={bill.url}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="hover:underline"
                         >
-                          {bill.state_bill_id}
+                          {bill.bill_number}
                         </a>
                       </td>
                       <td className="p-4 text-sm text-gray-700 border-b">
-                        {bill.bill_name}
+                        {bill.name}
                       </td>
                       <td className="p-4 text-sm text-gray-700 border-b">
                         {bill.last_action}
                       </td>
                       <td className="p-4 text-sm text-gray-700 border-b">
-                        {bill.sponsor_list ? bill.sponsor_list.join(", ") : "N/A"}
-                      </td>
+  {bill.sponsor_list || "N/A"}
+</td>
+
                       <td className="p-4 text-sm text-gray-700 border-b">
                         {bill.bill_progress || "N/A"}
                       </td>
