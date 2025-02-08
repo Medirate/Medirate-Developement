@@ -25,58 +25,57 @@ interface Bill {
 
 // Map state names to codes
 const stateMap: { [key: string]: string } = {
-  ALABAMA: "AL",
-  ALASKA: "AK",
-  ARIZONA: "AZ",
-  ARKANSAS: "AR",
-  CALIFORNIA: "CA",
-  COLORADO: "CO",
-  CONNECTICUT: "CT",
-  DELAWARE: "DE",
-  FLORIDA: "FL",
-  GEORGIA: "GA",
-  HAWAII: "HI",
-  IDAHO: "ID",
-  ILLINOIS: "IL",
-  INDIANA: "IN",
-  IOWA: "IA",
-  KANSAS: "KS",
-  KENTUCKY: "KY",
-  LOUISIANA: "LA",
-  MAINE: "ME",
-  MARYLAND: "MD",
-  MASSACHUSETTS: "MA",
-  MICHIGAN: "MI",
-  MINNESOTA: "MN",
-  MISSISSIPPI: "MS",
-  MISSOURI: "MO",
-  MONTANA: "MT",
-  NEBRASKA: "NE",
-  NEVADA: "NV",
-  "NEW HAMPSHIRE": "NH",
-  "NEW JERSEY": "NJ",
-  "NEW MEXICO": "NM",
-  "NEW YORK": "NY",
-  "NORTH CAROLINA": "NC",
-  "NORTH DAKOTA": "ND",
-  OHIO: "OH",
-  OKLAHOMA: "OK",
-  OREGON: "OR",
-  PENNSYLVANIA: "PA",
-  "RHODE ISLAND": "RI",
-  "SOUTH CAROLINA": "SC",
-  "SOUTH DAKOTA": "SD",
-  TENNESSEE: "TN",
-  TEXAS: "TX",
-  UTAH: "UT",
-  VERMONT: "VT",
-  VIRGINIA: "VA",
-  WASHINGTON: "WA",
-  "WEST VIRGINIA": "WV",
-  WISCONSIN: "WI",
-  WYOMING: "WY",
+  Alabama: "AL",
+  Alaska: "AK",
+  Arizona: "AZ",
+  Arkansas: "AR",
+  California: "CA",
+  Colorado: "CO",
+  Connecticut: "CT",
+  Delaware: "DE",
+  Florida: "FL",
+  Georgia: "GA",
+  Hawaii: "HI",
+  Idaho: "ID",
+  Illinois: "IL",
+  Indiana: "IN",
+  Iowa: "IA",
+  Kansas: "KS",
+  Kentucky: "KY",
+  Louisiana: "LA",
+  Maine: "ME",
+  Maryland: "MD",
+  Massachusetts: "MA",
+  Michigan: "MI",
+  Minnesota: "MN",
+  Mississippi: "MS",
+  Missouri: "MO",
+  Montana: "MT",
+  Nebraska: "NE",
+  Nevada: "NV",
+  "New Hampshire": "NH",
+  "New Jersey": "NJ",
+  "New Mexico": "NM",
+  "New York": "NY",
+  "North Carolina": "NC",
+  "North Dakota": "ND",
+  Ohio: "OH",
+  Oklahoma: "OK",
+  Oregon: "OR",
+  Pennsylvania: "PA",
+  "Rhode Island": "RI",
+  "South Carolina": "SC",
+  "South Dakota": "SD",
+  Tennessee: "TN",
+  Texas: "TX",
+  Utah: "UT",
+  Vermont: "VT",
+  Virginia: "VA",
+  Washington: "WA",
+  "West Virginia": "WV",
+  Wisconsin: "WI",
+  Wyoming: "WY",
 };
-
 
 // Include reverse mapping for easier access
 const reverseStateMap = Object.fromEntries(
@@ -220,22 +219,22 @@ export default function RateDevelopments() {
         {/* Table Switch */}
         {layout === "horizontal" && (
           <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-700">Provider Alerts</span>
-          <button
-            onClick={() =>
-              setActiveTable(activeTable === "provider" ? "legislative" : "provider")
-            }
-            className="relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none"
-            style={{ backgroundColor: "#004aad" }} // Always blue
-          >
-            <span
-              className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${
-                activeTable === "provider" ? "translate-x-1" : "translate-x-6"
-              }`}
-            />
-          </button>
-          <span className="text-sm text-gray-700">Legislative Updates</span>
-        </div>
+            <span className="text-sm text-gray-700">Provider Alerts</span>
+            <button
+              onClick={() =>
+                setActiveTable(activeTable === "provider" ? "legislative" : "provider")
+              }
+              className="relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none"
+              style={{ backgroundColor: "#004aad" }} // Always blue
+            >
+              <span
+                className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${
+                  activeTable === "provider" ? "translate-x-1" : "translate-x-6"
+                }`}
+              />
+            </button>
+            <span className="text-sm text-gray-700">Legislative Updates</span>
+          </div>
         )}
       </div>
 
@@ -369,60 +368,60 @@ export default function RateDevelopments() {
             {activeTable === "provider" ? "Provider Alerts" : "Legislative Updates"}
           </h2>
 
-          {/* Tables Container */}
-          <div className="flex transition-transform duration-300 ease-in-out">
+          {/* Tables Container with Animation */}
+          <div className="flex transition-transform duration-300 ease-in-out" style={{
+            transform: `translateX(${activeTable === "provider" ? "0%" : "-100%"})`
+          }}>
             {/* Provider Alerts Table */}
-            {activeTable === "provider" && (
-              <div className="min-w-full border rounded-md max-h-[600px] overflow-y-auto bg-gray-50 shadow-lg relative">
-                <table className="min-w-full bg-white border-collapse">
-                  <thead className="sticky top-0 bg-white shadow">
-                    <tr className="border-b">
-                      <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-                        State
-                      </th>
-                      <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-                        Subject
-                      </th>
-                      <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-                        Announcement Date
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredProviderAlerts.map((alert, index) => (
-                      <tr key={index} className="border-b hover:bg-gray-100">
-                        <td className="p-4 text-sm text-gray-700 border-b">
-                          {alert.state || "N/A"}
-                        </td>
-                        <td className="p-4 text-sm text-gray-700 border-b">
-                          <div className="flex items-center">
-                            <span
-                              className="cursor-pointer hover:underline"
-                              onClick={() => setSelectedAlert(alert)}
+            <div className="min-w-full border rounded-md max-h-[600px] overflow-y-auto bg-gray-50 shadow-lg relative">
+              <table className="min-w-full bg-white border-collapse">
+                <thead className="sticky top-0 bg-white shadow">
+                  <tr className="border-b">
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      State
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Subject
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Announcement Date
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredProviderAlerts.map((alert, index) => (
+                    <tr key={index} className="border-b hover:bg-gray-100">
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {alert.state || "N/A"}
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        <div className="flex items-center">
+                          <span
+                            className="cursor-pointer hover:underline"
+                            onClick={() => setSelectedAlert(alert)}
+                          >
+                            {alert.subject}
+                          </span>
+                          {alert.links && (
+                            <a
+                              href={alert.links}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-2 text-blue-500 hover:underline"
                             >
-                              {alert.subject}
-                            </span>
-                            {alert.links && (
-                              <a
-                                href={alert.links}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="ml-2 text-blue-500 hover:underline"
-                              >
-                                [Read More]
-                              </a>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-4 text-sm text-gray-700 border-b">
-                          {new Date(alert.announcement_date).toLocaleDateString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                              [Read More]
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {new Date(alert.announcement_date).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             {/* Legislative Updates Table */}
             {activeTable === "legislative" && (
