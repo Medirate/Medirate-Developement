@@ -6,11 +6,10 @@ import { Search, LayoutGrid, LayoutList, ChevronLeft, ChevronRight } from "lucid
 
 // Define the type for the datasets
 interface Alert {
-  title: string;
-  date: string;
-  state_name?: string;
-  attachment_url?: string;
-  description?: string; // Add description field
+  subject: string;
+  announcement_date: string;
+  state?: string;
+  links?: string;
 }
 
 interface Bill {
@@ -127,11 +126,11 @@ export default function RateDevelopments() {
 
   // Filtered data
   const filteredProviderAlerts = providerAlerts.filter((alert) => {
-    const matchesSearch = alert.title
+    const matchesSearch = alert.subject
       .toLowerCase()
       .includes(providerSearch.toLowerCase());
     const matchesState = selectedState
-      ? alert.state_name === reverseStateMap[selectedState]
+      ? alert.state === reverseStateMap[selectedState]
       : true;
     return matchesSearch && matchesState;
   });
@@ -252,13 +251,13 @@ export default function RateDevelopments() {
                 <thead className="sticky top-0 bg-white shadow">
                   <tr className="border-b">
                     <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-                      State Name
+                      State
                     </th>
                     <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-                      Title
+                      Subject
                     </th>
                     <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-                      Date
+                      Announcement Date
                     </th>
                   </tr>
                 </thead>
@@ -266,7 +265,7 @@ export default function RateDevelopments() {
                   {filteredProviderAlerts.map((alert, index) => (
                     <tr key={index} className="border-b hover:bg-gray-100">
                       <td className="p-4 text-sm text-gray-700 border-b">
-                        {alert.state_name || "N/A"}
+                        {alert.state || "N/A"}
                       </td>
                       <td className="p-4 text-sm text-gray-700 border-b">
                         <div className="flex items-center">
@@ -274,11 +273,11 @@ export default function RateDevelopments() {
                             className="cursor-pointer hover:underline"
                             onClick={() => setSelectedAlert(alert)}
                           >
-                            {alert.title}
+                            {alert.subject}
                           </span>
-                          {alert.attachment_url && (
+                          {alert.links && (
                             <a
-                              href={alert.attachment_url}
+                              href={alert.links}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="ml-2 text-blue-500 hover:underline"
@@ -289,7 +288,7 @@ export default function RateDevelopments() {
                         </div>
                       </td>
                       <td className="p-4 text-sm text-gray-700 border-b">
-                        {new Date(alert.date).toLocaleDateString()}
+                        {new Date(alert.announcement_date).toLocaleDateString()}
                       </td>
                     </tr>
                   ))}
@@ -378,13 +377,13 @@ export default function RateDevelopments() {
                   <thead className="sticky top-0 bg-white shadow">
                     <tr className="border-b">
                       <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-                        State Name
+                        State
                       </th>
                       <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-                        Title
+                        Subject
                       </th>
                       <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-                        Date
+                        Announcement Date
                       </th>
                     </tr>
                   </thead>
@@ -392,7 +391,7 @@ export default function RateDevelopments() {
                     {filteredProviderAlerts.map((alert, index) => (
                       <tr key={index} className="border-b hover:bg-gray-100">
                         <td className="p-4 text-sm text-gray-700 border-b">
-                          {alert.state_name || "N/A"}
+                          {alert.state || "N/A"}
                         </td>
                         <td className="p-4 text-sm text-gray-700 border-b">
                           <div className="flex items-center">
@@ -400,11 +399,11 @@ export default function RateDevelopments() {
                               className="cursor-pointer hover:underline"
                               onClick={() => setSelectedAlert(alert)}
                             >
-                              {alert.title}
+                              {alert.subject}
                             </span>
-                            {alert.attachment_url && (
+                            {alert.links && (
                               <a
-                                href={alert.attachment_url}
+                                href={alert.links}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="ml-2 text-blue-500 hover:underline"
@@ -415,7 +414,7 @@ export default function RateDevelopments() {
                           </div>
                         </td>
                         <td className="p-4 text-sm text-gray-700 border-b">
-                          {new Date(alert.date).toLocaleDateString()}
+                          {new Date(alert.announcement_date).toLocaleDateString()}
                         </td>
                       </tr>
                     ))}
