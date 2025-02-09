@@ -45,12 +45,10 @@ export default function Home() {
 
       {/* About MediRate Section */}
       <section className="py-16 relative overflow-hidden reusable-gradient-bg">
-        
-
         {/* Content */}
         <div className="max-w-7xl mx-auto px-6 lg:flex lg:items-center lg:justify-between">
           {/* Text Content */}
-          <div className="lg:w-1/2">
+          <div className="lg:w-1/2 text-lg text-left ml-4">
             <h2 className="text-4xl font-lemonMilkRegular text-[#012C61] mb-6 font-lightBold">
               ABOUT MEDIRATE
             </h2>
@@ -108,7 +106,7 @@ export default function Home() {
           <Link href="/oursolution" passHref>
             <div className="bg-white rounded-lg overflow-hidden shadow-lg cursor-pointer transition-transform transform hover:scale-105">
               <Image
-                src="/images/doclookingattab2.jpg"
+                src="/images/our solution screenshot.png"
                 alt="Our Solution"
                 width={600}
                 height={400}
@@ -126,7 +124,7 @@ export default function Home() {
           <Link href="/ourcustomers" passHref>
             <div className="bg-white rounded-lg overflow-hidden shadow-lg cursor-pointer transition-transform transform hover:scale-105">
               <Image
-                src="/images/sadfdsf.jpg"
+                src="/images/our customers pic.jpeg"
                 alt="Our Customers"
                 width={600}
                 height={400}
@@ -144,7 +142,7 @@ export default function Home() {
           <Link href="/subscribe" passHref>
             <div className="bg-white rounded-lg overflow-hidden shadow-lg cursor-pointer transition-transform transform hover:scale-105">
               <Image
-                src="/images/subscribe.jpg"
+                src="/images/subscribe.jpeg"
                 alt="Subscribe"
                 width={600}
                 height={400}

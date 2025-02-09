@@ -41,7 +41,7 @@ export default function AboutUs() {
           </div>
 
           {/* Text Content */}
-          <div className="w-full lg:w-2/3">
+          <div className="w-full lg:w-2/3 text-lg text-left ml-4">
             <p className="text-gray-700 leading-relaxed mb-4">
               <strong>Greg Nersessian</strong> is President and Founder of
               MediRate, LLC. Prior to founding MediRate, Greg spent 14 years as

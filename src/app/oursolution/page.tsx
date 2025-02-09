@@ -21,7 +21,7 @@ export default function OurSolution() {
       {/* Hero Section */}
       <section className="relative w-full h-[400px] md:h-[500px]">
         <Image
-          src="/images/doclookingattab2cropped.jpg"
+          src="/images/our solution screenshot.png"
           alt="People looking at dashboard"
           layout="fill"
           objectFit="cover"
@@ -36,10 +36,10 @@ export default function OurSolution() {
       </section>
 
       {/* Main Content */}
-      <section className="py-12 px-6 reusable-gradient-bg text-base">
+      <section className="py-12 px-6 reusable-gradient-bg text-lg">
         <div className="max-w-7xl mx-auto">
           {/* Introductory Content */}
-          <div className="text-center mb-8">
+          <div className="text-left ml-4 mb-8">
             <p className="mb-6 leading-relaxed">
               MediRate’s solution is designed to take the mystery out of
               identifying and monitoring fee schedule payment rates for
@@ -58,7 +58,7 @@ export default function OurSolution() {
             <p className="leading-relaxed mt-6">
               MediRate’s services are designed to improve price transparency and help provider organizations:
             </p>
-            <ul className="space-y-3 inline-block text-left pl-6">
+            <ul className="space-y-3 text-left pl-6">
               <li className="flex items-center"><DollarSign className="w-6 h-6 text-[#012C61] mr-4" /> Maximize revenue</li>
               <li className="flex items-center"><FileText className="w-6 h-6 text-[#012C61] mr-4" /> Improve contracting with MCOs, ACOs, PIHPs, and payors</li>
               <li className="flex items-center"><TrendingUp className="w-6 h-6 text-[#012C61] mr-4" /> Inform value-based contracting initiatives</li>
@@ -66,19 +66,65 @@ export default function OurSolution() {
               <li className="flex items-center"><ThumbsUp className="w-6 h-6 text-[#012C61] mr-4" /> Support advocacy efforts</li>
               <li className="flex items-center"><Search className="w-6 h-6 text-[#012C61] mr-4" /> Conduct acquisition-related due diligence</li>
             </ul>
-            <p className="leading-relaxed mt-6">
-              We curate Medicaid fee schedules, provider manuals, provider bulletins, legislative and appropriations’ documents,
-              regulatory actions, and other sources to aggregate fee-for-service payment amounts by CPT/HCPCS billing code across 50 states
-              and the District of Columbia.
-            </p>
-            <p className="leading-relaxed mt-6">
-              Subscribers can search for payment rates by service line category, billing code, state, program, and date, track them over time,
-              and compare them to other state payment amounts and national averages.
-            </p>
-            <p className="leading-relaxed mt-6">
-              Subscribers can also monitor real-time policy developments related to Medicaid payment rates nationally and on a state-by-state
-              basis in order to stay on top of any potential changes.
-            </p>
+
+            {/* Screenshot and Paragraph Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-8">
+              {/* Service Screenshot */}
+              <div className="flex justify-center lg:justify-start">
+                <Image
+                  src="/images/Screenshot Service.png"
+                  alt="Service Screenshot"
+                  width={600} // Increased by 50%
+                  height={450} // Increased by 50%
+                  className="rounded-lg shadow-lg"
+                />
+              </div>
+              <div>
+                <p className="leading-relaxed">
+                  We curate Medicaid fee schedules, provider manuals, provider bulletins, legislative and appropriations’ documents,
+                  regulatory actions, and other sources to aggregate fee-for-service payment amounts by CPT/HCPCS billing code across 50 states
+                  and the District of Columbia.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-12">
+              {/* Historical Screenshot */}
+              <div className="flex justify-center lg:justify-start">
+                <Image
+                  src="/images/Screenshot Historical.png"
+                  alt="Historical Screenshot"
+                  width={600} // Increased by 50%
+                  height={450} // Increased by 50%
+                  className="rounded-lg shadow-lg"
+                />
+              </div>
+              <div>
+                <p className="leading-relaxed">
+                  Subscribers can search for payment rates by service line category, billing code, state, program, and date, track them over time,
+                  and compare them to other state payment amounts and national averages.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-12">
+              {/* Rate Screenshot */}
+              <div className="flex justify-center lg:justify-start">
+                <Image
+                  src="/images/Screenshot Rate Developements.png"
+                  alt="Rate Screenshot"
+                  width={600} // Increased by 50%
+                  height={450} // Increased by 50%
+                  className="rounded-lg shadow-lg"
+                />
+              </div>
+              <div>
+                <p className="leading-relaxed">
+                  Subscribers can also monitor real-time policy developments related to Medicaid payment rates nationally and on a state-by-state
+                  basis in order to stay on top of any potential changes.
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Video and Table Section */}
