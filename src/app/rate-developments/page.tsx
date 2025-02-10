@@ -157,14 +157,37 @@ function CustomDropdown({ value, onChange, options, placeholder }: DropdownProps
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-4 py-2 bg-[#4682d1] rounded-md text-white focus:outline-none cursor-pointer flex justify-between items-center"
-      >
+      <div className="w-full px-4 py-2 bg-[#4682d1] rounded-md text-white focus:outline-none cursor-pointer flex justify-between items-center"
+           onClick={() => setIsOpen(!isOpen)}>
         <span>{selectedOption?.label || placeholder}</span>
-        <span className="ml-2">▼</span>
-      </button>
+        <div className="flex items-center">
+          {value && (
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange("");
+              }}
+              className="mr-2 hover:text-gray-200 focus:outline-none cursor-pointer"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </span>
+          )}
+          <span>▼</span>
+        </div>
+      </div>
       {isOpen && (
         <div className="absolute w-full mt-1 bg-[#4682d1] border border-[#4682d1] rounded-md shadow-lg z-50">
           <div className="max-h-[200px] overflow-y-auto">
