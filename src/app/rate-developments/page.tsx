@@ -300,6 +300,7 @@ export default function RateDevelopments() {
         return response.json();
       })
       .then((data: Bill[]) => {
+        console.log('Legislative Updates Data:', data);
         setLegislativeUpdates(data);
       })
       .catch((error) => console.error("Error fetching legislative updates:", error));
@@ -568,7 +569,9 @@ export default function RateDevelopments() {
                         {bill.last_action || ""}
                       </td>
                       <td className="p-4 text-sm text-gray-700 border-b">
-                        {Array.isArray(bill.sponsor_list) ? bill.sponsor_list.join(", ") : ""}
+                        {bill.sponsor_list && Array.isArray(bill.sponsor_list) 
+                          ? bill.sponsor_list.join(", ") 
+                          : bill.sponsor_list || ""}
                       </td>
                       <td className="p-4 text-sm text-gray-700 border-b">
                         {bill.bill_progress || ""}
@@ -690,7 +693,9 @@ export default function RateDevelopments() {
               {bill.last_action || ""}
             </td>
             <td className="p-4 text-sm text-gray-700 border-b">
-              {Array.isArray(bill.sponsor_list) ? bill.sponsor_list.join(", ") : ""}
+              {bill.sponsor_list && Array.isArray(bill.sponsor_list) 
+                ? bill.sponsor_list.join(", ") 
+                : bill.sponsor_list || ""}
             </td>
             <td className="p-4 text-sm text-gray-700 border-b">
               {bill.bill_progress || ""}
