@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 "use client";
 
 import { useEffect, useState } from "react";
@@ -251,7 +250,6 @@ export default function SubscriptionPage() {
     </AppLayout>
   );
 }
-=======
 "use client";
 
 import { useEffect, useState } from "react";
@@ -500,4 +498,3 @@ export default function SubscriptionPage() {
     </AppLayout>
   );
 }
->>>>>>> origin/main

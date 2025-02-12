@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 
@@ -18,7 +17,6 @@ export async function GET() {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
-=======
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 
@@ -38,4 +36,3 @@ export async function GET() {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
->>>>>>> origin/main

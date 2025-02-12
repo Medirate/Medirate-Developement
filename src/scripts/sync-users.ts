@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import axios from "axios";
 import { PrismaClient } from "@prisma/client";
 
@@ -91,7 +90,6 @@ async function fetchAndSyncUsers(nextToken?: string) {
 }
 
 fetchAndSyncUsers();
-=======
 import axios from "axios";
 import { PrismaClient } from "@prisma/client";
 
@@ -184,4 +182,3 @@ async function fetchAndSyncUsers(nextToken?: string) {
 }
 
 fetchAndSyncUsers();
->>>>>>> origin/main

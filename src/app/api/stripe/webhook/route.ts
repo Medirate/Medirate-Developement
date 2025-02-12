@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
@@ -220,7 +219,6 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
     (await stripe.subscriptions.retrieve(session.subscription as string)) as Stripe.Subscription
   );
 }
-=======
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
@@ -442,4 +440,3 @@ async function handleCheckoutSession(session: Stripe.Checkout.Session) {
     (await stripe.subscriptions.retrieve(session.subscription as string)) as Stripe.Subscription
   );
 }
->>>>>>> origin/main

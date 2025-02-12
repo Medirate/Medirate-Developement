@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 generator client {
   provider = "prisma-client-js"
   output   = "../prisma-alerts-db-client"
@@ -16,7 +15,6 @@ model RateUpdate {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
-=======
 generator client {
   provider = "prisma-client-js"
   output   = "../prisma-alerts-db-client"
@@ -34,4 +32,3 @@ model RateUpdate {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
->>>>>>> origin/main

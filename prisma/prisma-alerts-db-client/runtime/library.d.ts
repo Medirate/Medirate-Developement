@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 /**
  * @param this
  */
@@ -3394,7 +3393,6 @@ declare type WasmLoadingConfig = {
 };
 
 export { }
-=======
 /**
  * @param this
  */
@@ -6790,4 +6788,3 @@ declare type WasmLoadingConfig = {
 };
 
 export { }
->>>>>>> origin/main

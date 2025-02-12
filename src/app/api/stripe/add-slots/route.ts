@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
@@ -37,7 +36,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to create slot" }, { status: 500 });
   }
 }
-=======
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
@@ -76,4 +74,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to create slot" }, { status: 500 });
   }
 }
->>>>>>> origin/main

@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 "use client";
 
 import { useState, useEffect } from "react";
@@ -178,7 +177,6 @@ export default function Profile() {
     </AppLayout>
   );
 }
-=======
 "use client";
 
 import { useState, useEffect } from "react";
@@ -356,4 +354,3 @@ export default function Profile() {
     </AppLayout>
   );
 }
->>>>>>> origin/main

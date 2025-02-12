@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 "use client";
 
 import { useEffect, useState, useRef } from "react";
@@ -711,7 +710,6 @@ export default function RateDevelopments() {
 )}
 </AppLayout>
 );
-=======
 "use client";
 
 import { useEffect, useState, useRef } from "react";
@@ -1424,5 +1422,4 @@ export default function RateDevelopments() {
 )}
 </AppLayout>
 );
->>>>>>> origin/main
 }

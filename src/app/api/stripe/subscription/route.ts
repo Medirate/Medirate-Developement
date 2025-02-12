@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
@@ -84,7 +83,6 @@ export async function POST(req: Request) {
     );
   }
 }
-=======
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
@@ -170,4 +168,3 @@ export async function POST(req: Request) {
     );
   }
 }
->>>>>>> origin/main

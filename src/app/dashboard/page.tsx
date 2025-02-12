@@ -48,7 +48,6 @@ export default function Dashboard() {
 
   return (
     <AppLayout activeTab="dashboard">
-<<<<<<< HEAD
       {/* Full-screen overlay - Covers everything including footer */}
       {showTerms && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999]">
@@ -113,7 +112,6 @@ export default function Dashboard() {
             frameBorder="0"
             allowFullScreen={true}
           ></iframe>
-=======
       {/* Disable interaction when Terms modal is active, including footer */}
       <div className={showTerms ? "pointer-events-none blur-sm" : ""}>
         {/* Dashboard Content - Only Visible if Terms Accepted */}
@@ -178,7 +176,6 @@ export default function Dashboard() {
               Accept
             </button>
           </div>
->>>>>>> origin/main
         </div>
       )}
     </AppLayout>

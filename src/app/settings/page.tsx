@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 "use client";
 
 import { useState } from "react";
@@ -50,7 +49,6 @@ export default function Settings() {
     </AppLayout>
   );
 }
-=======
 "use client";
 
 import { useState } from "react";
@@ -102,4 +100,3 @@ export default function Settings() {
     </AppLayout>
   );
 }
->>>>>>> origin/main

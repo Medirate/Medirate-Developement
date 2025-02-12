@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -77,7 +76,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unexpected error occurred." }, { status: 500 });
   }
 }
-=======
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -156,4 +154,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unexpected error occurred." }, { status: 500 });
   }
 }
->>>>>>> origin/main

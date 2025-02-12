@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 "use client";
 
 import { useState, useEffect } from "react";
@@ -68,7 +67,6 @@ const AppLayout = ({ children, activeTab }: AppLayoutProps) => {
 };
 
 export default AppLayout;
-=======
 "use client";
 
 import { useState, useEffect } from "react";
@@ -138,4 +136,3 @@ const AppLayout = ({ children, activeTab }: AppLayoutProps) => {
 };
 
 export default AppLayout;
->>>>>>> origin/main
