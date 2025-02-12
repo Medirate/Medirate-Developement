@@ -1,0 +1,17 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../prisma-alerts-db-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("PROVIDER_ALERTS_DATABASE_URL") // Your provider alerts database connection string
+}
+
+model RateUpdate {
+  id            Int      @id @default(autoincrement())
+  dateExtracted DateTime
+  name          String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
