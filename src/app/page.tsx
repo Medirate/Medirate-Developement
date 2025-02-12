@@ -50,7 +50,7 @@ export default function Home() {
           {/* Text Content */}
           <div className="lg:w-1/2 text-lg text-left ml-4">
             <h2 className="text-4xl font-lemonMilkRegular text-[#012C61] mb-6 font-lightBold">
-              ABOUT MEDIRATE Test
+              ABOUT MEDIRATE
             </h2>
             <p className="text-gray-700 leading-relaxed mb-6">
               MediRate is the nation’s only comprehensive database of Medicaid

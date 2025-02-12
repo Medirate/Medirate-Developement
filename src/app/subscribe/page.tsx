@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -78,4 +77,3 @@ const StripePricingTableWithFooter = () => {
 };
 
 export default StripePricingTableWithFooter;
-
