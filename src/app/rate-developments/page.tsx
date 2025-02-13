@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import AppLayout from "@/app/components/applayout";
-import { Search, LayoutGrid, LayoutList, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, LayoutGrid, LayoutList, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
 
 // Define the type for the datasets
 interface Alert {
@@ -13,6 +13,7 @@ interface Alert {
   service_lines_impacted?: string | null;
   service_lines_impacted_1?: string | null;
   service_lines_impacted_2?: string | null;
+  service_lines_impacted_3?: string | null;
 }
 
 interface Bill {
@@ -21,12 +22,15 @@ interface Bill {
   bill_number: string;
   name: string;
   last_action: string | null;
+  action_date: string | null;
   sponsor_list: string[] | null;
   bill_progress: string | null;
   url: string;
   service_lines_impacted?: string | null;
   service_lines_impacted_1?: string | null;
   service_lines_impacted_2?: string | null;
+  service_lines_impacted_3?: string | null;
+  ai_summary: string;
 }
 
 // Map state names to codes
@@ -262,6 +266,14 @@ const searchInFields = (searchText: string, fields: (string | null | undefined)[
   );
 };
 
+// Add a helper function to get service lines for alerts
+const getAlertServiceLines = (alert: Alert) => {
+  return [alert.service_lines_impacted, alert.service_lines_impacted_1, alert.service_lines_impacted_2, alert.service_lines_impacted_3]
+    .filter(Boolean)
+    .join(", ");
+};
+
+// Add state for sorting
 export default function RateDevelopments() {
   const [providerAlerts, setProviderAlerts] = useState<Alert[]>([]);
   const [legislativeUpdates, setLegislativeUpdates] = useState<Bill[]>([]);
@@ -276,6 +288,10 @@ export default function RateDevelopments() {
   const [activeTable, setActiveTable] = useState<"provider" | "legislative">("provider");
 
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null); // For the pop-up modal
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupContent, setPopupContent] = useState("");
+
+  const [sortDirection, setSortDirection] = useState<{ field: string; direction: 'asc' | 'desc' }>({ field: 'announcement_date', direction: 'desc' });
 
   useEffect(() => {
     // Fetch Provider Alerts
@@ -306,6 +322,47 @@ export default function RateDevelopments() {
       .catch((error) => console.error("Error fetching legislative updates:", error));
   }, []);
 
+  // Function to toggle sort direction
+  const toggleSort = (field: string) => {
+    setSortDirection(prev => ({
+      field,
+      direction: prev.field === field && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  // Sorting logic for provider alerts with date validation and proper arithmetic operation
+  const sortedProviderAlerts = useMemo(() => {
+    return [...providerAlerts].sort((a, b) => {
+      if (sortDirection.field === 'state') {
+        if (a.state && b.state) {
+          return sortDirection.direction === 'asc' ? a.state.localeCompare(b.state) : b.state.localeCompare(a.state);
+        }
+      } else if (sortDirection.field === 'announcement_date') {
+        const dateA = a.announcement_date ? new Date(a.announcement_date).getTime() : 0; // Convert to timestamp or use 0 if invalid
+        const dateB = b.announcement_date ? new Date(b.announcement_date).getTime() : 0; // Convert to timestamp or use 0 if invalid
+        return sortDirection.direction === 'asc' ? dateA - dateB : dateB - dateA;
+      }
+      return 0;
+    });
+  }, [providerAlerts, sortDirection]);
+
+  // Sorting logic for legislative updates with date validation and proper arithmetic operation
+  const sortedLegislativeUpdates = useMemo(() => {
+    return [...legislativeUpdates].sort((a, b) => {
+      if (sortDirection.field === 'state') {
+        // Ensure both a.state and b.state are not null or undefined before comparing
+        const stateA = a.state || ""; // Fallback to empty string if null or undefined
+        const stateB = b.state || ""; // Fallback to empty string if null or undefined
+        return sortDirection.direction === 'asc' ? stateA.localeCompare(stateB) : stateB.localeCompare(stateA);
+      } else if (sortDirection.field === 'action_date') {
+        const dateA = a.action_date ? new Date(a.action_date).getTime() : 0;
+        const dateB = b.action_date ? new Date(b.action_date).getTime() : 0;
+        return sortDirection.direction === 'asc' ? dateA - dateB : dateB - dateA;
+      }
+      return 0;
+    });
+  }, [legislativeUpdates, sortDirection]);
+
   // Update the filtered data logic
   const filteredProviderAlerts = providerAlerts.filter((alert) => {
     const matchesSearch = !providerSearch || searchInFields(providerSearch, [
@@ -319,7 +376,8 @@ export default function RateDevelopments() {
       [
         alert.service_lines_impacted,
         alert.service_lines_impacted_1,
-        alert.service_lines_impacted_2
+        alert.service_lines_impacted_2,
+        alert.service_lines_impacted_3,
       ].some(line => line?.includes(selectedServiceLine));
 
     return matchesSearch && matchesState && matchesServiceLine;
@@ -345,6 +403,18 @@ export default function RateDevelopments() {
 
     return matchesSearch && matchesState && matchesServiceLine;
   });
+
+  const getServiceLines = (bill: Bill) => {
+    return [bill.service_lines_impacted, bill.service_lines_impacted_1, bill.service_lines_impacted_2, bill.service_lines_impacted_3]
+      .filter(Boolean)
+      .join(", ");
+  };
+
+  // Function to handle click on bill name
+  const handleBillClick = (bill: Bill) => {
+    setPopupContent(bill.ai_summary);
+    setShowPopup(true);
+  };
 
   return (
     <AppLayout activeTab="rateDevelopments">
@@ -470,22 +540,32 @@ export default function RateDevelopments() {
               <table className="min-w-full bg-white border-collapse">
                 <thead className="sticky top-0 bg-white shadow">
                   <tr className="border-b">
-                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b cursor-pointer"
+                        onClick={() => toggleSort('state')}>
                       State
+                      {sortDirection.field === 'state' && (sortDirection.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b cursor-pointer"
+                        onClick={() => toggleSort('announcement_date')}>
+                      Announcement Date
+                      {sortDirection.field === 'announcement_date' && (sortDirection.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
                     </th>
                     <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
                       Subject
                     </th>
                     <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-                      Announcement Date
+                      Service Lines
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredProviderAlerts.map((alert, index) => (
+                  {sortedProviderAlerts.map((alert, index) => (
                     <tr key={index} className="border-b hover:bg-gray-100">
                       <td className="p-4 text-sm text-gray-700 border-b">
                         {alert.state || ""}
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {alert.announcement_date ? new Date(alert.announcement_date).toLocaleDateString() : ""}
                       </td>
                       <td className="p-4 text-sm text-gray-700 border-b">
                         <div className="flex items-center">
@@ -508,7 +588,7 @@ export default function RateDevelopments() {
                         </div>
                       </td>
                       <td className="p-4 text-sm text-gray-700 border-b">
-                        {alert.announcement_date ? new Date(alert.announcement_date).toLocaleDateString() : ""}
+                        {getAlertServiceLines(alert)}
                       </td>
                     </tr>
                   ))}
@@ -526,8 +606,15 @@ export default function RateDevelopments() {
               <table className="min-w-full bg-white border-collapse">
                 <thead className="sticky top-0 bg-white shadow">
                   <tr className="border-b">
-                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-                      State Code
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b cursor-pointer"
+                        onClick={() => toggleSort('state')}>
+                      State
+                      {sortDirection.field === 'state' && (sortDirection.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b cursor-pointer"
+                        onClick={() => toggleSort('action_date')}>
+                      Action Date
+                      {sortDirection.field === 'action_date' && (sortDirection.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
                     </th>
                     <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
                       State Bill ID
@@ -544,13 +631,19 @@ export default function RateDevelopments() {
                     <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
                       Progress
                     </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Service Lines
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredLegislativeUpdates.map((bill, index) => (
+                  {sortedLegislativeUpdates.map((bill, index) => (
                     <tr key={index} className="border-b hover:bg-gray-100">
                       <td className="p-4 text-sm text-gray-700 border-b">
-                        {bill.state || ""}
+                        {reverseStateMap[bill.state] || bill.state}
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {bill.action_date ? new Date(bill.action_date).toLocaleDateString() : ""}
                       </td>
                       <td className="p-4 text-sm text-blue-500 border-b">
                         <a
@@ -563,7 +656,12 @@ export default function RateDevelopments() {
                         </a>
                       </td>
                       <td className="p-4 text-sm text-gray-700 border-b">
-                        {bill.name || ""}
+                        <span
+                          className="cursor-pointer hover:underline"
+                          onClick={() => handleBillClick(bill)}
+                        >
+                          {bill.name || ""}
+                        </span>
                       </td>
                       <td className="p-4 text-sm text-gray-700 border-b">
                         {bill.last_action || ""}
@@ -575,6 +673,9 @@ export default function RateDevelopments() {
                       </td>
                       <td className="p-4 text-sm text-gray-700 border-b">
                         {bill.bill_progress || ""}
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {getServiceLines(bill)}
                       </td>
                     </tr>
                   ))}
@@ -592,122 +693,169 @@ export default function RateDevelopments() {
 
           {/* Tables Container with Animation */}
           <div className="flex transition-transform duration-300 ease-in-out" style={{
-  transform: `translateX(${activeTable === "provider" ? "0%" : "-100%"})`
-}}>
-  {/* Provider Alerts Table */}
-  <div className="min-w-full border rounded-md max-h-[600px] overflow-y-auto bg-gray-50 shadow-lg relative">
-    <table className="min-w-full bg-white border-collapse">
-      <thead className="sticky top-0 bg-white shadow">
-        <tr className="border-b">
-          <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-            State
-          </th>
-          <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-            Subject
-          </th>
-          <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-            Announcement Date
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {filteredProviderAlerts.map((alert, index) => (
-          <tr key={index} className="border-b hover:bg-gray-100">
-            <td className="p-4 text-sm text-gray-700 border-b">
-              {alert.state || ""}
-            </td>
-            <td className="p-4 text-sm text-gray-700 border-b">
-              <div className="flex items-center">
-                <span
-                  className="cursor-pointer hover:underline"
-                  onClick={() => setSelectedAlert(alert)}
-                >
-                  {alert.subject || ""}
-                </span>
-                {alert.links && (
-                  <a
-                    href={alert.links}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ml-2 text-blue-500 hover:underline"
-                  >
-                    [Read More]
-                  </a>
-                )}
-              </div>
-            </td>
-            <td className="p-4 text-sm text-gray-700 border-b">
-              {alert.announcement_date ? new Date(alert.announcement_date).toLocaleDateString() : ""}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
+            transform: `translateX(${activeTable === "provider" ? "0%" : "-100%"})`
+          }}>
+            {/* Provider Alerts Table */}
+            <div className="min-w-full border rounded-md max-h-[600px] overflow-y-auto bg-gray-50 shadow-lg relative">
+              <table className="min-w-full bg-white border-collapse">
+                <thead className="sticky top-0 bg-white shadow">
+                  <tr className="border-b">
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b cursor-pointer"
+                        onClick={() => toggleSort('state')}>
+                      State
+                      {sortDirection.field === 'state' && (sortDirection.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b cursor-pointer"
+                        onClick={() => toggleSort('announcement_date')}>
+                      Announcement Date
+                      {sortDirection.field === 'announcement_date' && (sortDirection.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Subject
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Service Lines
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedProviderAlerts.map((alert, index) => (
+                    <tr key={index} className="border-b hover:bg-gray-100">
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {alert.state || ""}
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {alert.announcement_date ? new Date(alert.announcement_date).toLocaleDateString() : ""}
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        <div className="flex items-center">
+                          <span
+                            className="cursor-pointer hover:underline"
+                            onClick={() => setSelectedAlert(alert)}
+                          >
+                            {alert.subject || ""}
+                          </span>
+                          {alert.links && (
+                            <a
+                              href={alert.links}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-2 text-blue-500 hover:underline"
+                            >
+                              [Read More]
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {getAlertServiceLines(alert)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-  {/* Legislative Updates Table */}
-  <div className="min-w-full border rounded-md max-h-[600px] overflow-y-auto bg-gray-50 shadow-lg relative">
-    <table className="min-w-full bg-white border-collapse">
-      <thead className="sticky top-0 bg-white shadow">
-        <tr className="border-b">
-          <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-            State Code
-          </th>
-          <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-            State Bill ID
-          </th>
-          <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-            Bill Name
-          </th>
-          <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-            Last Action
-          </th>
-          <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-            Sponsors
-          </th>
-          <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
-            Progress
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {filteredLegislativeUpdates.map((bill, index) => (
-          <tr key={index} className="border-b hover:bg-gray-100">
-            <td className="p-4 text-sm text-gray-700 border-b">
-              {bill.state || ""}
-            </td>
-            <td className="p-4 text-sm text-blue-500 border-b">
-              <a
-                href={bill.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:underline"
-              >
-                {bill.bill_number || ""}
-              </a>
-            </td>
-            <td className="p-4 text-sm text-gray-700 border-b">
-              {bill.name || ""}
-            </td>
-            <td className="p-4 text-sm text-gray-700 border-b">
-              {bill.last_action || ""}
-            </td>
-            <td className="p-4 text-sm text-gray-700 border-b">
-              {bill.sponsor_list && Array.isArray(bill.sponsor_list) 
-                ? bill.sponsor_list.join(", ") 
-                : bill.sponsor_list || ""}
-            </td>
-            <td className="p-4 text-sm text-gray-700 border-b">
-              {bill.bill_progress || ""}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-</div>
-</div>
-)}
-</AppLayout>
-);
+            {/* Legislative Updates Table */}
+            <div className="min-w-full border rounded-md max-h-[600px] overflow-y-auto bg-gray-50 shadow-lg relative">
+              <table className="min-w-full bg-white border-collapse">
+                <thead className="sticky top-0 bg-white shadow">
+                  <tr className="border-b">
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b cursor-pointer"
+                        onClick={() => toggleSort('state')}>
+                      State
+                      {sortDirection.field === 'state' && (sortDirection.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b cursor-pointer"
+                        onClick={() => toggleSort('action_date')}>
+                      Action Date
+                      {sortDirection.field === 'action_date' && (sortDirection.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      State Bill ID
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Bill Name
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Last Action
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Sponsors
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Progress
+                    </th>
+                    <th className="text-left p-4 font-semibold text-sm text-[#012C61] border-b">
+                      Service Lines
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedLegislativeUpdates.map((bill, index) => (
+                    <tr key={index} className="border-b hover:bg-gray-100">
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {reverseStateMap[bill.state] || bill.state}
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {bill.action_date ? new Date(bill.action_date).toLocaleDateString() : ""}
+                      </td>
+                      <td className="p-4 text-sm text-blue-500 border-b">
+                        <a
+                          href={bill.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:underline"
+                        >
+                          {bill.bill_number || ""}
+                        </a>
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        <span
+                          className="cursor-pointer hover:underline"
+                          onClick={() => handleBillClick(bill)}
+                        >
+                          {bill.name || ""}
+                        </span>
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {bill.last_action || ""}
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {bill.sponsor_list && Array.isArray(bill.sponsor_list) 
+                          ? bill.sponsor_list.join(", ") 
+                          : bill.sponsor_list || ""}
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {bill.bill_progress || ""}
+                      </td>
+                      <td className="p-4 text-sm text-gray-700 border-b">
+                        {getServiceLines(bill)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Popup for AI Summary */}
+      {showPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+          <div className="bg-white p-4 rounded-lg max-w-lg w-full">
+            <h3 className="text-lg font-bold">AI Summary</h3>
+            <p>{popupContent}</p>
+            <button
+              onClick={() => setShowPopup(false)}
+              className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+    </AppLayout>
+  );
 }
