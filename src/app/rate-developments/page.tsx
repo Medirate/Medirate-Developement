@@ -528,6 +528,14 @@ export default function RateDevelopments() {
         </div>
       </div>
 
+      {/* Add a note about sorting and AI summary */}
+      <div className="mb-4 text-sm text-gray-600">
+        <p>
+          <strong>Note:</strong> You can click on the column headings (State, Announcement Date, Action Date) to sort the data. 
+          Also, clicking on a bill name in the Legislative Updates table will display an AI-generated summary of the bill.
+        </p>
+      </div>
+
       {/* Tables */}
       {layout === "vertical" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
