@@ -79,6 +79,7 @@ const Navbar = () => {
     "/subscription",
     "/legislative-updates",
     "/rate-developments",
+    "/email-preferences",
   ];
 
   if (isLoading) {

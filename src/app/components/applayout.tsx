@@ -6,7 +6,7 @@ import Footer from "@/app/components/footer";
 
 interface AppLayoutProps {
   children: React.ReactNode;
-  activeTab: string;
+  activeTab: "dashboard" | "rateDevelopments" | "profile" | "subscription" | "settings" | "emailPreferences";
 }
 
 const AppLayout = ({ children, activeTab }: AppLayoutProps) => {

@@ -10,6 +10,7 @@ import {
   CircleDollarSign,
   ChartNoAxesCombined,
   Megaphone,
+  Mail,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -90,6 +91,12 @@ const SideNav = ({
               icon: <User size={20} />,
               label: "Profile",
               href: "/profile",
+            },
+            {
+              tab: "emailPreferences",
+              icon: <Mail size={20} />,
+              label: "Email Preferences",
+              href: "/email-preferences",
             },
             {
               tab: "subscription",
