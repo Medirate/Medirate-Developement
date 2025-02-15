@@ -112,6 +112,22 @@ export default function EmailPreferences() {
     }
   };
 
+  const selectAllStates = () => {
+    setSelectedStates(STATES);
+  };
+
+  const deselectAllStates = () => {
+    setSelectedStates([]);
+  };
+
+  const selectAllCategories = () => {
+    setSelectedCategories(CATEGORIES);
+  };
+
+  const deselectAllCategories = () => {
+    setSelectedCategories([]);
+  };
+
   return (
     <AppLayout activeTab="emailPreferences">
       <motion.div
@@ -147,6 +163,8 @@ export default function EmailPreferences() {
             <div className="bg-white rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
               <div className="px-6 py-5">
                 <h2 className="text-2xl font-semibold text-[#012C61] mb-4 border-b pb-2">Select States</h2>
+                <button onClick={selectAllStates} className="bg-[#012C61] text-white px-4 py-2 rounded-md mb-4 hover:bg-[#023d85]">Select All</button>
+                <button onClick={deselectAllStates} className="bg-gray-300 text-black px-4 py-2 rounded-md mb-4 ml-2 hover:bg-gray-400">Deselect All</button>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {STATES.map(state => (
                     <label
@@ -172,6 +190,8 @@ export default function EmailPreferences() {
             <div className="bg-white rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
               <div className="px-6 py-5">
                 <h2 className="text-2xl font-semibold text-[#012C61] mb-4 border-b pb-2">Select Categories</h2>
+                <button onClick={selectAllCategories} className="bg-[#012C61] text-white px-4 py-2 rounded-md mb-4 hover:bg-[#023d85]">Select All</button>
+                <button onClick={deselectAllCategories} className="bg-gray-300 text-black px-4 py-2 rounded-md mb-4 ml-2 hover:bg-gray-400">Deselect All</button>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {CATEGORIES.map(category => (
                     <label
