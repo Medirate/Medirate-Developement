@@ -74,7 +74,7 @@ export default function EmailPreferences() {
           EMAIL PREFERENCES
         </h1>
         <p className="text-gray-600 mb-8 text-center">
-          Stay informed of Medicaid provider rate developments by selecting state(s) and categories for regular email updates.
+          Stay informed of Medicaid provider rate developments by selecting States and Categories for regular email updates.
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
