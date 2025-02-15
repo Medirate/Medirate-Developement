@@ -10,6 +10,8 @@ export default function EmailPreferences() {
   const [pcaStates, setPcaStates] = useState<string[]>([]);
   const [isAbaDropdownOpen, setIsAbaDropdownOpen] = useState(false);
   const [isPcaDropdownOpen, setIsPcaDropdownOpen] = useState(false);
+  const [isAbaCategoriesOpen, setIsAbaCategoriesOpen] = useState(false);
+  const [isPcaCategoriesOpen, setIsPcaCategoriesOpen] = useState(false);
 
   const handleSave = () => {
     // Save the preferences (placeholder)
@@ -47,13 +49,16 @@ export default function EmailPreferences() {
             <h2 className="text-xl font-semibold text-[#012C61] mb-4">Applied Behavior Analysis</h2>
             <div className="relative mb-4">
               <button
-                className="bg-gray-200 p-2 rounded border"
+                className="w-full bg-white p-3 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors flex items-center justify-between shadow-sm"
                 onClick={() => setIsAbaDropdownOpen(!isAbaDropdownOpen)}
               >
-                Select States
+                <span>Select States</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transform transition-transform ${isAbaDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
               </button>
               {isAbaDropdownOpen && (
-                <div className="absolute z-10 w-52 bg-white border rounded shadow">
+                <div className="absolute z-10 w-full bg-white border rounded shadow mt-1">
                   {states.map((state) => (
                     <label key={state} className="block px-2 py-1">
                       <input
@@ -68,24 +73,37 @@ export default function EmailPreferences() {
                 </div>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              {["Therapy: OT, PT, ST", "FQHC/RHC", "Home and Community Based Services", "Home Health", "Intellectual and Developmental Disability (IDD) Services", "Prescribed Pediatric Extended Care (PPEC)", "Ambulance/Medical Transportation", "Ambulatory Surgery Center", "Anesthesia", "Behavioral Health and/or Substance Use Disorder Treatment", "Brain Injury", "Community Health Workers", "Dental", "Diagnostic Imaging", "Durable Medical Equipment (DME)", "Family Planning", "Laboratory", "Managed Care", "Maternal Health", "Medical Supplies", "Nurse", "Nursing Facility", "Nutrition", "Pharmacy", "Physician", "Physician Administered Drugs", "Prescription Drugs", "Social Services", "Telemedicine & Remote Patient Monitoring (RPM)", "Vision", "General Medicaid", "340B"].map((category) => (
-                <label key={category} className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={abaPreferences.includes(category)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setAbaPreferences([...abaPreferences, category]);
-                      } else {
-                        setAbaPreferences(abaPreferences.filter((pref) => pref !== category));
-                      }
-                    }}
-                    className="min-w-[20px] w-5 h-5 text-[#012C61] border-gray-300 rounded focus:ring-[#012C61]"
-                  />
-                  <span className="text-gray-700">{category}</span>
-                </label>
-              ))}
+            <div className="relative mb-4">
+              <button
+                className="w-full bg-white p-3 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors flex items-center justify-between shadow-sm"
+                onClick={() => setIsAbaCategoriesOpen(!isAbaCategoriesOpen)}
+              >
+                <span>Select Categories</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transform transition-transform ${isAbaCategoriesOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+              {isAbaCategoriesOpen && (
+                <div className="absolute z-10 w-full bg-white border rounded shadow mt-1 max-h-60 overflow-y-auto">
+                  {["Therapy: OT, PT, ST", "FQHC/RHC", "Home and Community Based Services", "Home Health", "Intellectual and Developmental Disability (IDD) Services", "Prescribed Pediatric Extended Care (PPEC)", "Ambulance/Medical Transportation", "Ambulatory Surgery Center", "Anesthesia", "Behavioral Health and/or Substance Use Disorder Treatment", "Brain Injury", "Community Health Workers", "Dental", "Diagnostic Imaging", "Durable Medical Equipment (DME)", "Family Planning", "Laboratory", "Managed Care", "Maternal Health", "Medical Supplies", "Nurse", "Nursing Facility", "Nutrition", "Pharmacy", "Physician", "Physician Administered Drugs", "Prescription Drugs", "Social Services", "Telemedicine & Remote Patient Monitoring (RPM)", "Vision", "General Medicaid", "340B"].map((category) => (
+                  <label key={category} className="block px-2 py-1">
+                    <input
+                      type="checkbox"
+                      checked={abaPreferences.includes(category)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setAbaPreferences([...abaPreferences, category]);
+                        } else {
+                          setAbaPreferences(abaPreferences.filter((pref) => pref !== category));
+                        }
+                      }}
+                      className="mr-2"
+                    />
+                    {category}
+                  </label>
+                ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -94,13 +112,16 @@ export default function EmailPreferences() {
             <h2 className="text-xl font-semibold text-[#012C61] mb-4">Personal Care</h2>
             <div className="relative mb-4">
               <button
-                className="bg-gray-200 p-2 rounded border"
+                className="w-full bg-white p-3 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors flex items-center justify-between shadow-sm"
                 onClick={() => setIsPcaDropdownOpen(!isPcaDropdownOpen)}
               >
-                Select States
+                <span>Select States</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transform transition-transform ${isPcaDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
               </button>
               {isPcaDropdownOpen && (
-                <div className="absolute z-10 w-52 bg-white border rounded shadow">
+                <div className="absolute z-10 w-full bg-white border rounded shadow mt-1">
                   {states.map((state) => (
                     <label key={state} className="block px-2 py-1">
                       <input
@@ -115,24 +136,37 @@ export default function EmailPreferences() {
                 </div>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              {["Private Duty Nursing", "Home Health", "Hospice", "Hospital", "Nursing Facility", "Prescribed Pediatric Extended Care (PPEC)", "Ambulance/Medical Transportation", "Ambulatory Surgery Center", "Anesthesia", "Behavioral Health and/or Substance Use Disorder Treatment", "Brain Injury", "Community Health Workers", "Dental", "Diagnostic Imaging", "Durable Medical Equipment (DME)", "Family Planning", "Laboratory", "Managed Care", "Maternal Health", "Medical Supplies", "Nurse", "Nutrition", "Pharmacy", "Physician", "Physician Administered Drugs", "Prescription Drugs", "Social Services", "Telemedicine & Remote Patient Monitoring (RPM)", "Vision", "General Medicaid", "340B"].map((category) => (
-                <label key={category} className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={personalCarePreferences.includes(category)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setPersonalCarePreferences([...personalCarePreferences, category]);
-                      } else {
-                        setPersonalCarePreferences(personalCarePreferences.filter((pref) => pref !== category));
-                      }
-                    }}
-                    className="min-w-[20px] w-5 h-5 text-[#012C61] border-gray-300 rounded focus:ring-[#012C61]"
-                  />
-                  <span className="text-gray-700">{category}</span>
-                </label>
-              ))}
+            <div className="relative mb-4">
+              <button
+                className="w-full bg-white p-3 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors flex items-center justify-between shadow-sm"
+                onClick={() => setIsPcaCategoriesOpen(!isPcaCategoriesOpen)}
+              >
+                <span>Select Categories</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transform transition-transform ${isPcaCategoriesOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+              {isPcaCategoriesOpen && (
+                <div className="absolute z-10 w-full bg-white border rounded shadow mt-1 max-h-60 overflow-y-auto">
+                  {["Private Duty Nursing", "Home Health", "Hospice", "Hospital", "Nursing Facility", "Prescribed Pediatric Extended Care (PPEC)", "Ambulance/Medical Transportation", "Ambulatory Surgery Center", "Anesthesia", "Behavioral Health and/or Substance Use Disorder Treatment", "Brain Injury", "Community Health Workers", "Dental", "Diagnostic Imaging", "Durable Medical Equipment (DME)", "Family Planning", "Laboratory", "Managed Care", "Maternal Health", "Medical Supplies", "Nurse", "Nutrition", "Pharmacy", "Physician", "Physician Administered Drugs", "Prescription Drugs", "Social Services", "Telemedicine & Remote Patient Monitoring (RPM)", "Vision", "General Medicaid", "340B"].map((category) => (
+                  <label key={category} className="block px-2 py-1">
+                    <input
+                      type="checkbox"
+                      checked={personalCarePreferences.includes(category)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setPersonalCarePreferences([...personalCarePreferences, category]);
+                        } else {
+                          setPersonalCarePreferences(personalCarePreferences.filter((pref) => pref !== category));
+                        }
+                      }}
+                      className="mr-2"
+                    />
+                    {category}
+                  </label>
+                ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
