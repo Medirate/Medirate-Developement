@@ -3,181 +3,145 @@
 import { useState } from "react";
 import AppLayout from "@/app/components/applayout";
 
-export default function EmailPreferences() {
-  const [abaPreferences, setAbaPreferences] = useState<string[]>([]);
-  const [personalCarePreferences, setPersonalCarePreferences] = useState<string[]>([]);
-  const [abaStates, setAbaStates] = useState<string[]>([]);
-  const [pcaStates, setPcaStates] = useState<string[]>([]);
-  const [isAbaDropdownOpen, setIsAbaDropdownOpen] = useState(false);
-  const [isPcaDropdownOpen, setIsPcaDropdownOpen] = useState(false);
-  const [isAbaCategoriesOpen, setIsAbaCategoriesOpen] = useState(false);
-  const [isPcaCategoriesOpen, setIsPcaCategoriesOpen] = useState(false);
+// ✅ Full list of U.S. states (alphabetical order)
+const STATES = [
+  "ALABAMA", "ALASKA", "ARIZONA", "ARKANSAS", "CALIFORNIA", "COLORADO",
+  "CONNECTICUT", "DELAWARE", "FLORIDA", "GEORGIA", "HAWAII", "IDAHO",
+  "ILLINOIS", "INDIANA", "IOWA", "KANSAS", "KENTUCKY", "LOUISIANA",
+  "MAINE", "MARYLAND", "MASSACHUSETTS", "MICHIGAN", "MINNESOTA",
+  "MISSISSIPPI", "MISSOURI", "MONTANA", "NEBRASKA", "NEVADA",
+  "NEW HAMPSHIRE", "NEW JERSEY", "NEW MEXICO", "NEW YORK",
+  "NORTH CAROLINA", "NORTH DAKOTA", "OHIO", "OKLAHOMA", "OREGON",
+  "PENNSYLVANIA", "RHODE ISLAND", "SOUTH CAROLINA", "SOUTH DAKOTA",
+  "TENNESSEE", "TEXAS", "UTAH", "VERMONT", "VIRGINIA", "WASHINGTON",
+  "WEST VIRGINIA", "WISCONSIN", "WYOMING"
+];
 
-  const handleSave = () => {
-    // Save the preferences (placeholder)
-    alert("Email preferences saved!");
+// ✅ Full list of topical areas/categories (alphabetical order)
+const CATEGORIES = [
+  "340B", "AMBULANCE/MEDICAL TRANSPORTATION", "AMBULATORY SURGERY CENTER",
+  "ANESTHESIA", "BEHAVIORAL HEALTH AND/OR SUBSTANCE USE DISORDER TREATMENT",
+  "BRAIN INJURY", "COMMUNITY HEALTH WORKERS", "DENTAL",
+  "DIAGNOSTIC IMAGING", "DURABLE MEDICAL EQUIPMENT (DME)", "FAMILY PLANNING",
+  "FQHC/RHC", "GENERAL MEDICAID", "HOME AND COMMUNITY BASED SERVICES",
+  "HOME HEALTH", "HOSPICE", "HOSPITAL", "INTELLECTUAL AND DEVELOPMENTAL DISABILITY (IDD) SERVICES",
+  "LABORATORY", "MANAGED CARE", "MATERNAL HEALTH", "MEDICAL SUPPLIES",
+  "NURSE", "NURSING FACILITY", "NUTRITION", "PHARMACY", "PHYSICIAN",
+  "PHYSICIAN ADMINISTERED DRUGS", "PRESCRIBED PEDIATRIC EXTENDED CARE (PPEC)",
+  "PRESCRIPTION DRUGS", "PRIVATE DUTY NURSING", "SOCIAL SERVICES",
+  "TELEMEDICINE & REMOTE PATIENT MONITORING (RPM)", "THERAPY: OT, PT, ST",
+  "VISION"
+];
+
+export default function EmailPreferences() {
+  const [selectedStates, setSelectedStates] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+
+  // ✅ Handle state selection toggle
+  const handleStateChange = (state: string) => {
+    setSelectedStates(prev =>
+      prev.includes(state) ? prev.filter(s => s !== state) : [...prev, state]
+    );
   };
 
-  const states = [
-    "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware",
-    "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky",
-    "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi",
-    "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico",
-    "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania",
-    "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont",
-    "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming"
-  ];
+  // ✅ Handle category selection toggle
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategories(prev =>
+      prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]
+    );
+  };
 
-  const handleStateSelection = (e: React.ChangeEvent<HTMLInputElement>, state: string, currentStates: string[], setStates: React.Dispatch<React.SetStateAction<string[]>>) => {
-    if (e.target.checked) {
-      setStates([...currentStates, state]);
-    } else {
-      setStates(currentStates.filter((s) => s !== state));
-    }
+  // ✅ Select/Deselect all states
+  const toggleSelectAllStates = () => {
+    setSelectedStates(selectedStates.length === STATES.length ? [] : [...STATES]);
+  };
+
+  // ✅ Select/Deselect all categories
+  const toggleSelectAllCategories = () => {
+    setSelectedCategories(selectedCategories.length === CATEGORIES.length ? [] : [...CATEGORIES]);
+  };
+
+  // Define the handleSave function
+  const handleSave = () => {
+    // Implement your save logic here
+    console.log("Preferences saved:", selectedStates, selectedCategories);
   };
 
   return (
     <AppLayout activeTab="emailPreferences">
-      <h1 className="text-5xl md:text-6xl text-[#012C61] font-lemonMilkRegular uppercase mb-8 text-center">
-        Email Preferences
-      </h1>
+      <div className="max-w-[1400px] mx-auto p-6">
+        <h1 className="text-5xl md:text-6xl font-lemonMilkRegular text-[#012C61] mb-8 text-center uppercase">
+          EMAIL PREFERENCES
+        </h1>
+        <p className="text-gray-600 mb-8 text-center">
+          Stay informed of Medicaid provider rate developments by selecting state(s) and categories for regular email updates.
+        </p>
 
-      <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-lg p-6">
-        <div className="grid grid-cols-2 gap-8">
-          {/* Applied Behavior Analysis Section */}
-          <div className="bg-gray-50 p-6 rounded-lg shadow-sm">
-            <h2 className="text-xl font-semibold text-[#012C61] mb-4">Applied Behavior Analysis</h2>
-            <div className="relative mb-4">
-              <button
-                className="w-full bg-white p-3 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors flex items-center justify-between shadow-sm"
-                onClick={() => setIsAbaDropdownOpen(!isAbaDropdownOpen)}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* States Selection */}
+          <div className="bg-white shadow-lg rounded-xl p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-semibold text-[#012C61]">Select States</h2>
+              <button 
+                onClick={toggleSelectAllStates} 
+                className="text-[#012C61] text-sm font-semibold hover:underline px-4 py-2 border border-[#012C61] rounded-lg transition-colors hover:bg-[#012C61] hover:text-white"
               >
-                <span>Select States</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transform transition-transform ${isAbaDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
+                {selectedStates.length === STATES.length ? "Deselect All" : "Select All"}
               </button>
-              {isAbaDropdownOpen && (
-                <div className="absolute z-10 w-full bg-white border rounded shadow mt-1 max-h-[120px] overflow-y-auto">
-                  {states.map((state) => (
-                    <label key={state} className="block px-2 py-1">
-                      <input
-                        type="checkbox"
-                        checked={abaStates.includes(state)}
-                        onChange={(e) => handleStateSelection(e, state, abaStates, setAbaStates)}
-                        className="mr-2"
-                      />
-                      {state}
-                    </label>
-                  ))}
-                </div>
-              )}
             </div>
-            <div className="relative mb-4">
-              <button
-                className="w-full bg-white p-3 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors flex items-center justify-between shadow-sm"
-                onClick={() => setIsAbaCategoriesOpen(!isAbaCategoriesOpen)}
-              >
-                <span>Select Categories</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transform transition-transform ${isAbaCategoriesOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
-              {isAbaCategoriesOpen && (
-                <div className="absolute z-10 w-full bg-white border rounded shadow mt-1 max-h-[120px] overflow-y-auto">
-                  {["Therapy: OT, PT, ST", "FQHC/RHC", "Home and Community Based Services", "Home Health", "Intellectual and Developmental Disability (IDD) Services", "Prescribed Pediatric Extended Care (PPEC)", "Ambulance/Medical Transportation", "Ambulatory Surgery Center", "Anesthesia", "Behavioral Health and/or Substance Use Disorder Treatment", "Brain Injury", "Community Health Workers", "Dental", "Diagnostic Imaging", "Durable Medical Equipment (DME)", "Family Planning", "Laboratory", "Managed Care", "Maternal Health", "Medical Supplies", "Nurse", "Nursing Facility", "Nutrition", "Pharmacy", "Physician", "Physician Administered Drugs", "Prescription Drugs", "Social Services", "Telemedicine & Remote Patient Monitoring (RPM)", "Vision", "General Medicaid", "340B"].map((category) => (
-                  <label key={category} className="block px-2 py-1">
-                    <input
-                      type="checkbox"
-                      checked={abaPreferences.includes(category)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setAbaPreferences([...abaPreferences, category]);
-                        } else {
-                          setAbaPreferences(abaPreferences.filter((pref) => pref !== category));
-                        }
-                      }}
-                      className="mr-2"
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+              {STATES.map(state => (
+                <label key={state} className="flex items-center group p-2 hover:bg-gray-50 rounded-lg cursor-pointer">
+                  <div className="w-full flex items-center">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedStates.includes(state)}
+                      onChange={() => handleStateChange(state)}
+                      className="h-5 w-5 text-[#012C61] focus:ring-[#012C61] rounded-md border-gray-300 flex-shrink-0"
                     />
-                    {category}
-                  </label>
-                ))}
-                </div>
-              )}
+                    <span className="ml-3 text-gray-800 text-sm font-medium group-hover:text-[#012C61]">{state}</span>
+                  </div>
+                </label>
+              ))}
             </div>
           </div>
 
-          {/* Personal Care Section */}
-          <div className="bg-gray-50 p-6 rounded-lg shadow-sm">
-            <h2 className="text-xl font-semibold text-[#012C61] mb-4">Personal Care</h2>
-            <div className="relative mb-4">
-              <button
-                className="w-full bg-white p-3 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors flex items-center justify-between shadow-sm"
-                onClick={() => setIsPcaDropdownOpen(!isPcaDropdownOpen)}
+          {/* Categories Selection */}
+          <div className="bg-white shadow-lg rounded-xl p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-semibold text-[#012C61]">Select Categories</h2>
+              <button 
+                onClick={toggleSelectAllCategories} 
+                className="text-[#012C61] text-sm font-semibold hover:underline px-4 py-2 border border-[#012C61] rounded-lg transition-colors hover:bg-[#012C61] hover:text-white"
               >
-                <span>Select States</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transform transition-transform ${isPcaDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
+                {selectedCategories.length === CATEGORIES.length ? "Deselect All" : "Select All"}
               </button>
-              {isPcaDropdownOpen && (
-                <div className="absolute z-10 w-full bg-white border rounded shadow mt-1 max-h-[120px] overflow-y-auto">
-                  {states.map((state) => (
-                    <label key={state} className="block px-2 py-1">
-                      <input
-                        type="checkbox"
-                        checked={pcaStates.includes(state)}
-                        onChange={(e) => handleStateSelection(e, state, pcaStates, setPcaStates)}
-                        className="mr-2"
-                      />
-                      {state}
-                    </label>
-                  ))}
-                </div>
-              )}
             </div>
-            <div className="relative mb-4">
-              <button
-                className="w-full bg-white p-3 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors flex items-center justify-between shadow-sm"
-                onClick={() => setIsPcaCategoriesOpen(!isPcaCategoriesOpen)}
-              >
-                <span>Select Categories</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transform transition-transform ${isPcaCategoriesOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
-              {isPcaCategoriesOpen && (
-                <div className="absolute z-10 w-full bg-white border rounded shadow mt-1 max-h-[120px] overflow-y-auto">
-                  {["Private Duty Nursing", "Home Health", "Hospice", "Hospital", "Nursing Facility", "Prescribed Pediatric Extended Care (PPEC)", "Ambulance/Medical Transportation", "Ambulatory Surgery Center", "Anesthesia", "Behavioral Health and/or Substance Use Disorder Treatment", "Brain Injury", "Community Health Workers", "Dental", "Diagnostic Imaging", "Durable Medical Equipment (DME)", "Family Planning", "Laboratory", "Managed Care", "Maternal Health", "Medical Supplies", "Nurse", "Nutrition", "Pharmacy", "Physician", "Physician Administered Drugs", "Prescription Drugs", "Social Services", "Telemedicine & Remote Patient Monitoring (RPM)", "Vision", "General Medicaid", "340B"].map((category) => (
-                  <label key={category} className="block px-2 py-1">
-                    <input
-                      type="checkbox"
-                      checked={personalCarePreferences.includes(category)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setPersonalCarePreferences([...personalCarePreferences, category]);
-                        } else {
-                          setPersonalCarePreferences(personalCarePreferences.filter((pref) => pref !== category));
-                        }
-                      }}
-                      className="mr-2"
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {CATEGORIES.map(category => (
+                <label key={category} className="flex items-center group p-2 hover:bg-gray-50 rounded-lg cursor-pointer">
+                  <div className="w-full flex items-center">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedCategories.includes(category)}
+                      onChange={() => handleCategoryChange(category)}
+                      className="h-5 w-5 text-[#012C61] focus:ring-[#012C61] rounded-md border-gray-300 flex-shrink-0"
                     />
-                    {category}
-                  </label>
-                ))}
-                </div>
-              )}
+                    <span className="ml-3 text-gray-800 text-sm font-medium group-hover:text-[#012C61]">{category}</span>
+                  </div>
+                </label>
+              ))}
             </div>
           </div>
         </div>
 
-        <div className="flex justify-end space-x-4 mt-8">
-          <button
-            type="button"
+        {/* Save Button */}
+        <div className="mt-8 flex justify-end">
+          <button 
             onClick={handleSave}
-            className="px-4 py-2 bg-[#012C61] text-white rounded-lg hover:bg-blue-800"
+            className="bg-[#012C61] text-white px-8 py-3 rounded-lg font-semibold hover:bg-[#023d85] transition-colors"
           >
-            Save Changes
+            Save Preferences
           </button>
         </div>
       </div>
