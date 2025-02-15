@@ -1,9 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AppLayout from "@/app/components/applayout";
+import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
+import { createClient } from "@supabase/supabase-js";
+import { motion } from "framer-motion";
+import { MoonLoader } from "react-spinners";
 
-// ✅ Full list of U.S. states (alphabetical order)
+// ✅ Initialize Supabase
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+// ✅ Full list of U.S. states
 const STATES = [
   "ALABAMA", "ALASKA", "ARIZONA", "ARKANSAS", "CALIFORNIA", "COLORADO",
   "CONNECTICUT", "DELAWARE", "FLORIDA", "GEORGIA", "HAWAII", "IDAHO",
@@ -17,7 +27,7 @@ const STATES = [
   "WEST VIRGINIA", "WISCONSIN", "WYOMING"
 ];
 
-// ✅ Full list of topical areas/categories (alphabetical order)
+// ✅ Full list of categories (service lines)
 const CATEGORIES = [
   "340B", "AMBULANCE/MEDICAL TRANSPORTATION", "AMBULATORY SURGERY CENTER",
   "ANESTHESIA", "BEHAVIORAL HEALTH AND/OR SUBSTANCE USE DISORDER TREATMENT",
@@ -34,117 +44,168 @@ const CATEGORIES = [
 ];
 
 export default function EmailPreferences() {
+  const { user } = useKindeBrowserClient();
   const [selectedStates, setSelectedStates] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [preferenceId, setPreferenceId] = useState<number | null>(null);
 
-  // ✅ Handle state selection toggle
-  const handleStateChange = (state: string) => {
-    setSelectedStates(prev =>
-      prev.includes(state) ? prev.filter(s => s !== state) : [...prev, state]
-    );
+  useEffect(() => {
+    if (user?.email) {
+      fetchPreferences(user.email);
+    }
+  }, [user]);
+
+  const fetchPreferences = async (email: string) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("user_email_preferences")
+        .select("id, preferences")
+        .eq("user_email", email)
+        .single();
+
+      if (error && error.code !== "PGRST116") {
+        console.error("❌ Error fetching preferences:", error);
+      } else if (data) {
+        setPreferenceId(data.id);
+        setSelectedStates(data.preferences?.states || []);
+        setSelectedCategories(data.preferences?.categories || []);
+      } else {
+        const { data: newRecord, error: insertError } = await supabase
+          .from("user_email_preferences")
+          .insert({ user_email: email, preferences: { states: [], categories: [] } })
+          .select("id")
+          .single();
+
+        if (!insertError) setPreferenceId(newRecord.id);
+      }
+    } catch (err) {
+      console.error("❌ Unexpected error fetching preferences:", err);
+      alert("Failed to load preferences. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // ✅ Handle category selection toggle
-  const handleCategoryChange = (category: string) => {
-    setSelectedCategories(prev =>
-      prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]
-    );
-  };
+  const handleSave = async () => {
+    if (!user?.email || preferenceId === null) return;
+    setLoading(true);
+    try {
+      const updatedPreferences = { states: selectedStates, categories: selectedCategories };
+      const { error } = await supabase
+        .from("user_email_preferences")
+        .update({ preferences: updatedPreferences })
+        .eq("id", preferenceId);
 
-  // ✅ Select/Deselect all states
-  const toggleSelectAllStates = () => {
-    setSelectedStates(selectedStates.length === STATES.length ? [] : [...STATES]);
-  };
-
-  // ✅ Select/Deselect all categories
-  const toggleSelectAllCategories = () => {
-    setSelectedCategories(selectedCategories.length === CATEGORIES.length ? [] : [...CATEGORIES]);
-  };
-
-  // Define the handleSave function
-  const handleSave = () => {
-    // Implement your save logic here
-    console.log("Preferences saved:", selectedStates, selectedCategories);
+      if (error) {
+        console.error("❌ Error saving preferences:", error);
+        alert("Failed to save preferences.");
+      } else {
+        alert("✅ Preferences saved successfully!");
+      }
+    } catch (err) {
+      console.error("❌ Unexpected error saving preferences:", err);
+      alert("Failed to save preferences. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <AppLayout activeTab="emailPreferences">
-      <div className="max-w-[1400px] mx-auto p-6">
-        <h1 className="text-5xl md:text-6xl font-lemonMilkRegular text-[#012C61] mb-8 text-center uppercase">
+      <motion.div
+        className="max-w-[1400px] mx-auto p-8"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <h1 className="text-5xl md:text-6xl font-lemonMilkRegular text-[#012C61] mb-6 text-center uppercase tracking-widest">
           EMAIL PREFERENCES
         </h1>
-        <p className="text-gray-600 mb-8 text-center">
+        <p className="text-gray-600 mb-6 text-center text-lg">
           Stay informed of Medicaid provider rate developments by selecting States and Categories for regular email updates.
         </p>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* States Selection */}
-          <div className="bg-white shadow-lg rounded-xl p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-semibold text-[#012C61]">Select States</h2>
-              <button 
-                onClick={toggleSelectAllStates} 
-                className="text-[#012C61] text-sm font-semibold hover:underline px-4 py-2 border border-[#012C61] rounded-lg transition-colors hover:bg-[#012C61] hover:text-white"
-              >
-                {selectedStates.length === STATES.length ? "Deselect All" : "Select All"}
-              </button>
-            </div>
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-              {STATES.map(state => (
-                <label key={state} className="flex items-center group p-2 hover:bg-gray-50 rounded-lg cursor-pointer">
-                  <div className="w-full flex items-center">
-                    <input 
-                      type="checkbox" 
-                      checked={selectedStates.includes(state)}
-                      onChange={() => handleStateChange(state)}
-                      className="h-5 w-5 text-[#012C61] focus:ring-[#012C61] rounded-md border-gray-300 flex-shrink-0"
-                    />
-                    <span className="ml-3 text-gray-800 text-sm font-medium group-hover:text-[#012C61]">{state}</span>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Categories Selection */}
-          <div className="bg-white shadow-lg rounded-xl p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-semibold text-[#012C61]">Select Categories</h2>
-              <button 
-                onClick={toggleSelectAllCategories} 
-                className="text-[#012C61] text-sm font-semibold hover:underline px-4 py-2 border border-[#012C61] rounded-lg transition-colors hover:bg-[#012C61] hover:text-white"
-              >
-                {selectedCategories.length === CATEGORIES.length ? "Deselect All" : "Select All"}
-              </button>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {CATEGORIES.map(category => (
-                <label key={category} className="flex items-center group p-2 hover:bg-gray-50 rounded-lg cursor-pointer">
-                  <div className="w-full flex items-center">
-                    <input 
-                      type="checkbox" 
-                      checked={selectedCategories.includes(category)}
-                      onChange={() => handleCategoryChange(category)}
-                      className="h-5 w-5 text-[#012C61] focus:ring-[#012C61] rounded-md border-gray-300 flex-shrink-0"
-                    />
-                    <span className="ml-3 text-gray-800 text-sm font-medium group-hover:text-[#012C61]">{category}</span>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Save Button */}
-        <div className="mt-8 flex justify-end">
-          <button 
-            onClick={handleSave}
-            className="bg-[#012C61] text-white px-8 py-3 rounded-lg font-semibold hover:bg-[#023d85] transition-colors"
+        {user?.email && (
+          <motion.p
+            className="text-center text-lg font-semibold text-gray-700 mb-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
           >
-            Save Preferences
-          </button>
+            Logged in as: <span className="text-[#012C61]">{user.email}</span>
+          </motion.p>
+        )}
+
+        {loading ? (
+          <div className="flex justify-center items-center h-48">
+            <MoonLoader color="#012C61" size={40} />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="bg-white rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
+              <div className="px-6 py-5">
+                <h2 className="text-2xl font-semibold text-[#012C61] mb-4 border-b pb-2">Select States</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {STATES.map(state => (
+                    <label
+                      key={state}
+                      className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors duration-200 cursor-pointer"
+                      style={{ minWidth: '200px' }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedStates.includes(state)}
+                        onChange={() => setSelectedStates(prev =>
+                          prev.includes(state) ? prev.filter(s => s !== state) : [...prev, state]
+                        )}
+                        className="form-checkbox h-5 w-5 text-[#012C61] rounded border-gray-300 focus:ring-[#012C61]/50"
+                      />
+                      <span className="text-gray-700 text-sm flex-1">{state}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
+              <div className="px-6 py-5">
+                <h2 className="text-2xl font-semibold text-[#012C61] mb-4 border-b pb-2">Select Categories</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {CATEGORIES.map(category => (
+                    <label
+                      key={category}
+                      className="flex items-center space-x-3 py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors duration-200 cursor-pointer"
+                      style={{ minWidth: '200px' }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedCategories.includes(category)}
+                        onChange={() => setSelectedCategories(prev =>
+                          prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]
+                        )}
+                        className="form-checkbox h-5 w-5 text-[#012C61] rounded border-gray-300 focus:ring-[#012C61]/50"
+                      />
+                      <span className="text-gray-700 text-sm flex-1">{category}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-8 flex justify-center">
+          <motion.button
+            onClick={handleSave}
+            className="bg-[#012C61] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#023d85] transition-transform transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            disabled={loading}
+          >
+            {loading ? "Saving..." : "Save Preferences"}
+          </motion.button>
         </div>
-      </div>
+      </motion.div>
     </AppLayout>
   );
 }
