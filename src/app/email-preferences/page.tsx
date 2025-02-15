@@ -58,7 +58,7 @@ export default function EmailPreferences() {
                 </svg>
               </button>
               {isAbaDropdownOpen && (
-                <div className="absolute z-10 w-full bg-white border rounded shadow mt-1">
+                <div className="absolute z-10 w-full bg-white border rounded shadow mt-1 max-h-[120px] overflow-y-auto">
                   {states.map((state) => (
                     <label key={state} className="block px-2 py-1">
                       <input
@@ -84,7 +84,7 @@ export default function EmailPreferences() {
                 </svg>
               </button>
               {isAbaCategoriesOpen && (
-                <div className="absolute z-10 w-full bg-white border rounded shadow mt-1 max-h-60 overflow-y-auto">
+                <div className="absolute z-10 w-full bg-white border rounded shadow mt-1 max-h-[120px] overflow-y-auto">
                   {["Therapy: OT, PT, ST", "FQHC/RHC", "Home and Community Based Services", "Home Health", "Intellectual and Developmental Disability (IDD) Services", "Prescribed Pediatric Extended Care (PPEC)", "Ambulance/Medical Transportation", "Ambulatory Surgery Center", "Anesthesia", "Behavioral Health and/or Substance Use Disorder Treatment", "Brain Injury", "Community Health Workers", "Dental", "Diagnostic Imaging", "Durable Medical Equipment (DME)", "Family Planning", "Laboratory", "Managed Care", "Maternal Health", "Medical Supplies", "Nurse", "Nursing Facility", "Nutrition", "Pharmacy", "Physician", "Physician Administered Drugs", "Prescription Drugs", "Social Services", "Telemedicine & Remote Patient Monitoring (RPM)", "Vision", "General Medicaid", "340B"].map((category) => (
                   <label key={category} className="block px-2 py-1">
                     <input
@@ -121,7 +121,7 @@ export default function EmailPreferences() {
                 </svg>
               </button>
               {isPcaDropdownOpen && (
-                <div className="absolute z-10 w-full bg-white border rounded shadow mt-1">
+                <div className="absolute z-10 w-full bg-white border rounded shadow mt-1 max-h-[120px] overflow-y-auto">
                   {states.map((state) => (
                     <label key={state} className="block px-2 py-1">
                       <input
@@ -147,7 +147,7 @@ export default function EmailPreferences() {
                 </svg>
               </button>
               {isPcaCategoriesOpen && (
-                <div className="absolute z-10 w-full bg-white border rounded shadow mt-1 max-h-60 overflow-y-auto">
+                <div className="absolute z-10 w-full bg-white border rounded shadow mt-1 max-h-[120px] overflow-y-auto">
                   {["Private Duty Nursing", "Home Health", "Hospice", "Hospital", "Nursing Facility", "Prescribed Pediatric Extended Care (PPEC)", "Ambulance/Medical Transportation", "Ambulatory Surgery Center", "Anesthesia", "Behavioral Health and/or Substance Use Disorder Treatment", "Brain Injury", "Community Health Workers", "Dental", "Diagnostic Imaging", "Durable Medical Equipment (DME)", "Family Planning", "Laboratory", "Managed Care", "Maternal Health", "Medical Supplies", "Nurse", "Nutrition", "Pharmacy", "Physician", "Physician Administered Drugs", "Prescription Drugs", "Social Services", "Telemedicine & Remote Patient Monitoring (RPM)", "Vision", "General Medicaid", "340B"].map((category) => (
                   <label key={category} className="block px-2 py-1">
                     <input
