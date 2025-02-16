@@ -363,8 +363,8 @@ export default function RateDevelopments() {
     });
   }, [legislativeUpdates, sortDirection]);
 
-  // Update the filtered data logic
-  const filteredProviderAlerts = providerAlerts.filter((alert) => {
+  // Update the filtered data logic to use sorted arrays
+  const filteredProviderAlerts = sortedProviderAlerts.filter((alert) => {
     const matchesSearch = !providerSearch || searchInFields(providerSearch, [
       alert.subject
     ]);
@@ -383,7 +383,7 @@ export default function RateDevelopments() {
     return matchesSearch && matchesState && matchesServiceLine;
   });
 
-  const filteredLegislativeUpdates = legislativeUpdates.filter((bill) => {
+  const filteredLegislativeUpdates = sortedLegislativeUpdates.filter((bill) => {
     const matchesSearch = !legislativeSearch || searchInFields(legislativeSearch, [
       bill.name,
       bill.bill_number,
@@ -567,7 +567,7 @@ export default function RateDevelopments() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedProviderAlerts.map((alert, index) => (
+                  {filteredProviderAlerts.map((alert, index) => (
                     <tr key={index} className="border-b hover:bg-gray-100">
                       <td className="p-4 text-sm text-gray-700 border-b">
                         {alert.state || ""}
@@ -645,7 +645,7 @@ export default function RateDevelopments() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedLegislativeUpdates.map((bill, index) => (
+                  {filteredLegislativeUpdates.map((bill, index) => (
                     <tr key={index} className="border-b hover:bg-gray-100">
                       <td className="p-4 text-sm text-gray-700 border-b">
                         {reverseStateMap[bill.state] || bill.state}
@@ -727,7 +727,7 @@ export default function RateDevelopments() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedProviderAlerts.map((alert, index) => (
+                  {filteredProviderAlerts.map((alert, index) => (
                     <tr key={index} className="border-b hover:bg-gray-100">
                       <td className="p-4 text-sm text-gray-700 border-b">
                         {alert.state || ""}
@@ -800,7 +800,7 @@ export default function RateDevelopments() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedLegislativeUpdates.map((bill, index) => (
+                  {filteredLegislativeUpdates.map((bill, index) => (
                     <tr key={index} className="border-b hover:bg-gray-100">
                       <td className="p-4 text-sm text-gray-700 border-b">
                         {reverseStateMap[bill.state] || bill.state}
