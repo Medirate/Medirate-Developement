@@ -13,6 +13,8 @@ import {
   Mail,
   Search,
   Check,
+  ClipboardList,
+  Calendar,
 } from "lucide-react";
 
 export default function OurSolution() {
@@ -36,93 +38,208 @@ export default function OurSolution() {
       </section>
 
       {/* Main Content */}
-      <section className="py-12 px-6 reusable-gradient-bg text-lg">
+      <section className="py-12 px-6 bg-gradient-to-r from-[#f0f4f8] to-[#e0e6ed] text-lg">
         <div className="max-w-7xl mx-auto">
           {/* Introductory Content */}
-          <div className="text-left ml-4 mb-8">
-            <p className="mb-6 leading-relaxed">
-              MediRate’s solution is designed to take the mystery out of
-              identifying and monitoring fee schedule payment rates for
-              Medicaid-reimbursed services.
-            </p>
-            <p className="leading-relaxed">
-              MediRate is a comprehensive, national database of Medicaid
-              fee-for-service reimbursement rates for key provider service lines.
-              Fee schedule payment rates represent the basis for provider reimbursement
-              under Medicaid fee-for-service models and are typically the foundation
-              for negotiations with third-party payors such as Medicaid managed care
-              organizations (MCOs), prepaid inpatient health plans (PIHPs), accountable
-              care organizations (ACOs), managed behavioral health organizations, area
-              agencies on aging (AAAs), and others.
-            </p>
-            <p className="leading-relaxed mt-6">
-              MediRate’s services are designed to improve price transparency and help provider organizations:
-            </p>
-            <ul className="space-y-3 text-left pl-6">
-              <li className="flex items-center"><DollarSign className="w-6 h-6 text-[#012C61] mr-4" /> Maximize revenue</li>
-              <li className="flex items-center"><FileText className="w-6 h-6 text-[#012C61] mr-4" /> Improve contracting with MCOs, ACOs, PIHPs, and payors</li>
-              <li className="flex items-center"><TrendingUp className="w-6 h-6 text-[#012C61] mr-4" /> Inform value-based contracting initiatives</li>
-              <li className="flex items-center"><MapPin className="w-6 h-6 text-[#012C61] mr-4" /> Identify expansion markets</li>
-              <li className="flex items-center"><ThumbsUp className="w-6 h-6 text-[#012C61] mr-4" /> Support advocacy efforts</li>
-              <li className="flex items-center"><Search className="w-6 h-6 text-[#012C61] mr-4" /> Conduct acquisition-related due diligence</li>
-            </ul>
+          <div className="text-left ml-4 mb-8 space-y-8">
+            {/* Section: MediRate's Mission */}
+            <div className="bg-white/90 p-6 rounded-lg shadow-sm">
+              <h2 className="text-2xl font-lemonMilkRegular text-[#012C61] mb-6">MediRate's Mission</h2>
+              <div className="space-y-6 leading-relaxed">
+                <p>MediRate makes access to Medicaid payment data easy. Our simple intuitive platform enables quick answers to your Medicaid rate questions and easy monitoring so that you can stay on top of changes when they happen.</p>
+                <p>With over 80 million Americans enrolled, and approaching $1 trillion in annual expenditures, Medicaid is the largest government-funded health care program in the United States.</p>
+                <p>Despite the size and growth of the market, state-specific program designs and the lack of standardization and comparability in data collection present challenges for policy-setters and business interests.</p>
+              </div>
+            </div>
 
-            {/* Screenshot and Paragraph Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-8">
+            {/* Section: How MediRate Helps You */}
+            <div className="bg-white/90 p-6 rounded-lg shadow-sm">
+              <h2 className="text-2xl font-lemonMilkRegular text-[#012C61] mb-6">How MediRate Helps You</h2>
+              <div className="space-y-6 leading-relaxed">
+                <p>MediRate aggregates fee schedule data for key service lines across all 50 states to enable on-demand rate look-up, trend identification and cross-state comparisons.</p>
+                <p>Payment rates are updated real-time, and are searchable by state, service line, billing code, program and date.</p>
+                <p>MediRate monitors payment rate developments by state and service line and offers daily, customizable alerts, enabling users to track potential changes as they emerge.</p>
+              </div>
+            </div>
+
+            {/* Section: Key Questions We Answer */}
+            <div className="bg-white/90 p-6 rounded-lg shadow-sm">
+              <h2 className="text-2xl font-lemonMilkRegular text-[#012C61] mb-6">Key Questions We Answer</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {[
+                  "Are we being reimbursed accurately for the services we offer and populations we serve?",
+                  "How do the payment rates in our market compare to those in contiguous geographies/programs? Is there an opportunity to advocate for higher payment amounts?",
+                  "How do our managed care payment rates compare to fee-for-service reimbursement?",
+                  "Can we design value-based contracting models with our managed care payers to drive improved outcomes?",
+                  "Are there other service lines we can offer to broaden the array of treatment options we offer to patients?",
+                  "Which expansion markets may be attractive for our organization to consider, either organically or through acquisitions?",
+                  "When considering acquisitions, how do we assess the stability of the Target's reimbursement and are there opportunities for future growth in financially viable markets?"
+                ].map((question, index) => (
+                  <div key={index} className="flex items-start p-4 bg-gray-50 rounded-lg">
+                    <Check className="w-8 h-8 text-[#012C61] mr-4 flex-shrink-0" />
+                    <span className="text-gray-700">{question}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Data Aggregation Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
               {/* Service Screenshot */}
               <div className="flex justify-center lg:justify-start">
                 <Image
                   src="/images/Screenshot Service.png"
                   alt="Service Screenshot"
-                  width={600} // Increased by 50%
-                  height={450} // Increased by 50%
-                  className="rounded-lg shadow-lg"
+                  width={600}
+                  height={450}
+                  className="rounded-lg shadow-lg border border-gray-200 object-contain"
                 />
               </div>
-              <div>
-                <p className="leading-relaxed">
-                  We curate Medicaid fee schedules, provider manuals, provider bulletins, legislative and appropriations’ documents,
-                  regulatory actions, and other sources to aggregate fee-for-service payment amounts by CPT/HCPCS billing code across 50 states
-                  and the District of Columbia.
+              <div className="bg-white/90 p-6 rounded-lg shadow-sm">
+                <h3 className="text-xl font-lemonMilkRegular text-[#012C61] mb-4 flex items-center">
+                  <span className="w-8 h-8 bg-[#012C61] rounded-full flex items-center justify-center mr-3">
+                    📊
+                  </span>
+                  Data Aggregation
+                </h3>
+                <p className="leading-relaxed mb-4">
+                  MediRate aggregates fee-for-service payment amounts by CPT/HCPCS billing code across 50 states and the District of Columbia by curating:
                 </p>
+                <ul className="space-y-2">
+                  {[
+                    "State Medicaid and related agency fee schedules",
+                    "Provider manuals",
+                    "Provider bulletins",
+                    "Legislative and appropriations' documents",
+                    "Regulatory actions",
+                    "Other sources"
+                  ].map((item, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="w-6 h-6 bg-[#012C61]/10 rounded-full flex items-center justify-center mr-3 mt-1">
+                        <Check className="w-4 h-4 text-[#012C61]" />
+                      </span>
+                      <span className="text-gray-700">{item}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-12">
+            {/* Payment Rate Analysis Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-12">
               {/* Historical Screenshot */}
               <div className="flex justify-center lg:justify-start">
                 <Image
                   src="/images/Screenshot Historical.png"
                   alt="Historical Screenshot"
-                  width={600} // Increased by 50%
-                  height={450} // Increased by 50%
-                  className="rounded-lg shadow-lg"
+                  width={600}
+                  height={450}
+                  className="rounded-lg shadow-lg border border-gray-200 object-contain"
                 />
               </div>
-              <div>
-                <p className="leading-relaxed">
-                  Subscribers can search for payment rates by service line category, billing code, state, program, and date, track them over time,
-                  and compare them to other state payment amounts and national averages.
+              <div className="bg-white/90 p-6 rounded-lg shadow-sm">
+                <h3 className="text-xl font-lemonMilkRegular text-[#012C61] mb-4 flex items-center">
+                  <span className="w-8 h-8 bg-[#012C61] rounded-full flex items-center justify-center mr-3">
+                    📈
+                  </span>
+                  Payment Rate Analysis
+                </h3>
+                <p className="leading-relaxed mb-4">
+                  Subscribers can:
                 </p>
+                <ul className="space-y-2">
+                  <li className="flex items-start">
+                    <span className="w-6 h-6 bg-[#012C61]/10 rounded-full flex items-center justify-center mr-3 mt-1">
+                      <Search className="w-4 h-4 text-[#012C61]" />
+                    </span>
+                    <span className="text-gray-700">
+                      Search for payment rates by:
+                      <ul className="pl-6 mt-1 space-y-1">
+                        <li className="flex items-start">
+                          <span className="w-5 h-5 bg-[#012C61]/10 rounded-full flex items-center justify-center mr-2 mt-1">
+                            <Briefcase className="w-3 h-3 text-[#012C61]" />
+                          </span>
+                          <span>Service line category</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="w-5 h-5 bg-[#012C61]/10 rounded-full flex items-center justify-center mr-2 mt-1">
+                            <FileText className="w-3 h-3 text-[#012C61]" />
+                          </span>
+                          <span>Billing code</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="w-5 h-5 bg-[#012C61]/10 rounded-full flex items-center justify-center mr-2 mt-1">
+                            <MapPin className="w-3 h-3 text-[#012C61]" />
+                          </span>
+                          <span>State</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="w-5 h-5 bg-[#012C61]/10 rounded-full flex items-center justify-center mr-2 mt-1">
+                            <ClipboardList className="w-3 h-3 text-[#012C61]" />
+                          </span>
+                          <span>Program</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="w-5 h-5 bg-[#012C61]/10 rounded-full flex items-center justify-center mr-2 mt-1">
+                            <Calendar className="w-3 h-3 text-[#012C61]" />
+                          </span>
+                          <span>Date</span>
+                        </li>
+                      </ul>
+                    </span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="w-6 h-6 bg-[#012C61]/10 rounded-full flex items-center justify-center mr-3 mt-1">
+                      <TrendingUp className="w-4 h-4 text-[#012C61]" />
+                    </span>
+                    <span className="text-gray-700">Track trends by analyzing payment rates over time</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="w-6 h-6 bg-[#012C61]/10 rounded-full flex items-center justify-center mr-3 mt-1">
+                      <MapPin className="w-4 h-4 text-[#012C61]" />
+                    </span>
+                    <span className="text-gray-700">Compare rates to payment amounts in other states and national averages</span>
+                  </li>
+                </ul>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-12">
+            {/* Policy Monitoring Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-12">
               {/* Rate Screenshot */}
               <div className="flex justify-center lg:justify-start">
                 <Image
                   src="/images/Screenshot Rate Developements.png"
                   alt="Rate Screenshot"
-                  width={600} // Increased by 50%
-                  height={450} // Increased by 50%
-                  className="rounded-lg shadow-lg"
+                  width={600}
+                  height={450}
+                  className="rounded-lg shadow-lg border border-gray-200 object-contain"
                 />
               </div>
-              <div>
-                <p className="leading-relaxed">
-                  Subscribers can also monitor real-time policy developments related to Medicaid payment rates nationally and on a state-by-state
-                  basis in order to stay on top of any potential changes.
+              <div className="bg-white/90 p-6 rounded-lg shadow-sm">
+                <h3 className="text-xl font-lemonMilkRegular text-[#012C61] mb-4 flex items-center">
+                  <span className="w-8 h-8 bg-[#012C61] rounded-full flex items-center justify-center mr-3">
+                    🔍
+                  </span>
+                  Policy Monitoring
+                </h3>
+                <p className="leading-relaxed mb-4">
+                  Subscribers can:
                 </p>
+                <ul className="space-y-2">
+                  <li className="flex items-start">
+                    <span className="w-6 h-6 bg-[#012C61]/10 rounded-full flex items-center justify-center mr-3 mt-1">
+                      <FileText className="w-4 h-4 text-[#012C61]" />
+                    </span>
+                    <span className="text-gray-700">Monitor real-time policy developments related to Medicaid payment rates nationally and on a state-by-state basis</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="w-6 h-6 bg-[#012C61]/10 rounded-full flex items-center justify-center mr-3 mt-1">
+                      <Mail className="w-4 h-4 text-[#012C61]" />
+                    </span>
+                    <span className="text-gray-700">Sign up for customizable email alerts for real-time notification of policy developments in the service lines and markets that matter to you</span>
+                  </li>
+                </ul>
               </div>
             </div>
           </div>
@@ -147,7 +264,7 @@ export default function OurSolution() {
             </div>
 
             {/* Right: Table */}
-            <div className="w-full h-full">
+            <div className="w-full h-full bg-white/90 p-6 rounded-lg shadow-sm">
               <h3 className="text-lg font-semibold mb-4">
                 MediRate tracks reimbursement data for the following service lines
               </h3>
@@ -191,14 +308,28 @@ export default function OurSolution() {
           </div>
         </div>
         <div className="mt-12 text-center">
-            <a
-              href="mailto:contact@medirate.net"
-              className="text-[#012C61] hover:underline flex justify-center items-center space-x-2"
-            >
-              <Mail className="w-6 h-6" />
-              <span>Email link to request a demo</span>
-            </a>
-          </div>
+          <a
+            href="mailto:contact@medirate.net"
+            className="relative bg-[#012C61] text-white px-6 py-3 rounded-lg overflow-hidden group transition-all duration-500 ease-in-out w-64 mx-auto flex items-center justify-center space-x-2"
+            style={{ transform: 'translateZ(0)' }}
+          >
+            {/* Animated background layer */}
+            <div className="absolute inset-0 bg-white w-0 group-hover:w-full transition-all duration-500 ease-in-out origin-left"></div>
+            
+            {/* Text and icon */}
+            <div className="relative z-10 flex items-center space-x-2">
+              <Mail className="w-6 h-6 group-hover:text-[#012C61] transition-colors duration-300" />
+              <span className="group-hover:text-[#012C61] transition-colors duration-300">
+                Schedule a Demo
+              </span>
+            </div>
+            
+            {/* Shine effect */}
+            <div className="absolute inset-0 overflow-hidden">
+              <div className="absolute -inset-12 bg-gradient-to-r from-white/20 via-white/50 to-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 group-hover:animate-shine"></div>
+            </div>
+          </a>
+        </div>
       </section>
       <Footer />
     </div>

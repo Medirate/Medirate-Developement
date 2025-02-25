@@ -164,9 +164,6 @@ const Navbar = () => {
           <Link href="/oursolution" className="border border-transparent px-4 py-2 rounded-md text-white transition-colors hover:border-white hover:bg-transparent">
             Our Solution
           </Link>
-          <Link href="/ourcustomers" className="border border-transparent px-4 py-2 rounded-md text-white transition-colors hover:border-white hover:bg-transparent">
-            Our Customers
-          </Link>
           <Link href="/aboutus" className="border border-transparent px-4 py-2 rounded-md text-white transition-colors hover:border-white hover:bg-transparent">
             About Us
           </Link>
