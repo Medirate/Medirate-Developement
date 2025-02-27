@@ -80,6 +80,8 @@ const Navbar = () => {
     "/legislative-updates",
     "/rate-developments",
     "/email-preferences",
+    "/state-payment-comparison",
+    "/historical-rates",
   ];
 
   if (isLoading) {

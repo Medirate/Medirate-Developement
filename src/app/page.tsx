@@ -23,8 +23,7 @@ export default function Home() {
           {/* Heading */}
           <h1 className="text-white text-4xl sm:text-5xl md:text-7xl font-lemonMilkRegular leading-tight font-lightBold">
             <span className="block leading-snug">Medicaid Rate Tracking Made Easy</span>
-            <span className="block text-[0.9em] leading-snug">Monitor and search Medicaid provider payment</span>
-            <span className="block text-[0.9em] leading-snug">rates with the MediRate Platform</span>
+            <span className="block text-[0.5em] leading-snug whitespace-nowrap">Monitor and search Medicaid provider payment rates with the MediRate Platform</span>
           </h1>
 
           {/* Get Started Button */}

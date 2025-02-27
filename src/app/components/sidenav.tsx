@@ -11,6 +11,8 @@ import {
   ChartNoAxesCombined,
   Megaphone,
   Mail,
+  ChartColumnStacked,
+  ChartLine,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -34,6 +36,7 @@ const SideNav = ({
     const tabMapping: { [key: string]: string } = {
       "/dashboard": "dashboard",
       "/rate-developments": "rateDevelopments",
+      "/state-payment-comparison": "statePaymentComparison",
       "/profile": "profile",
       "/subscription": "subscription",
       "/settings": "settings",
@@ -73,16 +76,73 @@ const SideNav = ({
       {/* Navigation Links */}
       <nav className="mt-6">
         <ul className="space-y-2">
+          <li className="group">
+            <Link
+              href="/dashboard"
+              onClick={() => setActiveTab("dashboard")}
+              className={`flex items-center p-4 hover:bg-gray-200/20 transition-colors cursor-pointer ${
+                activeTab === "dashboard" ? "bg-gray-200/20" : ""
+              }`}
+            >
+              <div className="flex items-center justify-center w-6 h-6">
+                <ChartNoAxesCombined size={20} />
+              </div>
+              <span
+                className={`ml-4 font-semibold transition-opacity duration-300 ease-in-out flex-grow ${
+                  isSidebarCollapsed ? "opacity-0 invisible" : "opacity-100 visible"
+                }`}
+                style={{ whiteSpace: "nowrap" }}
+              >
+                Dashboard
+              </span>
+            </Link>
+          </li>
+          <li className="group">
+            <Link
+              href="/state-payment-comparison"
+              onClick={() => setActiveTab("statePaymentComparison")}
+              className={`flex items-center p-4 hover:bg-gray-200/20 transition-colors cursor-pointer ${
+                activeTab === "statePaymentComparison" ? "bg-gray-200/20" : ""
+              }`}
+            >
+              <div className="flex items-center justify-center w-6 h-6">
+                <ChartColumnStacked size={20} />
+              </div>
+              <span
+                className={`ml-4 font-semibold transition-opacity duration-300 ease-in-out flex-grow ${
+                  isSidebarCollapsed ? "opacity-0 invisible" : "opacity-100 visible"
+                }`}
+                style={{ whiteSpace: "nowrap" }}
+              >
+                State Rate Comparison
+              </span>
+            </Link>
+          </li>
+          <li className="group">
+            <Link
+              href="/historical-rates"
+              onClick={() => setActiveTab("historicalRates")}
+              className={`flex items-center p-4 hover:bg-gray-200/20 transition-colors cursor-pointer ${
+                activeTab === "historicalRates" ? "bg-gray-200/20" : ""
+              }`}
+            >
+              <div className="flex items-center justify-center w-6 h-6">
+                <ChartLine size={20} />
+              </div>
+              <span
+                className={`ml-4 font-semibold transition-opacity duration-300 ease-in-out flex-grow ${
+                  isSidebarCollapsed ? "opacity-0 invisible" : "opacity-100 visible"
+                }`}
+                style={{ whiteSpace: "nowrap" }}
+              >
+                Historical Rates
+              </span>
+            </Link>
+          </li>
           {[
             {
-              tab: "dashboard",
-              icon: <ChartNoAxesCombined size={20} />,
-              label: "Dashboard",
-              href: "/dashboard",
-            },
-            {
               tab: "rateDevelopments",
-              icon: <Megaphone size={20} />, // Add the Megaphone icon here
+              icon: <Megaphone size={20} />,
               label: "Rate Developments",
               href: "/rate-developments",
             },
