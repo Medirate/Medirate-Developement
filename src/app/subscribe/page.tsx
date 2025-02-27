@@ -3,9 +3,25 @@
 import React, { useEffect, useState } from "react";
 import Footer from "@/app/components/footer";
 import { CreditCard } from "lucide-react"; // Using Lucide icon
+import Select from "react-select";
+
+interface ServiceData {
+  state_name: string;
+  service_category: string;
+  service_code: string;
+  // ... other fields
+}
 
 const StripePricingTableWithFooter = () => {
   const [showTerms, setShowTerms] = useState(false);
+  const [data, setData] = useState<ServiceData[]>([]);
+  const [serviceCategories, setServiceCategories] = useState<string[]>([]);
+  const [states, setStates] = useState<string[]>([]);
+  const [serviceCodes, setServiceCodes] = useState<string[]>([]);
+  const [selectedServiceCategory, setSelectedServiceCategory] = useState("");
+  const [selectedState, setSelectedState] = useState("");
+  const [selectedServiceCode, setSelectedServiceCode] = useState("");
+  const [dataExists, setDataExists] = useState<boolean | null>(null);
 
   useEffect(() => {
     // Dynamically load the Stripe Pricing Table script
@@ -19,6 +35,45 @@ const StripePricingTableWithFooter = () => {
     };
   }, []);
 
+  useEffect(() => {
+    // Fetch data for filters
+    fetch("/api/state-payment-comparison")
+      .then((response) => response.json())
+      .then((data: ServiceData[]) => {
+        setData(data);
+        setServiceCategories([...new Set(data.map((item) => item.service_category))]);
+      });
+  }, []);
+
+  const handleServiceCategoryChange = (category: string) => {
+    setSelectedServiceCategory(category);
+    setSelectedState("");
+    setSelectedServiceCode("");
+    const filteredStates = data
+      .filter((item) => item.service_category === category)
+      .map((item) => item.state_name);
+    setStates([...new Set(filteredStates)]);
+  };
+
+  const handleStateChange = (state: string) => {
+    setSelectedState(state);
+    setSelectedServiceCode("");
+    const filteredCodes = data
+      .filter((item) => item.state_name === state && item.service_category === selectedServiceCategory)
+      .map((item) => item.service_code);
+    setServiceCodes([...new Set(filteredCodes)]);
+  };
+
+  const checkDataExists = () => {
+    const exists = data.some(
+      (item) =>
+        item.service_category === selectedServiceCategory &&
+        item.state_name === selectedState &&
+        item.service_code === selectedServiceCode
+    );
+    setDataExists(exists);
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Main Content */}
@@ -31,13 +86,72 @@ const StripePricingTableWithFooter = () => {
           })}
         </div>
 
+        {/* Data Check Section */}
+        <div className="mt-8 w-full max-w-4xl space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Service Category</label>
+              <select
+                value={selectedServiceCategory}
+                onChange={(e) => handleServiceCategoryChange(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              >
+                <option value="">Select Service Category</option>
+                {serviceCategories.map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">State</label>
+              <select
+                value={selectedState}
+                onChange={(e) => handleStateChange(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                disabled={!selectedServiceCategory}
+              >
+                <option value="">Select State</option>
+                {states.map((state) => (
+                  <option key={state} value={state}>{state}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Service Code</label>
+              <input
+                type="text"
+                value={selectedServiceCode}
+                onChange={(e) => setSelectedServiceCode(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                disabled={!selectedState}
+                placeholder="Enter Service Code"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={checkDataExists}
+            disabled={!selectedServiceCode}
+            className="w-full md:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
+          >
+            Check Data Availability
+          </button>
+
+          {dataExists !== null && (
+            <div className={`mt-4 p-4 rounded-lg ${dataExists ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+              {dataExists ? "Yes, data exists in the database!" : "No, data does not exist in the database."}
+            </div>
+          )}
+        </div>
+
         {/* Accepted Payment Methods */}
         <div className="mt-6 p-4 bg-gray-100 rounded-lg shadow-md flex items-center space-x-2">
           <span className="text-lg font-semibold">Accepted Payment Methods:</span>
           <CreditCard className="w-6 h-6 text-blue-600" /> {/* Lucide icon */}
           <span className="text-lg">Card</span>
         </div>
-
 
         {/* Terms and Conditions Link */}
         <div className="mt-6 text-center">
