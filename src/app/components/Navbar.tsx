@@ -106,7 +106,7 @@ const Navbar = () => {
           </div>
 
           <div className="flex items-center space-x-6">
-            <div className="relative translate-x-80" ref={dropdownRef}>
+            <div className="absolute right-[200px]" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
                 className="relative w-10 h-10 rounded-full overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white"
@@ -114,9 +114,13 @@ const Navbar = () => {
                 {userInfo.picture ? (
                   <Image src={userInfo.picture} alt="User Avatar" className="object-cover w-full h-full" fill />
                 ) : (
-                  <div className="flex items-center justify-center w-full h-full bg-purple-500 text-white font-bold">
-                    {userInfo.name.charAt(0).toUpperCase() || "U"}
-                  </div>
+                  <Image 
+                    src="https://www.gravatar.com/avatar/default?s=200&d=mp" 
+                    alt="Default Avatar" 
+                    className="object-cover w-full h-full" 
+                    width={40}
+                    height={40}
+                  />
                 )}
               </button>
               {dropdownOpen && (
