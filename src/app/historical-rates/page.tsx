@@ -192,6 +192,17 @@ export default function HistoricalRates() {
   const baseUnitData = processData(filteredData, 'base');
   const hourlyData = processData(filteredData, 'hour');
 
+  // Table columns
+  const columns = [
+    { Header: "State", accessor: "state_name" },
+    { Header: "Service Category", accessor: "service_category" },
+    { Header: "Service Code", accessor: "service_code" },
+    { Header: "Rate", accessor: "rate" },
+    { Header: "Rate per Hour", accessor: "rate_per_hour" },
+    { Header: "Effective Date", accessor: "rate_effective_date" },
+    { Header: "Location/Region", accessor: "location_region" },
+  ];
+
   return (
     <AppLayout activeTab="historicalRates">
       <div className="p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
