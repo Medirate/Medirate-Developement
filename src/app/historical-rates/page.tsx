@@ -236,15 +236,15 @@ export default function HistoricalRates() {
     );
   });
 
-  // Add a new function to handle graph entry selection
+  // Update the handleGraphEntrySelection function
   const handleGraphEntrySelection = (entry: ServiceData) => {
     console.log("Selected entry:", entry);
     setSelectedGraphEntry(entry);
     setSelectedModifiers({
-      modifier_1: entry.modifier_1,
-      modifier_2: entry.modifier_2,
-      modifier_3: entry.modifier_3,
-      modifier_4: entry.modifier_4
+      modifier_1: entry.modifier_1 || null,
+      modifier_2: entry.modifier_2 || null,
+      modifier_3: entry.modifier_3 || null,
+      modifier_4: entry.modifier_4 || null
     });
   };
 
@@ -448,13 +448,11 @@ export default function HistoricalRates() {
       ) {
         // Create a key based on the modifiers
         const modifiersKey = [
-          item.modifier_1,
-          item.modifier_2,
-          item.modifier_3,
-          item.modifier_4
-        ]
-          .filter(Boolean)
-          .join(',');
+          item.modifier_1 || '_',
+          item.modifier_2 || '_',
+          item.modifier_3 || '_',
+          item.modifier_4 || '_'
+        ].join(',');
 
         // Only add if we haven't seen this combination before
         if (!uniqueEntries.has(modifiersKey)) {
@@ -485,59 +483,69 @@ export default function HistoricalRates() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredEntries.map((entry, index) => (
-                <tr 
-                  key={index} 
-                  onClick={() => handleGraphEntrySelection(entry)}
-                  className={`${
-                    selectedGraphEntry === entry 
-                      ? 'bg-blue-50 cursor-pointer' 
-                      : 'hover:bg-gray-50 cursor-pointer'
-                  } transition-colors`}
-                >
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                        selectedGraphEntry === entry
-                          ? 'border-blue-500 bg-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.2)]' 
-                          : 'border-gray-300 hover:border-gray-400'
-                      }`}>
-                        {selectedGraphEntry === entry && (
-                          <svg 
-                            className="w-3 h-3 text-white" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24"
-                          >
-                            <path 
-                              strokeLinecap="round" 
-                              strokeLinejoin="round" 
-                              strokeWidth={2} 
-                              d="M5 13l4 4L19 7" 
-                            />
-                          </svg>
-                        )}
+              {filteredEntries.map((entry, index) => {
+                const isSelected = selectedGraphEntry === entry || (
+                  selectedModifiers &&
+                  entry.modifier_1 === (selectedModifiers.modifier_1 || null) &&
+                  entry.modifier_2 === (selectedModifiers.modifier_2 || null) &&
+                  entry.modifier_3 === (selectedModifiers.modifier_3 || null) &&
+                  entry.modifier_4 === (selectedModifiers.modifier_4 || null)
+                );
+
+                return (
+                  <tr 
+                    key={index} 
+                    onClick={() => handleGraphEntrySelection(entry)}
+                    className={`${
+                      isSelected 
+                        ? 'bg-blue-50 cursor-pointer' 
+                        : 'hover:bg-gray-50 cursor-pointer'
+                    } transition-colors`}
+                  >
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                          isSelected
+                            ? 'border-blue-500 bg-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.2)]' 
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}>
+                          {isSelected && (
+                            <svg 
+                              className="w-3 h-3 text-white" 
+                              fill="none" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
+                            >
+                              <path 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round" 
+                                strokeWidth={2} 
+                                d="M5 13l4 4L19 7" 
+                              />
+                            </svg>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{entry.service_category}</td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{entry.service_code}</td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{entry.program}</td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{entry.location_region}</td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {entry.modifier_1 && `${entry.modifier_1} - ${entry.modifier_1_details}`}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {entry.modifier_2 && `${entry.modifier_2} - ${entry.modifier_2_details}`}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {entry.modifier_3 && `${entry.modifier_3} - ${entry.modifier_3_details}`}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {entry.modifier_4 && `${entry.modifier_4} - ${entry.modifier_4_details}`}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{entry.service_category}</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{entry.service_code}</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{entry.program}</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{entry.location_region}</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {entry.modifier_1 ? `${entry.modifier_1} - ${entry.modifier_1_details}` : '_'}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {entry.modifier_2 ? `${entry.modifier_2} - ${entry.modifier_2_details}` : '_'}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {entry.modifier_3 ? `${entry.modifier_3} - ${entry.modifier_3_details}` : '_'}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {entry.modifier_4 ? `${entry.modifier_4} - ${entry.modifier_4_details}` : '_'}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
