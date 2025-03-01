@@ -31,19 +31,26 @@ const SideNav = ({
 }: SideNavProps) => {
   const pathname = usePathname();
 
-  // Dynamically set active tab based on pathname
+  // Update the tab mapping
   useEffect(() => {
     const tabMapping: { [key: string]: string } = {
       "/dashboard": "dashboard",
       "/rate-developments": "rateDevelopments",
-      "/state-payment-comparison": "statePaymentComparison",
+      "/state-rate-comparison": "stateRateComparison",
       "/profile": "profile",
       "/subscription": "subscription",
       "/settings": "settings",
+      "/historical-rates": "historicalRates",
+      "/email-preferences": "emailPreferences"
     };
 
-    if (pathname && tabMapping[pathname]) {
-      setActiveTab(tabMapping[pathname]);
+    // Match the exact path or paths that start with the base path
+    const activeTab = Object.keys(tabMapping).find(key => 
+      pathname === key || pathname.startsWith(`${key}/`)
+    );
+
+    if (activeTab && tabMapping[activeTab]) {
+      setActiveTab(tabMapping[activeTab]);
     }
   }, [pathname, setActiveTab]);
 
@@ -99,10 +106,10 @@ const SideNav = ({
           </li>
           <li className="group">
             <Link
-              href="/state-payment-comparison"
-              onClick={() => setActiveTab("statePaymentComparison")}
+              href="/state-rate-comparison"
+              onClick={() => setActiveTab("stateRateComparison")}
               className={`flex items-center p-4 hover:bg-gray-200/20 transition-colors cursor-pointer ${
-                activeTab === "statePaymentComparison" ? "bg-gray-200/20" : ""
+                activeTab === "stateRateComparison" ? "bg-gray-200/20" : ""
               }`}
             >
               <div className="flex items-center justify-center w-6 h-6">
