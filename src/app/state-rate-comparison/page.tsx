@@ -9,8 +9,22 @@ import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Toolti
 import AppLayout from "@/app/components/applayout";
 import Modal from "@/app/components/modal";
 import { FaChartLine, FaArrowUp, FaArrowDown, FaDollarSign, FaSpinner, FaFilter, FaChartBar, FaExclamationCircle } from 'react-icons/fa';
+import ReactECharts from 'echarts-for-react';
+import * as echarts from 'echarts';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+
+const colorSequence = [
+  '#36A2EB', // Blue
+  '#FF6384', // Red
+  '#4BC0C0', // Teal
+  '#FF9F40', // Orange
+  '#9966FF', // Purple
+  '#FFCD56', // Yellow
+  '#C9CBCF', // Gray
+  '#00A8E8', // Light Blue
+  '#FF6B6B'  // Coral
+];
 
 interface ServiceData {
   state_name: string;
@@ -30,6 +44,36 @@ interface ServiceData {
   program: string;
   location_region: string;
 }
+
+const darkenColor = (color: string, amount: number): string => {
+  // Convert hex to RGB
+  let r = parseInt(color.slice(1, 3), 16);
+  let g = parseInt(color.slice(3, 5), 16);
+  let b = parseInt(color.slice(5, 7), 16);
+
+  // Darken each component
+  r = Math.max(0, Math.floor(r * (1 - amount)));
+  g = Math.max(0, Math.floor(g * (1 - amount)));
+  b = Math.max(0, Math.floor(b * (1 - amount)));
+
+  // Convert back to hex
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+};
+
+const lightenColor = (color: string, amount: number): string => {
+  // Convert hex to RGB
+  let r = parseInt(color.slice(1, 3), 16);
+  let g = parseInt(color.slice(3, 5), 16);
+  let b = parseInt(color.slice(5, 7), 16);
+
+  // Lighten each component
+  r = Math.min(255, Math.floor(r + (255 - r) * amount));
+  g = Math.min(255, Math.floor(g + (255 - g) * amount));
+  b = Math.min(255, Math.floor(b + (255 - b) * amount));
+
+  // Convert back to hex
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+};
 
 export default function StatePaymentComparison() {
   const [data, setData] = useState<ServiceData[]>([]);
@@ -59,10 +103,6 @@ export default function StatePaymentComparison() {
   // Check if we should show checkboxes
   const showCheckboxes = selectedServiceCategory && selectedServiceCode && selectedStates.length > 0;
 
-  const [needsModifierSelection, setNeedsModifierSelection] = useState<string[]>([]);
-  const [currentSelectionState, setCurrentSelectionState] = useState<string>("");
-  const [showModifierModal, setShowModifierModal] = useState(false);
-
   // Update the areFiltersActive check
   const areAllFiltersApplied = selectedServiceCategory && selectedStates.length > 0 && selectedServiceCode;
 
@@ -71,8 +111,23 @@ export default function StatePaymentComparison() {
   const [showApplyToAllPrompt, setShowApplyToAllPrompt] = useState(false);
   const [lastSelectedModifier, setLastSelectedModifier] = useState<string | null>(null);
 
-  // Add state for selected table rows
-  const [selectedTableRows, setSelectedTableRows] = useState<{[state: string]: string}>({});
+  // Change the state type to handle multiple selections
+  const [selectedTableRows, setSelectedTableRows] = useState<{[state: string]: string[]}>({});
+
+  // Add this near other state declarations
+  const [showRatePerHour, setShowRatePerHour] = useState(false);
+
+  // Add this state variable near other state declarations
+  const [isAllStatesSelected, setIsAllStatesSelected] = useState(false);
+
+  // Add this state variable near other state declarations
+  const [globalModifierOrder, setGlobalModifierOrder] = useState<Map<string, number>>(new Map());
+
+  // Add this state variable near other state declarations
+  const [globalSelectionOrder, setGlobalSelectionOrder] = useState<Map<string, number>>(new Map());
+
+  // Add this near other state declarations
+  const [sortOrder, setSortOrder] = useState<'default' | 'asc' | 'desc'>('default');
 
   useEffect(() => {
     setInitialLoading(true);
@@ -107,38 +162,45 @@ export default function StatePaymentComparison() {
     setSelectedServiceCode("");
     setFilterLoading(true);
 
+    // Filter states based on the selected category
     const filteredStates = data
       .filter((item) => item.service_category === category)
       .map((item) => item.state_name);
+    
+    // Set states and ensure unique values
     setStates([...new Set(filteredStates)]);
     setServiceCodes([]);
     setFilterLoading(false);
   };
 
-  const handleStateChange = (states: any) => {
+  const handleStateChange = (selectedOptions: any) => {
     let selectedStatesArray: string[];
     
-    // If "Select All States" is selected, choose all available states
-    if (states.find((s: any) => s.value === "all")) {
+    // If "Select All States" is selected
+    if (selectedOptions.find((s: any) => s.value === "all")) {
       selectedStatesArray = [...new Set(data
         .filter((item) => item.service_category === selectedServiceCategory)
         .map((item) => item.state_name))];
       setSelectedStates(selectedStatesArray);
+      setIsAllStatesSelected(true);
     } else {
-      selectedStatesArray = states.map((s: any) => s.value);
+      selectedStatesArray = selectedOptions.map((s: any) => s.value);
       setSelectedStates(selectedStatesArray);
+      setIsAllStatesSelected(false);
     }
     
     // Reset service code filter and clear the select component value
     setSelectedServiceCode("");
-    setServiceCodes([]); // Clear the available service codes
     setFilterLoading(true);
 
     if (selectedServiceCategory) {
       setTimeout(() => {
+        // Get all service codes for the selected states (or all states if "All States" is selected)
         const filteredCodes = data
-          .filter((item) => selectedStatesArray.includes(item.state_name) && 
-            item.service_category === selectedServiceCategory)
+          .filter((item) => 
+            (isAllStatesSelected || selectedStatesArray.includes(item.state_name)) &&
+            item.service_category === selectedServiceCategory
+          )
           .map((item) => item.service_code);
         setServiceCodes([...new Set(filteredCodes)]);
         setFilterLoading(false);
@@ -149,57 +211,7 @@ export default function StatePaymentComparison() {
   const handleServiceCodeChange = (code: string) => {
     setSelectedServiceCode(code);
     setFilterLoading(true);
-
-    // Check which states have multiple modifier combinations
-    const statesWithConflicts = new Set<string>();
-    data.forEach(item => {
-      if (item.service_code === code && selectedStates.includes(item.state_name)) {
-        statesWithConflicts.add(item.state_name);
-      }
-    });
-
-    if (statesWithConflicts.size > 0) {
-      setNeedsModifierSelection(Array.from(statesWithConflicts));
-      setCurrentSelectionState(Array.from(statesWithConflicts)[0]);
-      setShowModifierModal(true);
-    }
     setFilterLoading(false);
-  };
-
-  // Handle modifier selection for a state
-  const handleModifierSelection = (state: string, selectedItem: ServiceData) => {
-    const modifierKey = `${selectedItem.modifier_1}|${selectedItem.modifier_2}|${selectedItem.modifier_3}|${selectedItem.modifier_4}`;
-    setSelectedModifiers(prev => ({
-      ...prev,
-      [state]: modifierKey
-    }));
-    
-    // Set the initial selected table row
-    setSelectedTableRows(prev => ({
-      ...prev,
-      [state]: modifierKey
-    }));
-
-    // Move to the next state if there are more to select
-    const remainingStates = needsModifierSelection.filter(s => s !== state);
-    if (remainingStates.length > 0) {
-      setNeedsModifierSelection(remainingStates);
-      setCurrentSelectionState(remainingStates[0]);
-    } else {
-      setShowModifierModal(false);
-    }
-  };
-
-  // Handle table row selection
-  const handleTableRowSelection = (state: string, modifierKey: string) => {
-    setSelectedTableRows(prev => ({
-      ...prev,
-      [state]: modifierKey
-    }));
-    setSelectedModifiers(prev => ({
-      ...prev,
-      [state]: modifierKey
-    }));
   };
 
   // First, get all unique combinations and their latest rates
@@ -238,41 +250,207 @@ export default function StatePaymentComparison() {
     return groups;
   }, [filteredData]);
 
-  // Update processedData to use table row selections
-  const processedData: { [state: string]: number[] } = {};
-  filteredData.forEach(item => {
-    const selectedModifier = selectedTableRows[item.state_name];
-    const currentModifier = `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}`;
-    
-    if (!selectedModifier || selectedModifier === currentModifier) {
-      const rate = parseFloat(item.rate?.replace("$", "")) || 0;
-      processedData[item.state_name] = [rate];
-    }
-  });
+  // Modify the processedData calculation
+  const processedData: { [state: string]: { [modifierKey: string]: number } } = {};
 
-  // ✅ Prepare Chart Data
-  const chartData = {
-    labels: Object.keys(processedData),
-    datasets: [
-      {
-        label: "Rate",
-        data: Object.values(processedData).map(rates => rates[0]),
-        backgroundColor: "rgba(70, 130, 209, 0.7)",
+  if (isAllStatesSelected && selectedServiceCode) {
+    // Calculate average rates for each state when "Select All States" is chosen
+    const stateAverages = new Map<string, number>();
+    const stateCounts = new Map<string, number>();
+
+    filteredData.forEach(item => {
+      const rate = showRatePerHour 
+        ? parseFloat(item.rate_per_hour?.replace("$", "") || "0")
+        : parseFloat(item.rate?.replace("$", "") || "0");
+      
+      if (!stateAverages.has(item.state_name)) {
+        stateAverages.set(item.state_name, 0);
+        stateCounts.set(item.state_name, 0);
+      }
+      stateAverages.set(item.state_name, stateAverages.get(item.state_name)! + rate);
+      stateCounts.set(item.state_name, stateCounts.get(item.state_name)! + 1);
+    });
+
+    // Calculate the average for each state
+    stateAverages.forEach((sum, state) => {
+      const count = stateCounts.get(state)!;
+      processedData[state] = {
+        'average': sum / count
+      };
+    });
+  } else {
+    // Original logic for individual state selection
+    filteredData.forEach(item => {
+      const currentModifier = `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}`;
+      const stateSelections = selectedTableRows[item.state_name] || [];
+      
+      if (stateSelections.includes(currentModifier)) {
+        const rate = showRatePerHour 
+          ? parseFloat(item.rate_per_hour?.replace("$", "") || "0")
+          : parseFloat(item.rate?.replace("$", "") || "0");
+        if (!processedData[item.state_name]) {
+          processedData[item.state_name] = {};
+        }
+        processedData[item.state_name][currentModifier] = rate;
+      }
+    });
+  }
+
+  // ✅ Prepare ECharts Data
+  const echartOptions = useMemo(() => {
+    // Get all unique states
+    let states = Object.keys(processedData);
+
+    // Sort states based on the selected order
+    if (sortOrder !== 'default') {
+      states = states.sort((a, b) => {
+        const rateA = processedData[a]['average'] || 0;
+        const rateB = processedData[b]['average'] || 0;
+        return sortOrder === 'asc' ? rateA - rateB : rateB - rateA;
+      });
+    }
+
+    // Create series for each modifier combination
+    const series: echarts.SeriesOption[] = [];
+    
+    if (isAllStatesSelected) {
+      // Single series for average rates
+      series.push({
+        name: 'Average Rate',
+        type: 'bar',
+        barGap: '20%',
+        barCategoryGap: '20%',
+        data: states.map(state => processedData[state]['average'] || null),
+        label: {
+          show: false
+        },
+        itemStyle: {
+          color: '#36A2EBB3'
+        }
+      });
+    } else {
+      // Get all selected modifier combinations across all states
+      const allSelections: { state: string, modifierKey: string }[] = [];
+      Object.entries(selectedTableRows).forEach(([state, selections]) => {
+        selections.forEach(modifierKey => {
+          allSelections.push({ state, modifierKey });
+        });
+      });
+
+      // Create a series for each selection
+      allSelections.forEach(({ state, modifierKey }, index) => {
+        series.push({
+          name: `${state} - ${modifierKey}`,
+          type: 'bar',
+          barGap: '0%',
+          barCategoryGap: '20%',
+          data: states.map(s => s === state ? processedData[state][modifierKey] || null : null),
+          label: {
+            show: false
+          },
+          itemStyle: {
+            color: `${colorSequence[index % colorSequence.length]}B3`
+          }
+        });
+      });
+    }
+
+    const option: echarts.EChartsOption = {
+      tooltip: {
+        trigger: 'item', // Changed to 'item' for individual bar hover
+        axisPointer: {
+          type: 'shadow'
+        },
+        formatter: (params: any) => {
+          if (isAllStatesSelected) {
+            // For "All States" selection
+            const state = params.name;
+            const rate = params.value;
+            return `State: ${state}<br>Average Rate: $${rate?.toFixed(2) || '0.00'}`;
+          } else {
+            // For individual state selection
+            const state = params.name;
+            const seriesName = params.seriesName;
+            const modifierKey = seriesName.split(' - ')[1];
+            const rate = params.value;
+
+            // Find the corresponding data item
+            const item = filteredData.find(d => 
+              d.state_name === state && 
+              `${d.modifier_1}|${d.modifier_2}|${d.modifier_3}|${d.modifier_4}` === modifierKey
+            );
+
+            if (!item) {
+              return `State: ${state}<br>Rate: $${rate?.toFixed(2) || '0.00'}`;
+            }
+
+            // Build modifier details
+            const modifierDetails = [
+              item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : null,
+              item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : null,
+              item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || 'No details'}` : null,
+              item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : null
+            ].filter(Boolean).join('<br>');
+
+            // Additional details
+            const additionalDetails = [
+              `<b>Rate:</b> $${rate?.toFixed(2) || '0.00'}`,
+              item.service_code ? `<b>Service Code:</b> ${item.service_code}` : null,
+              item.program ? `<b>Program:</b> ${item.program}` : null,
+              item.location_region ? `<b>Location Region:</b> ${item.location_region}` : null
+            ].filter(Boolean).join('<br>');
+
+            return [
+              `<b>State:</b> ${state}`,
+              modifierDetails ? `<b>Modifier Details:</b><br>${modifierDetails}` : '',
+              additionalDetails
+            ].filter(Boolean).join('<br>');
+          }
+        }
       },
-    ],
-  };
+      xAxis: {
+        type: 'category',
+        data: states,
+        axisLabel: {
+          rotate: 45,
+          fontSize: 10
+        },
+        axisTick: {
+          show: false
+        }
+      },
+      yAxis: {
+        type: 'value',
+        name: showRatePerHour ? 'Rate ($ per hour)' : 'Rate ($ per base unit)',
+        nameLocation: 'middle',
+        nameGap: 30
+      },
+      series,
+      grid: {
+        containLabel: true,
+        left: '3%',
+        right: '3%',
+        bottom: isAllStatesSelected ? '10%' : '15%', // More space for "All States" chart
+        top: '5%'
+      },
+      toolbox: {
+        show: true,
+        feature: {
+          saveAsImage: {
+            show: true,
+            title: 'Save as Image',
+            backgroundColor: 'transparent'
+          }
+        }
+      }
+    };
+
+    return option;
+  }, [processedData, filteredData, isAllStatesSelected, showRatePerHour, selectedTableRows, sortOrder]);
 
   // Update chart options to include modifier selection in tooltip
   const options = {
     responsive: true,
-    onClick: (event: any, elements: any) => {
-      if (elements.length > 0) {
-        const index = elements[0].index;
-        const state = chartData.labels[index];
-        const rate = chartData.datasets[0].data[index];
-        alert(`State: ${state}\nRate: $${rate.toFixed(2)}`);
-      }
-    },
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -311,7 +489,10 @@ export default function StatePaymentComparison() {
   };
 
   // Calculate comparison metrics
-  const rates = Object.values(processedData).map(rates => rates[0]);
+  const rates = Object.values(processedData)
+    .flatMap(rates => Object.values(rates))
+    .filter(rate => rate > 0);
+
   const maxRate = Math.max(...rates);
   const minRate = Math.min(...rates);
   const avgRate = rates.reduce((sum, rate) => sum + rate, 0) / rates.length;
@@ -325,19 +506,40 @@ export default function StatePaymentComparison() {
         item.service_category === selectedServiceCategory &&
         item.service_code === selectedServiceCode
       )
-      .map(item => parseFloat(item.rate?.replace("$", "") || "0"))
-      .filter(rate => rate > 0); // Exclude invalid rates
+      .map(item => 
+        parseFloat(
+          (showRatePerHour ? item.rate_per_hour : item.rate)?.replace("$", "") || "0"
+        )
+      )
+      .filter(rate => rate > 0);
 
     if (rates.length === 0) return 0;
 
     const sum = rates.reduce((sum, rate) => sum + rate, 0);
     return (sum / rates.length).toFixed(2);
-  }, [data, selectedServiceCategory, selectedServiceCode]);
+  }, [data, selectedServiceCategory, selectedServiceCode, showRatePerHour]);
 
-  // Add error boundary for chart
+  // Update ChartWithErrorBoundary component
   const ChartWithErrorBoundary = () => {
     try {
-      return <Bar data={chartData} options={options} />;
+      return (
+        <ReactECharts
+          option={echartOptions}
+          style={{ 
+            height: isAllStatesSelected ? '500px' : '400px', // Taller for "All States"
+            width: '100%' 
+          }}
+          onEvents={{
+            click: (params: any) => {
+              if (params.componentType === 'series') {
+                const state = params.name;
+                const rate = params.value;
+                alert(`State: ${state}\nRate: $${rate.toFixed(2)}`);
+              }
+            }
+          }}
+        />
+      );
     } catch (error) {
       setChartError("Failed to render chart. Please check your data.");
       return null;
@@ -364,6 +566,30 @@ export default function StatePaymentComparison() {
         </div>
       </div>
     );
+  };
+
+  // Update the handleTableRowSelection function to track global selection order
+  const handleTableRowSelection = (state: string, modifierKey: string) => {
+    setSelectedTableRows(prev => {
+      const currentSelections = prev[state] || [];
+      const newSelections = currentSelections.includes(modifierKey)
+        ? currentSelections.filter(key => key !== modifierKey)
+        : [...currentSelections, modifierKey];
+      
+      // Update global selection order
+      if (!currentSelections.includes(modifierKey)) {
+        setGlobalSelectionOrder(prevOrder => {
+          const newOrder = new Map(prevOrder);
+          newOrder.set(`${state}|${modifierKey}`, prevOrder.size);
+          return newOrder;
+        });
+      }
+
+      return {
+        ...prev,
+        [state]: newSelections
+      };
+    });
   };
 
   return (
@@ -401,7 +627,6 @@ export default function StatePaymentComparison() {
           </div>
         )}
 
-        {/* Updated heading with Lemon Milk font */}
         {!initialLoading && (
           <>
             {/* Filters */}
@@ -430,9 +655,21 @@ export default function StatePaymentComparison() {
                       isMulti
                       options={[
                         { value: "all", label: "Select All States" },
-                        ...states.map((state) => ({ value: state, label: state }))
+                        ...states.map((state) => ({ 
+                          value: state, 
+                          label: state 
+                        }))
                       ]}
-                      onChange={handleStateChange}
+                      value={isAllStatesSelected 
+                        ? [{ value: "all", label: "All States" }]
+                        : selectedStates.map(state => ({
+                            value: state,
+                            label: state
+                          }))
+                      }
+                      onChange={(selectedOptions) => {
+                        handleStateChange(selectedOptions || []);
+                      }}
                       className="react-select-container"
                       classNamePrefix="react-select"
                       placeholder="Select States"
@@ -452,7 +689,7 @@ export default function StatePaymentComparison() {
                 )}
 
                 {/* Service Code Selector */}
-                {selectedServiceCategory && selectedStates.length > 0 && serviceCodes.length > 0 ? (
+                {selectedServiceCategory && (selectedStates.length > 0 || isAllStatesSelected) && serviceCodes.length > 0 ? (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Service Code</label>
                     <Select
@@ -480,7 +717,9 @@ export default function StatePaymentComparison() {
                 ) : (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Service Code</label>
-                    <div className="text-gray-400 text-sm">Select states to see available service codes</div>
+                    <div className="text-gray-400 text-sm">
+                      {selectedServiceCategory ? "Select states to see available service codes" : "Select a service line first"}
+                    </div>
                   </div>
                 )}
               </div>
@@ -500,59 +739,114 @@ export default function StatePaymentComparison() {
                   <div className="flex items-center space-x-4 p-4 bg-green-50 rounded-lg">
                     <FaArrowUp className="h-8 w-8 text-green-500" />
                     <div>
-                      <p className="text-sm text-gray-500">Highest Rate</p>
-                      <p className="text-xl font-semibold text-gray-800">${maxRate.toFixed(2)}</p>
+                      <p className="text-sm text-gray-500">Highest Rate of Selected States</p>
+                      <p className="text-xl font-semibold text-gray-800">${rates.length > 0 ? Math.max(...rates).toFixed(2) : '0.00'}</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-4 p-4 bg-red-50 rounded-lg">
                     <FaArrowDown className="h-8 w-8 text-red-500" />
                     <div>
-                      <p className="text-sm text-gray-500">Lowest Rate</p>
-                      <p className="text-xl font-semibold text-gray-800">${minRate.toFixed(2)}</p>
+                      <p className="text-sm text-gray-500">Lowest Rate of Selected States</p>
+                      <p className="text-xl font-semibold text-gray-800">${rates.length > 0 ? Math.min(...rates).toFixed(2) : '0.00'}</p>
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Chart Section */}
-            {areAllFiltersApplied ? (
-              <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg">
-                <div className="w-full mx-auto">
-                  {chartLoading ? (
-                    <div className="flex justify-center items-center h-48 sm:h-64">
-                      <FaSpinner className="animate-spin h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
-                      <p className="ml-3 sm:ml-4 text-sm sm:text-base text-gray-600">Generating chart...</p>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <div className="min-w-[500px] sm:min-w-0">
-                        <ChartWithErrorBoundary />
+            {/* Chart Section - Only show when selections are made */}
+            {areAllFiltersApplied && (isAllStatesSelected || Object.values(selectedTableRows).some(selections => selections.length > 0)) && (
+              <>
+                {isAllStatesSelected && (
+                  <div className="mb-6 p-6 bg-blue-50 rounded-xl shadow-lg">
+                    <div className="flex items-center space-x-4">
+                      <FaChartLine className="h-6 w-6 text-blue-500" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">
+                          You've selected all states. The chart below displays the average rate for the selected service code across each state.
+                        </p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          This provides a comprehensive view of the average rates across all available states for your selected service.
+                        </p>
                       </div>
                     </div>
-                  )}
+                  </div>
+                )}
+                
+                <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg">
+                  {/* Toggle Switch */}
+                  <div className="flex justify-center items-center mb-4 space-x-4">
+                    <div className="flex items-center space-x-4 bg-gray-100 p-2 rounded-full">
+                      <span className={`text-sm font-medium ${!showRatePerHour ? 'text-blue-600' : 'text-gray-500'}`}>
+                        Base Rate
+                      </span>
+                      <button
+                        onClick={() => setShowRatePerHour(!showRatePerHour)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                          showRatePerHour ? 'bg-blue-600' : 'bg-gray-200'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            showRatePerHour ? 'translate-x-5' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                      <span className={`text-sm font-medium ${showRatePerHour ? 'text-blue-600' : 'text-gray'}`}>
+                        Rate Per Hour
+                      </span>
+                    </div>
+
+                    {/* Sorting Dropdown */}
+                    <div className="flex items-center space-x-2">
+                      <label className="text-sm font-medium text-gray-700">Sort:</label>
+                      <select
+                        value={sortOrder}
+                        onChange={(e) => setSortOrder(e.target.value as 'default' | 'asc' | 'desc')}
+                        className="px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      >
+                        <option value="default">Default</option>
+                        <option value="asc">Low to High</option>
+                        <option value="desc">High to Low</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div className="w-full mx-auto">
+                    {chartLoading ? (
+                      <div className="flex justify-center items-center h-48 sm:h-64">
+                        <FaSpinner className="animate-spin h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
+                        <p className="ml-3 sm:ml-4 text-sm sm:text-base text-gray-600">Generating chart...</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <div className="min-w-[500px] sm:min-w-0">
+                          <ChartWithErrorBoundary />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ) : (
+              </>
+            )}
+
+            {/* Prompt to select data when no selections are made */}
+            {areAllFiltersApplied && !isAllStatesSelected && Object.values(selectedTableRows).every(selections => selections.length === 0) && (
               <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg text-center">
                 <div className="flex justify-center items-center mb-2 sm:mb-3">
-                  <FaFilter className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 mr-2" />
                   <FaChartBar className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
                 </div>
                 <p className="text-sm sm:text-base text-gray-600 font-medium">
-                  Apply all filters to generate the rate comparison visualization
-                </p>
-                <p className="text-xs sm:text-sm text-gray-400 mt-1 sm:mt-2">
-                  Select a service category, states, and service code to begin
+                  Select data from the tables below to generate the rate comparison visualization
                 </p>
               </div>
             )}
 
-            {/* Data Table - Only show when filters are active and no modifier selection is needed */}
-            {areAllFiltersApplied && !showModifierModal && (
+            {/* Data Table - Show when filters are active */}
+            {areAllFiltersApplied && !isAllStatesSelected && (
               <>
                 {Object.entries(groupedByState).map(([state, stateData]) => {
-                  const selectedModifierKey = selectedTableRows[state];
+                  const selectedModifierKeys = selectedTableRows[state] || [];
                   
                   return (
                     <div key={state} className="mb-8 p-6 bg-white rounded-xl shadow-lg">
@@ -584,14 +878,14 @@ export default function StatePaymentComparison() {
                             <tbody className="divide-y divide-gray-200">
                               {stateData.map((item, index) => {
                                 const currentModifierKey = `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}`;
-                                const isSelected = selectedModifierKey === currentModifierKey;
+                                const isSelected = selectedModifierKeys.includes(currentModifierKey);
                                 
                                 return (
                                   <tr 
                                     key={index} 
                                     onClick={() => handleTableRowSelection(state, currentModifierKey)}
                                     className={`${
-                                      isSelected 
+                                      selectedTableRows[state]?.includes(currentModifierKey)
                                         ? 'bg-blue-50 cursor-pointer'
                                         : 'hover:bg-gray-50 cursor-pointer'
                                     } transition-colors`}
@@ -599,11 +893,11 @@ export default function StatePaymentComparison() {
                                     <td className="px-6 py-4 whitespace-nowrap">
                                       <div className="flex items-center">
                                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                                          isSelected 
+                                          selectedTableRows[state]?.includes(currentModifierKey)
                                             ? 'border-blue-500 bg-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.2)]' 
                                             : 'border-gray-300 hover:border-gray-400'
                                         }`}>
-                                          {isSelected && (
+                                          {selectedTableRows[state]?.includes(currentModifierKey) && (
                                             <svg 
                                               className="w-3 h-3 text-white" 
                                               fill="none" 
@@ -657,89 +951,6 @@ export default function StatePaymentComparison() {
           </>
         )}
       </div>
-
-      {/* Modifier Selection Modal */}
-      <Modal isOpen={showModifierModal} onClose={() => setShowModifierModal(false)} width="max-w-[60vw]">
-        <div className="p-6 w-full">
-          <h2 className="text-xl font-semibold mb-4">Select Modifier Combination for {currentSelectionState}</h2>
-          <div className="overflow-x-auto rounded-lg" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-            <table className="min-w-full bg-white">
-              <thead className="bg-gray-50 sticky top-0">
-                <tr>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Select</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 1</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 2</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredData
-                  .filter(item => item.state_name === currentSelectionState)
-                  .map((item, index) => {
-                    const currentModifierKey = `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}`;
-                    const isSelected = selectedModifiers[currentSelectionState] === currentModifierKey;
-                    
-                    return (
-                      <tr 
-                        key={index} 
-                        onClick={() => handleModifierSelection(item.state_name, item)}
-                        className={`${
-                          isSelected 
-                            ? 'bg-blue-50 cursor-pointer' 
-                            : 'hover:bg-gray-50 cursor-pointer'
-                        } transition-colors`}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                              isSelected
-                                ? 'border-blue-500 bg-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.2)]' 
-                                : 'border-gray-300 hover:border-gray-400'
-                            }`}>
-                              {isSelected && (
-                                <svg 
-                                  className="w-3 h-3 text-white" 
-                                  fill="none" 
-                                  stroke="currentColor" 
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path 
-                                    strokeLinecap="round" 
-                                    strokeLinejoin="round" 
-                                    strokeWidth={2} 
-                                    d="M5 13l4 4L19 7" 
-                                  />
-                                </svg>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || 'No details'}` : '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : '-'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
-          <div className="mt-4 text-sm text-gray-500">
-            {needsModifierSelection.length > 1 && (
-              <p>After selecting for {currentSelectionState}, you'll be prompted to select for {needsModifierSelection.length - 1} more state(s).</p>
-            )}
-          </div>
-        </div>
-      </Modal>
     </AppLayout>
   );
 }
