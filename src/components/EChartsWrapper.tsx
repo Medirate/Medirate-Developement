@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import * as echarts from 'echarts';
 
 interface EChartsWrapperProps {
-  options: echarts.EChartOption;
+  options: echarts.EChartsOption;
   style?: React.CSSProperties;
 }
 
