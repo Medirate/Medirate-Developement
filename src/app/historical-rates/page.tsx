@@ -191,10 +191,10 @@ export default function HistoricalRates() {
   // Update the handleEntrySelection function
   const handleEntrySelection = (entry: ServiceData) => {
     setSelectedModifiers({
-      modifier_1: entry.modifier_1,
-      modifier_2: entry.modifier_2,
-      modifier_3: entry.modifier_3,
-      modifier_4: entry.modifier_4
+      modifier_1: entry.modifier_1 || undefined,
+      modifier_2: entry.modifier_2 || undefined,
+      modifier_3: entry.modifier_3 || undefined,
+      modifier_4: entry.modifier_4 || undefined
     });
     setSelectedGraphEntry(entry);
     setIsModalOpen(false);
@@ -241,10 +241,10 @@ export default function HistoricalRates() {
     console.log("Selected entry:", entry);
     setSelectedGraphEntry(entry);
     setSelectedModifiers({
-      modifier_1: entry.modifier_1 || null,
-      modifier_2: entry.modifier_2 || null,
-      modifier_3: entry.modifier_3 || null,
-      modifier_4: entry.modifier_4 || null
+      modifier_1: entry.modifier_1 || undefined,
+      modifier_2: entry.modifier_2 || undefined,
+      modifier_3: entry.modifier_3 || undefined,
+      modifier_4: entry.modifier_4 || undefined
     });
   };
 
