@@ -163,12 +163,10 @@ export default function StatePaymentComparison() {
     setSelectedServiceCode("");
     setFilterLoading(true);
 
-    // Filter states based on the selected category
     const filteredStates = data
       .filter((item) => item.service_category === category)
       .map((item) => item.state_name);
     
-    // Set states and ensure unique values
     setStates([...new Set(filteredStates)]);
     setServiceCodes([]);
     setFilterLoading(false);
@@ -177,7 +175,6 @@ export default function StatePaymentComparison() {
   const handleStateChange = (selectedOptions: any) => {
     let selectedStatesArray: string[];
     
-    // If "Select All States" is selected
     if (selectedOptions.find((s: any) => s.value === "all")) {
       selectedStatesArray = [...new Set(data
         .filter((item) => item.service_category === selectedServiceCategory)
@@ -190,13 +187,11 @@ export default function StatePaymentComparison() {
       setIsAllStatesSelected(false);
     }
     
-    // Reset service code filter and clear the select component value
     setSelectedServiceCode("");
     setFilterLoading(true);
 
     if (selectedServiceCategory) {
       setTimeout(() => {
-        // Get all service codes for the selected states (or all states if "All States" is selected)
         const filteredCodes = data
           .filter((item) => 
             (isAllStatesSelected || selectedStatesArray.includes(item.state_name)) &&
@@ -299,7 +294,6 @@ export default function StatePaymentComparison() {
 
   // ✅ Prepare ECharts Data
   const echartOptions = useMemo(() => {
-    // Get all unique states
     let states = Object.keys(processedData);
 
     // Sort states based on the selected order
@@ -311,7 +305,6 @@ export default function StatePaymentComparison() {
       });
     }
 
-    // Create series for each modifier combination
     const series: echarts.SeriesOption[] = [];
     
     if (isAllStatesSelected) {
@@ -364,18 +357,15 @@ export default function StatePaymentComparison() {
         },
         formatter: (params: any) => {
           if (isAllStatesSelected) {
-            // For "All States" selection
             const state = params.name;
             const rate = params.value;
             return `State: ${state}<br>Average ${showRatePerHour ? 'Hourly' : 'Base'} Rate: $${rate?.toFixed(2) || '0.00'}`;
           } else {
-            // For individual state selection
             const state = params.name;
             const seriesName = params.seriesName;
             const modifierKey = seriesName.split(' - ')[1];
             const rate = params.value;
 
-            // Find the corresponding data item
             const item = filteredData.find(d => 
               d.state_name === state && 
               `${d.modifier_1}|${d.modifier_2}|${d.modifier_3}|${d.modifier_4}` === modifierKey
@@ -385,7 +375,6 @@ export default function StatePaymentComparison() {
               return `State: ${state}<br>${showRatePerHour ? 'Hourly' : 'Base'} Rate: $${rate?.toFixed(2) || '0.00'}`;
             }
 
-            // Build modifier details
             const modifierDetails = [
               item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : null,
               item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : null,
@@ -393,7 +382,6 @@ export default function StatePaymentComparison() {
               item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : null
             ].filter(Boolean).join('<br>');
 
-            // Additional details
             const additionalDetails = [
               `<b>${showRatePerHour ? 'Hourly' : 'Base'} Rate:</b> $${rate?.toFixed(2) || '0.00'}`,
               item.service_code ? `<b>Service Code:</b> ${item.service_code}` : null,
@@ -432,7 +420,7 @@ export default function StatePaymentComparison() {
         containLabel: true,
         left: '3%',
         right: '3%',
-        bottom: isAllStatesSelected ? '10%' : '15%', // More space for "All States" chart
+        bottom: isAllStatesSelected ? '10%' : '15%',
         top: '5%'
       },
       toolbox: {
@@ -443,39 +431,53 @@ export default function StatePaymentComparison() {
     return option;
   }, [processedData, filteredData, isAllStatesSelected, showRatePerHour, selectedTableRows, sortOrder]);
 
-  // Update chart options to include modifier selection in tooltip
-  const options = {
-    responsive: true,
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        callbacks: {
-          label: (context: any) => {
-            const state = context.label;
-            const rate = context.raw;
-            const selectedModifierKey = selectedModifiers[state];
-            const modifiers = selectedModifierKey?.split('|').filter(mod => mod && mod !== 'null') || [];
-            
-            return [
-              `Rate: $${rate.toFixed(2)}`,
-              `Modifiers: ${modifiers.length > 0 ? modifiers.join(', ') : 'None'}`
-            ];
-          }
-        }
-      }
-    },
-    scales: {
-      x: {
-        ticks: { maxRotation: 45, minRotation: 45, font: { size: 10 } },
-      },
-      y: {
-        beginAtZero: true,
-        title: { display: true, text: "Rate ($ per hour)" },
-      },
-    },
+  const ChartWithErrorBoundary = () => {
+    try {
+      return (
+        <ReactECharts
+          option={echartOptions}
+          style={{ 
+            height: isAllStatesSelected ? '500px' : '400px',
+            width: '100%' 
+          }}
+          onEvents={{
+            click: (params: any) => {
+              if (params.componentType === 'series') {
+                const state = params.name;
+                const rate = params.value;
+                alert(`State: ${state}\nRate: $${rate.toFixed(2)}`);
+              }
+            }
+          }}
+        />
+      );
+    } catch (error) {
+      setChartError("Failed to render chart. Please check your data.");
+      return null;
+    }
   };
 
-  // Reset all filters
+  const ErrorMessage = ({ error, onRetry }: { error: string | null, onRetry?: () => void }) => {
+    if (!error) return null;
+    
+    return (
+      <div className="p-4 bg-red-50 border border-red-200 rounded-lg mb-4">
+        <div className="flex items-center">
+          <FaExclamationCircle className="h-5 w-5 text-red-500 mr-2" />
+          <p className="text-red-700">{error}</p>
+          {onRetry && (
+            <button
+              onClick={onRetry}
+              className="ml-auto px-3 py-1 text-sm font-medium text-red-700 bg-red-100 rounded hover:bg-red-200 transition-colors"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const resetFilters = () => {
     setSelectedServiceCategory("");
     setSelectedStates([]);
@@ -484,13 +486,15 @@ export default function StatePaymentComparison() {
   };
 
   // Calculate comparison metrics
-  const rates = Object.values(processedData)
-    .flatMap(rates => Object.values(rates))
-    .filter(rate => rate > 0);
+  const rates = useMemo(() => {
+    return Object.values(processedData)
+      .flatMap(rates => Object.values(rates))
+      .filter(rate => rate > 0);
+  }, [processedData]);
 
-  const maxRate = Math.max(...rates);
-  const minRate = Math.min(...rates);
-  const avgRate = rates.reduce((sum, rate) => sum + rate, 0) / rates.length;
+  const maxRate = useMemo(() => Math.max(...rates), [rates]);
+  const minRate = useMemo(() => Math.min(...rates), [rates]);
+  const avgRate = useMemo(() => rates.reduce((sum, rate) => sum + rate, 0) / rates.length, [rates]);
 
   // Calculate national average
   const nationalAverage = useMemo(() => {
@@ -514,56 +518,6 @@ export default function StatePaymentComparison() {
     return (sum / rates.length).toFixed(2);
   }, [data, selectedServiceCategory, selectedServiceCode, showRatePerHour]);
 
-  // Update ChartWithErrorBoundary component
-  const ChartWithErrorBoundary = () => {
-    try {
-      return (
-        <ReactECharts
-          option={echartOptions}
-          style={{ 
-            height: isAllStatesSelected ? '500px' : '400px', // Taller for "All States"
-            width: '100%' 
-          }}
-          onEvents={{
-            click: (params: any) => {
-              if (params.componentType === 'series') {
-                const state = params.name;
-                const rate = params.value;
-                alert(`State: ${state}\nRate: $${rate.toFixed(2)}`);
-              }
-            }
-          }}
-        />
-      );
-    } catch (error) {
-      setChartError("Failed to render chart. Please check your data.");
-      return null;
-    }
-  };
-
-  // Add error display component
-  const ErrorMessage = ({ error, onRetry }: { error: string | null, onRetry?: () => void }) => {
-    if (!error) return null;
-    
-    return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded-lg mb-4">
-        <div className="flex items-center">
-          <FaExclamationCircle className="h-5 w-5 text-red-500 mr-2" />
-          <p className="text-red-700">{error}</p>
-          {onRetry && (
-            <button
-              onClick={onRetry}
-              className="ml-auto px-3 py-1 text-sm font-medium text-red-700 bg-red-100 rounded hover:bg-red-200 transition-colors"
-            >
-              Retry
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // Update the handleTableRowSelection function to track global selection order
   const handleTableRowSelection = (state: string, modifierKey: string) => {
     setSelectedTableRows(prev => {
       const currentSelections = prev[state] || [];
@@ -640,7 +594,7 @@ export default function StatePaymentComparison() {
                   >
                     <option value="">Select Service Line</option>
                     {serviceCategories
-                      .filter(category => !['HCBS', 'IDD'].includes(category)) // Filter out HCBS and IDD
+                      .filter(category => !['HCBS', 'IDD'].includes(category))
                       .map((category) => (
                         <option key={category} value={category}>
                           {category === 'PERSONAL CARE SERVICES (PCA)' ? 'PERSONAL CARE SERVICES (PCS)' : category}
