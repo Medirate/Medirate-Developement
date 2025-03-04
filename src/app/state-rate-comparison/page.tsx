@@ -357,7 +357,7 @@ export default function StatePaymentComparison() {
 
     const option: echarts.EChartsOption = {
       tooltip: {
-        trigger: 'item', // Changed to 'item' for individual bar hover
+        trigger: 'item',
         axisPointer: {
           type: 'shadow'
         },
@@ -366,7 +366,7 @@ export default function StatePaymentComparison() {
             // For "All States" selection
             const state = params.name;
             const rate = params.value;
-            return `State: ${state}<br>Average Rate: $${rate?.toFixed(2) || '0.00'}`;
+            return `State: ${state}<br>Average ${showRatePerHour ? 'Hourly' : 'Base'} Rate: $${rate?.toFixed(2) || '0.00'}`;
           } else {
             // For individual state selection
             const state = params.name;
@@ -381,7 +381,7 @@ export default function StatePaymentComparison() {
             );
 
             if (!item) {
-              return `State: ${state}<br>Rate: $${rate?.toFixed(2) || '0.00'}`;
+              return `State: ${state}<br>${showRatePerHour ? 'Hourly' : 'Base'} Rate: $${rate?.toFixed(2) || '0.00'}`;
             }
 
             // Build modifier details
@@ -394,7 +394,7 @@ export default function StatePaymentComparison() {
 
             // Additional details
             const additionalDetails = [
-              `<b>Rate:</b> $${rate?.toFixed(2) || '0.00'}`,
+              `<b>${showRatePerHour ? 'Hourly' : 'Base'} Rate:</b> $${rate?.toFixed(2) || '0.00'}`,
               item.service_code ? `<b>Service Code:</b> ${item.service_code}` : null,
               item.program ? `<b>Program:</b> ${item.program}` : null,
               item.location_region ? `<b>Location Region:</b> ${item.location_region}` : null
@@ -434,14 +434,7 @@ export default function StatePaymentComparison() {
         top: '5%'
       },
       toolbox: {
-        show: true,
-        feature: {
-          saveAsImage: {
-            show: true,
-            title: 'Save as Image',
-            backgroundColor: 'transparent'
-          }
-        }
+        show: false,
       }
     };
 
@@ -607,8 +600,8 @@ export default function StatePaymentComparison() {
         </div>
 
         {/* Heading with Reset Button */}
-        <div className="flex flex-col items-center mb-6 sm:mb-8">
-          <h1 className="text-3xl sm:text-5xl md:text-6xl text-[#012C61] font-lemonMilkRegular uppercase mb-3 sm:mb-4 text-center">
+        <div className="flex flex-col items-start mb-6 sm:mb-8">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl text-[#012C61] font-lemonMilkRegular uppercase mb-3 sm:mb-4">
             State Rate Comparison
           </h1>
           <button
@@ -617,6 +610,9 @@ export default function StatePaymentComparison() {
           >
             Reset All Filters
           </button>
+          <p className="text-sm text-gray-500 mt-2">
+            <strong>Note:</strong> The rates displayed are the current rates as of the latest available data. Rates are subject to change based on updates from state programs.
+          </p>
         </div>
 
         {/* Loading State */}
@@ -641,9 +637,13 @@ export default function StatePaymentComparison() {
                     className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                   >
                     <option value="">Select Service Line</option>
-                    {serviceCategories.map((category) => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
+                    {serviceCategories
+                      .filter(category => !['HCBS', 'IDD'].includes(category)) // Filter out HCBS and IDD
+                      .map((category) => (
+                        <option key={category} value={category}>
+                          {category === 'PERSONAL CARE SERVICES (PCA)' ? 'PERSONAL CARE SERVICES (PCS)' : category}
+                        </option>
+                      ))}
                   </select>
                 </div>
 
@@ -766,7 +766,7 @@ export default function StatePaymentComparison() {
                           You've selected all states. The chart below displays the average rate for the selected service code across each state.
                         </p>
                         <p className="text-sm text-gray-500 mt-1">
-                          This provides a comprehensive view of the average rates across all available states for your selected service.
+                          <strong>Note:</strong> The rates displayed are the current rates as of the latest available data. Rates are subject to change based on updates from state programs.
                         </p>
                       </div>
                     </div>
@@ -774,27 +774,30 @@ export default function StatePaymentComparison() {
                 )}
                 
                 <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg">
-                  {/* Toggle Switch */}
+                  {/* Toggle and Sort Section */}
                   <div className="flex justify-center items-center mb-4 space-x-4">
-                    <div className="flex items-center space-x-4 bg-gray-100 p-2 rounded-full">
-                      <span className={`text-sm font-medium ${!showRatePerHour ? 'text-blue-600' : 'text-gray-500'}`}>
-                        Base Rate
-                      </span>
+                    {/* Toggle Switch */}
+                    <div className="flex items-center bg-gray-100 p-1 rounded-lg">
                       <button
-                        onClick={() => setShowRatePerHour(!showRatePerHour)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-                          showRatePerHour ? 'bg-blue-600' : 'bg-gray-200'
+                        onClick={() => setShowRatePerHour(false)}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                          !showRatePerHour
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-gray-500 hover:bg-gray-200'
                         }`}
                       >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            showRatePerHour ? 'translate-x-5' : 'translate-x-1'
-                          }`}
-                        />
+                        Base Rate
                       </button>
-                      <span className={`text-sm font-medium ${showRatePerHour ? 'text-blue-600' : 'text-gray'}`}>
+                      <button
+                        onClick={() => setShowRatePerHour(true)}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                          showRatePerHour
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-gray-500 hover:bg-gray-200'
+                        }`}
+                      >
                         Rate Per Hour
-                      </span>
+                      </button>
                     </div>
 
                     {/* Sorting Dropdown */}
@@ -806,8 +809,8 @@ export default function StatePaymentComparison() {
                         className="px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                       >
                         <option value="default">Default</option>
-                        <option value="asc">Low to High</option>
                         <option value="desc">High to Low</option>
+                        <option value="asc">Low to High</option>
                       </select>
                     </div>
                   </div>
@@ -850,7 +853,10 @@ export default function StatePaymentComparison() {
                   
                   return (
                     <div key={state} className="mb-8 p-6 bg-white rounded-xl shadow-lg">
-                      <h2 className="text-xl font-semibold mb-4 text-gray-800">{state} Data</h2>
+                      <h2 className="text-xl font-semibold mb-4 text-gray-800">{state}</h2>
+                      <p className="text-sm text-gray-500 mb-4">
+                        <strong>Note:</strong> The rates displayed are the current rates as of the latest available data. Rates are subject to change based on updates from state programs.
+                      </p>
                       {tableLoading ? (
                         <div className="flex justify-center items-center h-32">
                           <FaSpinner className="animate-spin h-8 w-8 text-blue-500" />
