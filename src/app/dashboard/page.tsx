@@ -1,628 +1,119 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import AppLayout from "@/app/components/applayout";
-import { FaSpinner, FaExclamationCircle, FaChevronDown } from 'react-icons/fa';
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
-
-interface ServiceData {
-  state_name: string;
-  service_category: string;
-  service_code: string;
-  service_description?: string;
-  modifier_1?: string;
-  modifier_1_details?: string;
-  modifier_2?: string;
-  modifier_2_details?: string;
-  modifier_3?: string;
-  modifier_3_details?: string;
-  modifier_4?: string;
-  modifier_4_details?: string;
-  rate: string;
-  rate_effective_date: string;
-  program: string;
-  location_region: string;
-  rate_per_hour?: string;
-  duration_unit?: string;
-}
 
 export default function Dashboard() {
-  const [data, setData] = useState<ServiceData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  // Filter states
-  const [selectedServiceCategory, setSelectedServiceCategory] = useState("");
-  const [selectedState, setSelectedState] = useState("");
-  const [selectedServiceCode, setSelectedServiceCode] = useState("");
-  const [selectedServiceDescription, setSelectedServiceDescription] = useState("");
-  const [selectedProgram, setSelectedProgram] = useState("");
-  const [selectedLocationRegion, setSelectedLocationRegion] = useState("");
-  const [selectedModifier, setSelectedModifier] = useState("");
-  const [startDate, setStartDate] = useState(new Date(2003, 0, 1));
-  const [endDate, setEndDate] = useState(new Date());
-
-  // Visibility states for dropdowns
-  const [showServiceCategoryDropdown, setShowServiceCategoryDropdown] = useState(false);
-  const [showStateDropdown, setShowStateDropdown] = useState(false);
-  const [showServiceCodeDropdown, setShowServiceCodeDropdown] = useState(false);
-  const [showServiceDescriptionDropdown, setShowServiceDescriptionDropdown] = useState(false);
-  const [showProgramDropdown, setShowProgramDropdown] = useState(false);
-  const [showLocationRegionDropdown, setShowLocationRegionDropdown] = useState(false);
-  const [showModifierDropdown, setShowModifierDropdown] = useState(false);
-
-  // Unique filter options
-  const [serviceCategories, setServiceCategories] = useState<string[]>([]);
-  const [states, setStates] = useState<string[]>([]);
-  const [serviceCodes, setServiceCodes] = useState<string[]>([]);
-  const [serviceDescriptions, setServiceDescriptions] = useState<string[]>([]);
-  const [programs, setPrograms] = useState<string[]>([]);
-  const [locationRegions, setLocationRegions] = useState<string[]>([]);
-  const [modifiers, setModifiers] = useState<{ value: string; label: string }[]>([]);
-
-  // Calculate dynamic height based on window size
-  const [visibleRows, setVisibleRows] = useState(5); // Default to a minimum number of rows
-
-  const filteredData = useMemo(() => {
-    return data.filter(item => {
-      // Date filter
-      const effectiveDate = new Date(item.rate_effective_date);
-      if (effectiveDate < startDate || effectiveDate > endDate) return false;
-
-      // Service Category filter
-      if (selectedServiceCategory && item.service_category !== selectedServiceCategory) return false;
-
-      // State filter
-      if (selectedState && item.state_name !== selectedState) return false;
-
-      // Service Code filter
-      if (selectedServiceCode && item.service_code !== selectedServiceCode) return false;
-
-      // Program filter
-      if (selectedProgram && item.program !== selectedProgram) return false;
-
-      // Location/Region filter
-      if (selectedLocationRegion && item.location_region !== selectedLocationRegion) return false;
-
-      // Modifier filter (check all modifier columns)
-      if (selectedModifier) {
-        const hasModifier = 
-          item.modifier_1 === selectedModifier ||
-          item.modifier_2 === selectedModifier ||
-          item.modifier_3 === selectedModifier ||
-          item.modifier_4 === selectedModifier;
-        if (!hasModifier) return false;
-      }
-
-      return true;
-    });
-  }, [
-    data,
-    startDate,
-    endDate,
-    selectedServiceCategory,
-    selectedState,
-    selectedServiceCode,
-    selectedProgram,
-    selectedLocationRegion,
-    selectedModifier
-  ]);
+  const [showTerms, setShowTerms] = useState<boolean>(true);
+  const [acceptedTerms, setAcceptedTerms] = useState<boolean>(false);
 
   useEffect(() => {
-    const calculateTableHeight = () => {
-      const windowHeight = window.innerHeight;
-      const headerHeight = 200; // Approximate height of header and other elements
-      const rowHeight = 50; // Approximate height of each row
-      const maxRows = Math.floor((windowHeight - headerHeight) / rowHeight);
-      
-      setVisibleRows(Math.max(5, Math.min(maxRows, 20))); // Show between 5 and 20 rows
-    };
-
-    calculateTableHeight(); // Initial calculation
-
-    const handleResize = () => {
-      calculateTableHeight();
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    if (typeof window !== "undefined") {
+      const accepted = sessionStorage.getItem("acceptedTerms") === "true";
+      setShowTerms(!accepted);
+      setAcceptedTerms(accepted);
+    }
   }, []);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch("/api/state-payment-comparison");
-        if (!response.ok) throw new Error("Failed to fetch data");
-        const data = await response.json();
-        setData(data);
-        extractFilters(data);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        setError("Failed to load data. Please try again.");
-      } finally {
-        setLoading(false);
+    // Disable right-click
+    const disableRightClick = (event: MouseEvent) => event.preventDefault();
+    document.addEventListener("contextmenu", disableRightClick);
+
+    // Disable keyboard shortcuts for inspecting elements
+    const disableShortcuts = (event: KeyboardEvent) => {
+      if (
+        event.ctrlKey && (event.key === "u" || event.key === "U") || // Disable Ctrl+U
+        event.key === "F12" || // Disable F12
+        (event.ctrlKey && event.shiftKey && event.key === "I") // Disable Ctrl+Shift+I
+      ) {
+        event.preventDefault();
       }
     };
+    document.addEventListener("keydown", disableShortcuts);
 
-    fetchData();
+    return () => {
+      document.removeEventListener("contextmenu", disableRightClick);
+      document.removeEventListener("keydown", disableShortcuts);
+    };
   }, []);
 
-  const ErrorMessage = ({ error }: { error: string }) => {
-    if (!error) return null;
-    
-    return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded-lg mb-4">
-        <div className="flex items-center">
-          <FaExclamationCircle className="h-5 w-5 text-red-500 mr-2" />
-          <p className="text-red-700">{error}</p>
-        </div>
-      </div>
-    );
+  const handleAcceptTerms = () => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("acceptedTerms", "true");
+      setShowTerms(false);
+      setAcceptedTerms(true);
+    }
   };
-
-  const extractFilters = (data: ServiceData[]) => {
-    setServiceCategories([...new Set(data.map((item) => item.service_category))]);
-    setStates([...new Set(data.map((item) => item.state_name))]);
-    setServiceCodes([...new Set(data.map((item) => item.service_code))]);
-    setServiceDescriptions([...new Set(data.map((item) => item.service_description || ''))]);
-    setPrograms([...new Set(data.map((item) => item.program || ''))]);
-    setLocationRegions([...new Set(data.map((item) => item.location_region || ''))]);
-
-    // Combine all modifiers from all columns
-    const allModifiers = [
-      ...data.map((item) => item.modifier_1 || '').filter(Boolean),
-      ...data.map((item) => item.modifier_2 || '').filter(Boolean),
-      ...data.map((item) => item.modifier_3 || '').filter(Boolean),
-      ...data.map((item) => item.modifier_4 || '').filter(Boolean)
-    ];
-    setModifiers([...new Set(allModifiers)].map((modifier) => ({
-      value: modifier,
-      label: modifier
-    })));
-  };
-
-  const toggleDropdown = (dropdownSetter: React.Dispatch<React.SetStateAction<boolean>>) => {
-    dropdownSetter(prev => !prev);
-  };
-
-  const handleServiceCategoryChange = (category: string) => {
-    setSelectedServiceCategory(category);
-    setSelectedState("");
-    setSelectedServiceCode("");
-    setSelectedServiceDescription("");
-    setSelectedProgram("");
-    setSelectedLocationRegion("");
-    setSelectedModifier("");
-
-    // Get states for the selected service category
-    const filteredStates = data
-      .filter((item) => item.service_category === category)
-      .map((item) => item.state_name);
-    setStates([...new Set(filteredStates)]);
-
-    // Similarly, update other filters based on the selected service category
-    // ...
-  };
-
-  const handleStateChange = (state: string) => {
-    setSelectedState(state);
-    setSelectedServiceCode("");
-    setSelectedServiceDescription("");
-    setSelectedProgram("");
-    setSelectedLocationRegion("");
-    setSelectedModifier("");
-
-    // Get service codes for the selected state
-    const filteredCodes = data
-      .filter((item) => item.state_name === state)
-      .map((item) => item.service_code);
-    setServiceCodes([...new Set(filteredCodes)]);
-
-    // Similarly, update other filters based on the selected state
-    // ...
-  };
-
-  // Repeat similar logic for other filters...
-
-  // Add a clear button component
-  const ClearButton = ({ onClick }: { onClick: () => void }) => (
-    <button
-      onClick={onClick}
-      className="text-xs text-blue-500 hover:underline mt-1"
-    >
-      Clear
-    </button>
-  );
 
   return (
     <AppLayout activeTab="dashboard">
-      <div className="p-4 sm:p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
-        {/* Error Message */}
-        <ErrorMessage error={error} />
-
-        {/* Heading */}
-        <div className="flex flex-col items-start mb-6 sm:mb-8">
-          <h1 className="text-3xl sm:text-5xl md:text-6xl text-[#012C61] font-lemonMilkRegular uppercase mb-3 sm:mb-4">
-            Dashboard
-          </h1>
-        </div>
-
-        {/* Date Range Filter */}
-        <div className="mb-6 p-6 bg-white rounded-xl shadow-lg">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="relative">
-              <label className="block text-sm font-medium text-[#012C61] mb-2">Start Date</label>
-              <DatePicker
-                selected={startDate}
-                onChange={(date: Date | null) => date && setStartDate(date)}
-                selectsStart
-                startDate={startDate}
-                endDate={endDate}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400"
-              />
-            </div>
-            <div className="relative">
-              <label className="block text-sm font-medium text-[#012C61] mb-2">End Date</label>
-              <DatePicker
-                selected={endDate}
-                onChange={(date: Date | null) => date && setEndDate(date)}
-                selectsEnd
-                startDate={startDate}
-                endDate={endDate}
-                minDate={startDate}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <h2 className="text-2xl font-semibold text-[#012C61] mb-4">Filters</h2>
-        <div className="mb-6 p-6 bg-white rounded-xl shadow-lg">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Service Category */}
-            <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
-              <label className="block text-sm font-medium text-[#012C61] mb-2">Service Category</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={selectedServiceCategory || ''}
-                  onChange={(e) => handleServiceCategoryChange(e.target.value)}
-                  placeholder="Search service category..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400"
-                />
-                <button
-                  onClick={() => toggleDropdown(setShowServiceCategoryDropdown)}
-                  className="absolute right-3 top-3 text-gray-500"
-                >
-                  <FaChevronDown />
-                </button>
-                {showServiceCategoryDropdown && (
-                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {serviceCategories
-                      .filter((category) =>
-                        (category || '').toLowerCase().includes((selectedServiceCategory || '').toLowerCase())
-                      )
-                      .map((category) => (
-                        <div
-                          key={category}
-                          onMouseDown={() => handleServiceCategoryChange(category)}
-                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                        >
-                          {category}
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
-              <ClearButton onClick={() => setSelectedServiceCategory("")} />
-            </div>
-
-            {/* State */}
-            <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
-              <label className="block text-sm font-medium text-[#012C61] mb-2">State</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={selectedState}
-                  onChange={(e) => handleStateChange(e.target.value)}
-                  placeholder="Search state..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400"
-                />
-                <button
-                  onClick={() => toggleDropdown(setShowStateDropdown)}
-                  className="absolute right-3 top-3 text-gray-500"
-                >
-                  <FaChevronDown />
-                </button>
-                {showStateDropdown && (
-                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {states
-                      .filter((state) =>
-                        (state || '').toLowerCase().includes((selectedState || '').toLowerCase())
-                      )
-                      .map((state) => (
-                        <div
-                          key={state}
-                          onMouseDown={() => handleStateChange(state)}
-                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                        >
-                          {state}
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
-              <ClearButton onClick={() => setSelectedState("")} />
-            </div>
-
-            {/* Service Code */}
-            <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
-              <label className="block text-sm font-medium text-[#012C61] mb-2">Service Code</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={selectedServiceCode}
-                  onChange={(e) => setSelectedServiceCode(e.target.value)}
-                  placeholder="Search service code..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400"
-                />
-                <button
-                  onClick={() => toggleDropdown(setShowServiceCodeDropdown)}
-                  className="absolute right-3 top-3 text-gray-500"
-                >
-                  <FaChevronDown />
-                </button>
-                {showServiceCodeDropdown && (
-                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {serviceCodes
-                      .filter((code) =>
-                        (code || '').toLowerCase().includes((selectedServiceCode || '').toLowerCase())
-                      )
-                      .map((code) => (
-                        <div
-                          key={code}
-                          onMouseDown={() => setSelectedServiceCode(code)}
-                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                        >
-                          {code}
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
-              <ClearButton onClick={() => setSelectedServiceCode("")} />
-            </div>
-
-            {/* Service Description */}
-            <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow col-span-full">
-              <label className="block text-sm font-medium text-[#012C61] mb-2">Service Description</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={selectedServiceDescription}
-                  onChange={(e) => setSelectedServiceDescription(e.target.value)}
-                  placeholder="Search service description..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400"
-                />
-                <button
-                  onClick={() => toggleDropdown(setShowServiceDescriptionDropdown)}
-                  className="absolute right-3 top-3 text-gray-500"
-                >
-                  <FaChevronDown />
-                </button>
-                {showServiceDescriptionDropdown && (
-                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {serviceDescriptions
-                      .filter((description) =>
-                        (description || '').toLowerCase().includes((selectedServiceDescription || '').toLowerCase())
-                      )
-                      .map((description) => (
-                        <div
-                          key={description}
-                          onMouseDown={() => setSelectedServiceDescription(description)}
-                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                        >
-                          {description}
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Program */}
-            <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
-              <label className="block text-sm font-medium text-[#012C61] mb-2">Program</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={selectedProgram}
-                  onChange={(e) => setSelectedProgram(e.target.value)}
-                  placeholder="Search program..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400"
-                />
-                <button
-                  onClick={() => toggleDropdown(setShowProgramDropdown)}
-                  className="absolute right-3 top-3 text-gray-500"
-                >
-                  <FaChevronDown />
-                </button>
-                {showProgramDropdown && (
-                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {programs
-                      .filter((program) =>
-                        (program || '').toLowerCase().includes((selectedProgram || '').toLowerCase())
-                      )
-                      .map((program) => (
-                        <div
-                          key={program}
-                          onMouseDown={() => setSelectedProgram(program)}
-                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                        >
-                          {program}
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Location/Region */}
-            <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
-              <label className="block text-sm font-medium text-[#012C61] mb-2">Location/Region</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={selectedLocationRegion}
-                  onChange={(e) => setSelectedLocationRegion(e.target.value)}
-                  placeholder="Search location/region..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400"
-                />
-                <button
-                  onClick={() => toggleDropdown(setShowLocationRegionDropdown)}
-                  className="absolute right-3 top-3 text-gray-500"
-                >
-                  <FaChevronDown />
-                </button>
-                {showLocationRegionDropdown && (
-                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {locationRegions
-                      .filter((region) =>
-                        (region || '').toLowerCase().includes((selectedLocationRegion || '').toLowerCase())
-                      )
-                      .map((region) => (
-                        <div
-                          key={region}
-                          onMouseDown={() => setSelectedLocationRegion(region)}
-                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                        >
-                          {region}
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Modifier */}
-            <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
-              <label className="block text-sm font-medium text-[#012C61] mb-2">Modifier</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={selectedModifier}
-                  onChange={(e) => setSelectedModifier(e.target.value)}
-                  placeholder="Search modifier..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400"
-                />
-                <button
-                  onClick={() => toggleDropdown(setShowModifierDropdown)}
-                  className="absolute right-3 top-3 text-gray-500"
-                >
-                  <FaChevronDown />
-                </button>
-                {showModifierDropdown && (
-                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {modifiers
-                      .filter((modifier) =>
-                        (modifier.label || '').toLowerCase().includes((selectedModifier || '').toLowerCase())
-                      )
-                      .map((modifier) => (
-                        <div
-                          key={modifier.value}
-                          onMouseDown={() => setSelectedModifier(modifier.value)}
-                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                        >
-                          {modifier.label}
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
+      {/* Full-screen overlay - Covers everything including footer */}
+      {showTerms && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999]">
+          {/* Terms and Conditions Modal */}
+          <div className="fixed inset-0 flex justify-center items-center p-4">
+            <div className="bg-white p-6 rounded-lg shadow-lg max-w-2xl w-full relative">
+              <h2 className="text-lg font-semibold mb-4">
+                USE OF THE MEDIRATE SOLUTION IS SUBJECT TO THE FOLLOWING TERMS AND CONDITIONS
+              </h2>
+              <p className="text-sm text-gray-700 mb-2">
+                1. CPT® Content is copyrighted by the American Medical Association and CPT is a registered trademark of the AMA.
+              </p>
+              <p className="text-sm text-gray-700 mb-2">
+                2. MediRate, as a party to a license agreement with the AMA, is authorized to grant End User a limited, non-exclusive, non-transferable, non-sublicensable license...
+              </p>
+              <p className="text-sm text-gray-700 mb-2">
+                3. The provision of updated CPT Content in the MediRate Product(s) is dependent on a continuing contractual relationship between MediRate and the AMA.
+              </p>
+              <p className="text-sm text-gray-700 mb-2">
+                4. End User is prohibited from making CPT Content publicly available; creating derivative works (including translating) of the CPT Content...
+              </p>
+              <p className="text-sm text-gray-700 mb-2">
+                5. End User expressly acknowledges and agrees to the extent permitted by applicable law, use of the CPT Content is at End User's sole risk...
+              </p>
+              <p className="text-sm text-gray-700 mb-2">
+                6. End User is required to keep records and submit reports including information necessary for the calculation of royalties payable to the AMA by MediRate...
+              </p>
+              <p className="text-sm text-gray-700 mb-2">
+                7. U.S. Government End Users. CPT is commercial technical data, which was developed exclusively at private expense by the American Medical Association...
+              </p>
+              <p className="text-sm text-gray-700 mb-2">
+                8. End User must ensure that anyone with authorized access to the MediRate Product(s) will comply with the provisions of the End User Agreement.
+              </p>
+              <p className="text-sm text-gray-700 mb-2">
+                9. AMA shall be named as a third-party beneficiary of the End User Agreement.
+              </p>
+              <p className="text-sm text-gray-700 mb-2">
+                10. End User expressly consents to the release of its name to the AMA.
+              </p>
+              <p className="text-sm text-gray-700 mb-2">
+                11. The responsibility for the content of any "National Correct Coding Policy" included in this product is with the Centers for Medicare and Medicaid Services...
+              </p>
+              <button 
+                onClick={handleAcceptTerms} 
+                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded"
+              >
+                Accept
+              </button>
             </div>
           </div>
         </div>
-
-        {/* Loading State */}
-        {loading && (
-          <div className="flex justify-center items-center h-64">
-            <FaSpinner className="animate-spin h-12 w-12 text-blue-500" />
-            <p className="ml-4 text-gray-600">Loading data...</p>
-        </div>
       )}
 
-        {/* Data Table */}
-        {!loading && (
-          <div 
-            className="rounded-lg shadow-lg bg-white"
-            style={{ 
-              maxHeight: '70vh', 
-              overflow: 'auto',
-              position: 'relative'
-            }}
-          >
-            <table className="min-w-full">
-              <thead className="bg-gray-50 sticky top-0">
-                <tr>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">State</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Category</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Code</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Description</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Program</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Location/Region</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Rate</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Rate per Hour</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Duration Unit</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Effective Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredData.slice(0, visibleRows).map((item, index) => (
-                  <tr key={index} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.state_name || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_category || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_description || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.program || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.location_region || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.rate_per_hour || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.duration_unit || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.rate_effective_date ? new Date(item.rate_effective_date).toLocaleDateString() : '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Dashboard Content */}
+      {acceptedTerms && (
+        <div className="w-full aspect-video rounded-lg overflow-hidden shadow-lg border">
+          <iframe
+            title="MediRate_14Jan"
+            width="100%"
+            height="100%"
+            src="https://app.powerbi.com/reportEmbed?reportId=78da698e-c2e0-4113-b58b-b82d860d9531&autoAuth=true&ctid=ea69e699-88e7-447d-b936-54f7c3d698a3"
+            frameBorder="0"
+            allowFullScreen={true}
+          ></iframe>
         </div>
       )}
-      </div>
-
-      {/* Custom CSS for select dropdowns */}
-      <style jsx>{`
-        select {
-          appearance: none;
-          background-color: white;
-          background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%233b82f6%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
-          background-repeat: no-repeat;
-          background-position: right 0.75rem center;
-          background-size: 0.75rem;
-        }
-        select:focus {
-          outline: none;
-          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
-        }
-      `}</style>
     </AppLayout>
   );
 }
