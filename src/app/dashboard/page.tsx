@@ -62,16 +62,7 @@ export default function Dashboard() {
   const [modifiers, setModifiers] = useState<{ value: string; label: string }[]>([]);
 
   // Calculate dynamic height based on window size
-  const calculateTableHeight = () => {
-    const windowHeight = window.innerHeight;
-    const headerHeight = 200; // Approximate height of header and other elements
-    const rowHeight = 50; // Approximate height of each row
-    const maxRows = Math.floor((windowHeight - headerHeight) / rowHeight);
-    
-    return Math.max(5, Math.min(maxRows, 20)); // Show between 5 and 20 rows
-  };
-
-  const [visibleRows, setVisibleRows] = useState(calculateTableHeight());
+  const [visibleRows, setVisibleRows] = useState(5); // Default to a minimum number of rows
 
   const filteredData = useMemo(() => {
     return data.filter(item => {
@@ -119,6 +110,26 @@ export default function Dashboard() {
   ]);
 
   useEffect(() => {
+    const calculateTableHeight = () => {
+      const windowHeight = window.innerHeight;
+      const headerHeight = 200; // Approximate height of header and other elements
+      const rowHeight = 50; // Approximate height of each row
+      const maxRows = Math.floor((windowHeight - headerHeight) / rowHeight);
+      
+      setVisibleRows(Math.max(5, Math.min(maxRows, 20))); // Show between 5 and 20 rows
+    };
+
+    calculateTableHeight(); // Initial calculation
+
+    const handleResize = () => {
+      calculateTableHeight();
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
     const fetchData = async () => {
       try {
         const response = await fetch("/api/state-payment-comparison");
@@ -135,15 +146,6 @@ export default function Dashboard() {
     };
 
     fetchData();
-  }, []);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setVisibleRows(calculateTableHeight());
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const ErrorMessage = ({ error }: { error: string }) => {
