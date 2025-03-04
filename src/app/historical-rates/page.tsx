@@ -2,10 +2,20 @@
 
 import { useEffect, useState, useMemo } from "react";
 import AppLayout from "@/app/components/applayout";
-import { FaSpinner, FaExclamationCircle, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaSpinner, FaExclamationCircle, FaChevronLeft, FaChevronRight, FaFilter, FaChartLine } from 'react-icons/fa';
 import Select from "react-select";
 import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
 
 interface ServiceData {
   state_name: string;
@@ -27,6 +37,17 @@ interface ServiceData {
   duration_unit?: string;
 }
 
+// Register Chart.js components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
+
 export default function HistoricalRates() {
   const [data, setData] = useState<ServiceData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,6 +65,9 @@ export default function HistoricalRates() {
 
   // Update the selected entry state to handle single selection
   const [selectedEntry, setSelectedEntry] = useState<ServiceData | null>(null);
+
+  // Add this state near other state declarations
+  const [showRatePerHour, setShowRatePerHour] = useState(false);
 
   const areFiltersApplied = selectedServiceCategory && selectedState && selectedServiceCode;
 
@@ -73,12 +97,27 @@ export default function HistoricalRates() {
   // Get filtered data based on selections
   const filteredData = useMemo(() => {
     if (!areFiltersApplied) return [];
-    return data.filter(
-      (item) =>
+    
+    // Create a map to track unique combinations
+    const uniqueMap = new Map<string, ServiceData>();
+
+    data.forEach(item => {
+      if (
         item.service_category === selectedServiceCategory &&
         item.state_name === selectedState &&
         item.service_code === selectedServiceCode
-    );
+      ) {
+        const key = `${item.service_code}|${item.program}|${item.location_region}|${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}`;
+        
+        // Only keep the latest entry for each unique combination
+        const existing = uniqueMap.get(key);
+        if (!existing || new Date(item.rate_effective_date) > new Date(existing.rate_effective_date)) {
+          uniqueMap.set(key, item);
+        }
+      }
+    });
+
+    return Array.from(uniqueMap.values());
   }, [data, selectedServiceCategory, selectedState, selectedServiceCode]);
 
   const ErrorMessage = ({ error }: { error: string }) => {
@@ -145,10 +184,79 @@ export default function HistoricalRates() {
     setSelectedEntry(prev => 
       prev?.state_name === entry.state_name &&
       prev?.service_code === entry.service_code &&
-      prev?.rate_effective_date === entry.rate_effective_date
+      prev?.program === entry.program &&
+      prev?.location_region === entry.location_region &&
+      prev?.modifier_1 === entry.modifier_1 &&
+      prev?.modifier_2 === entry.modifier_2 &&
+      prev?.modifier_3 === entry.modifier_3 &&
+      prev?.modifier_4 === entry.modifier_4
         ? null
         : entry
     );
+  };
+
+  const getGraphData = () => {
+    if (!selectedEntry) return { xAxis: [], series: [] };
+
+    // Get all entries for the selected combination
+    const allEntries = data.filter(item => 
+      item.state_name === selectedEntry.state_name &&
+      item.service_code === selectedEntry.service_code &&
+      item.program === selectedEntry.program &&
+      item.location_region === selectedEntry.location_region &&
+      item.modifier_1 === selectedEntry.modifier_1 &&
+      item.modifier_2 === selectedEntry.modifier_2 &&
+      item.modifier_3 === selectedEntry.modifier_3 &&
+      item.modifier_4 === selectedEntry.modifier_4
+    );
+
+    // Sort by date
+    const sortedEntries = allEntries.sort((a, b) => 
+      new Date(a.rate_effective_date).getTime() - new Date(b.rate_effective_date).getTime()
+    );
+
+    // Add current date as the last point
+    const currentDate = new Date();
+    const lastEntry = sortedEntries[sortedEntries.length - 1];
+    const extendedEntries = [
+      ...sortedEntries,
+      {
+        ...lastEntry,
+        rate_effective_date: currentDate.toISOString().split('T')[0]
+      }
+    ];
+
+    // Format dates as mm/dd/yyyy
+    const formatDate = (dateString: string) => {
+      const date = new Date(dateString);
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      const year = date.getFullYear();
+      return `${month}/${day}/${year}`;
+    };
+
+    return {
+      xAxis: extendedEntries.map(entry => formatDate(entry.rate_effective_date)),
+      series: extendedEntries.map(entry => ({
+        value: showRatePerHour 
+          ? parseFloat(entry.rate_per_hour?.replace('$', '') || '0')
+          : parseFloat(entry.rate.replace('$', '') || '0'),
+        state: entry.state_name,
+        serviceCode: entry.service_code,
+        program: entry.program,
+        locationRegion: entry.location_region,
+        modifier1: entry.modifier_1,
+        modifier1Details: entry.modifier_1_details,
+        modifier2: entry.modifier_2,
+        modifier2Details: entry.modifier_2_details,
+        modifier3: entry.modifier_3,
+        modifier3Details: entry.modifier_3_details,
+        modifier4: entry.modifier_4,
+        modifier4Details: entry.modifier_4_details,
+        durationUnit: entry.duration_unit,
+        date: formatDate(entry.rate_effective_date)
+      }))
+    };
   };
 
   return (
@@ -178,249 +286,290 @@ export default function HistoricalRates() {
           </div>
         )}
 
-        {/* Filters */}
+        {/* Main Content */}
         {!loading && (
-          <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-              {/* Service Category Selector */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Service Line</label>
-                <select
-                  value={selectedServiceCategory}
-                  onChange={(e) => handleServiceCategoryChange(e.target.value)}
-                  className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                >
-                  <option value="">Select Service Line</option>
-                  {serviceCategories.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* State Selector */}
-              {selectedServiceCategory && (
+          <div className="space-y-8">
+            {/* Filters */}
+            <div className="p-4 sm:p-6 bg-white rounded-xl shadow-lg">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+                {/* Service Category Selector */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">State</label>
+                  <label className="text-sm font-medium text-gray-700">Service Line</label>
                   <select
-                    value={selectedState}
-                    onChange={(e) => handleStateChange(e.target.value)}
+                    value={selectedServiceCategory}
+                    onChange={(e) => handleServiceCategoryChange(e.target.value)}
                     className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                   >
-                    <option value="">Select State</option>
-                    {states.map((state) => (
-                      <option key={state} value={state}>
-                        {state}
-                      </option>
-                    ))}
+                    <option value="">Select Service Line</option>
+                    {serviceCategories
+                      .filter(category => !['HCBS', 'IDD'].includes(category))
+                      .map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
                   </select>
                 </div>
-              )}
 
-              {/* Service Code Selector */}
-              {selectedServiceCategory && selectedState && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Service Code</label>
-                  <select
-                    value={selectedServiceCode}
-                    onChange={(e) => handleServiceCodeChange(e.target.value)}
-                    className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                  >
-                    <option value="">Select Service Code</option>
-                    {serviceCodes.map((code) => (
-                      <option key={code} value={code}>
-                        {code}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Data Table */}
-        {!loading && !error && areFiltersApplied && (
-          <>
-            <div className="overflow-x-auto rounded-lg shadow-lg mb-4" style={{ maxHeight: '600px', overflowY: 'auto' }}>
-              <table className="min-w-full bg-white">
-                <thead className="bg-gray-50 sticky top-0">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">State</th>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Category</th>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Code</th>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Program</th>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Location/Region</th>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 1</th>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 2</th>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Rate</th>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Rate per Hour</th>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Duration Unit</th>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Effective Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredData.map((item, index) => (
-                    <tr 
-                      key={index} 
-                      className={`hover:bg-gray-50 transition-colors cursor-pointer ${
-                        selectedEntry?.state_name === item.state_name &&
-                        selectedEntry?.service_code === item.service_code &&
-                        selectedEntry?.rate_effective_date === item.rate_effective_date
-                          ? 'bg-blue-50' : ''
-                      }`}
-                      onClick={() => handleRowSelection(item)}
+                {/* State Selector */}
+                {selectedServiceCategory && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">State</label>
+                    <select
+                      value={selectedState}
+                      onChange={(e) => handleStateChange(e.target.value)}
+                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                            selectedEntry?.state_name === item.state_name &&
-                            selectedEntry?.service_code === item.service_code &&
-                            selectedEntry?.rate_effective_date === item.rate_effective_date
-                              ? 'border-blue-500 bg-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.2)]' 
-                              : 'border-gray-300 hover:border-gray-400'
-                          }`}>
-                            {selectedEntry?.state_name === item.state_name &&
-                            selectedEntry?.service_code === item.service_code &&
-                            selectedEntry?.rate_effective_date === item.rate_effective_date && (
-                              <svg 
-                                className="w-3 h-3 text-white" 
-                                fill="none" 
-                                stroke="currentColor" 
-                                viewBox="0 0 24 24"
-                              >
-                                <path 
-                                  strokeLinecap="round" 
-                                  strokeLinejoin="round" 
-                                  strokeWidth={2} 
-                                  d="M5 13l4 4L19 7" 
-                                />
-                              </svg>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.state_name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_category}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.program}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.location_region}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || 'No details'}` : '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate_per_hour || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.duration_unit || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {new Date(item.rate_effective_date).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
+                      <option value="">Select State</option>
+                      {states.map((state) => (
+                        <option key={state} value={state}>
+                          {state}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
-        {/* Graph Component */}
-        {selectedEntry && (
-          <div className="mb-8 p-6 bg-white rounded-xl shadow-lg">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">Rate History</h2>
-            <div className="w-full h-96">
-              <ReactECharts
-                option={{
-                  tooltip: {
-                    trigger: 'axis',
-                    formatter: (params: any) => {
-                      const data = params[0].data;
-                      return `
-                        <b>State:</b> ${data.state}<br>
-                        <b>Service Code:</b> ${data.serviceCode}<br>
-                        <b>Rate:</b> $${data.rate.toFixed(2)}<br>
-                        <b>Effective Date:</b> ${data.date}
-                      `;
-                    }
-                  },
-                  xAxis: {
-                    type: 'category',
-                    data: filteredData
-                      .filter(item => 
-                        item.state_name === selectedEntry.state_name &&
-                        item.service_code === selectedEntry.service_code
-                      )
-                      .sort((a, b) => new Date(a.rate_effective_date).getTime() - new Date(b.rate_effective_date).getTime())
-                      .map(entry => entry.rate_effective_date),
-                    name: 'Effective Date',
-                    nameLocation: 'middle',
-                    nameGap: 30,
-                    axisLabel: {
-                      formatter: (value: string) => {
-                        return new Date(value).toLocaleDateString();
-                      }
-                    }
-                  },
-                  yAxis: {
-                    type: 'value',
-                    name: 'Rate ($)',
-                    nameLocation: 'middle',
-                    nameGap: 30
-                  },
-                  series: [
-                    {
-                      data: filteredData
-                        .filter(item => 
-                          item.state_name === selectedEntry.state_name &&
-                          item.service_code === selectedEntry.service_code
-                        )
-                        .sort((a, b) => new Date(a.rate_effective_date).getTime() - new Date(b.rate_effective_date).getTime())
-                        .map(entry => ({
-                          value: parseFloat(entry.rate.replace('$', '')),
-                          state: entry.state_name,
-                          serviceCode: entry.service_code,
-                          date: new Date(entry.rate_effective_date).toLocaleDateString()
-                        })),
-                      type: 'line',
-                      smooth: true,
-                      itemStyle: {
-                        color: '#3b82f6'
-                      },
-                      areaStyle: {
-                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                          {
-                            offset: 0,
-                            color: '#3b82f660'
-                          },
-                          {
-                            offset: 1,
-                            color: '#3b82f620'
-                          }
-                        ])
-                      }
-                    }
-                  ],
-                  grid: {
-                    containLabel: true,
-                    left: '3%',
-                    right: '3%',
-                    bottom: '10%',
-                    top: '10%'
-                  }
-                }}
-                style={{ height: '100%', width: '100%' }}
-              />
+                {/* Service Code Selector */}
+                {selectedServiceCategory && selectedState && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Service Code</label>
+                    <select
+                      value={selectedServiceCode}
+                      onChange={(e) => handleServiceCodeChange(e.target.value)}
+                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    >
+                      <option value="">Select Service Code</option>
+                      {serviceCodes.map((code) => (
+                        <option key={code} value={code}>
+                          {code}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* Empty State Message */}
+            {!areFiltersApplied && (
+              <div className="p-6 bg-white rounded-xl shadow-lg text-center">
+                <div className="flex justify-center items-center mb-4">
+                  <FaFilter className="h-8 w-8 text-blue-500" />
+                </div>
+                <p className="text-lg font-medium text-gray-700 mb-2">
+                  Please select filters to view historical rates
+                </p>
+                <p className="text-sm text-gray-500">
+                  Choose a service line, state, and service code to see available rate history
+                </p>
+              </div>
+            )}
+
+            {/* Graph Component */}
+            {selectedEntry && areFiltersApplied && (
+              <div className="p-6 bg-white rounded-xl shadow-lg">
+                <h2 className="text-xl font-semibold mb-4 text-gray-800">Rate History</h2>
+                
+                {/* Toggle Switch */}
+                <div className="flex justify-center items-center mb-6">
+                  <div className="flex items-center bg-gray-100 p-1 rounded-lg">
+                    <button
+                      onClick={() => setShowRatePerHour(false)}
+                      className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                        !showRatePerHour
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-gray-500 hover:bg-gray-200'
+                      }`}
+                    >
+                      Base Rate
+                    </button>
+                    <button
+                      onClick={() => setShowRatePerHour(true)}
+                      className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                        showRatePerHour
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-gray-500 hover:bg-gray-200'
+                      }`}
+                    >
+                      Rate Per Hour
+                    </button>
+                  </div>
+                </div>
+
+                <div className="w-full h-80">
+                  {filteredData.length > 0 ? (
+                    <ReactECharts
+                      option={{
+                        tooltip: {
+                          trigger: 'axis',
+                          formatter: (params: any) => {
+                            const data = params[0].data;
+                            const rate = data.value ? `$${data.value.toFixed(2)}` : '-';
+                            
+                            const modifiers = [
+                              data.modifier1 ? `${data.modifier1} - ${data.modifier1Details || 'No details'}` : null,
+                              data.modifier2 ? `${data.modifier2} - ${data.modifier2Details || 'No details'}` : null,
+                              data.modifier3 ? `${data.modifier3} - ${data.modifier3Details || 'No details'}` : null,
+                              data.modifier4 ? `${data.modifier4} - ${data.modifier4Details || 'No details'}` : null
+                            ].filter(Boolean).join('<br>');
+
+                            return `
+                              <b>State:</b> ${data.state || '-'}<br>
+                              <b>Service Code:</b> ${data.serviceCode || '-'}<br>
+                              <b>Program:</b> ${data.program || '-'}<br>
+                              <b>Location/Region:</b> ${data.locationRegion || '-'}<br>
+                              <b>${showRatePerHour ? 'Rate Per Hour' : 'Rate Per Base Unit'}:</b> ${rate}<br>
+                              <b>Duration Unit:</b> ${data.durationUnit || '-'}<br>
+                              <b>Effective Date:</b> ${data.date || '-'}<br>
+                              ${modifiers ? `<b>Modifiers:</b><br>${modifiers}` : ''}
+                            `;
+                          }
+                        },
+                        xAxis: {
+                          type: 'category',
+                          data: getGraphData().xAxis,
+                          name: 'Effective Date',
+                          nameLocation: 'middle',
+                          nameGap: 30,
+                          axisLabel: {
+                            formatter: (value: string) => value
+                          }
+                        },
+                        yAxis: {
+                          type: 'value',
+                          name: showRatePerHour ? 'Rate Per Hour ($)' : 'Rate Per Base Unit ($)',
+                          nameLocation: 'middle',
+                          nameGap: 30
+                        },
+                        series: [
+                          {
+                            data: getGraphData().series,
+                            type: 'line',
+                            smooth: false,
+                            itemStyle: {
+                              color: showRatePerHour ? '#ef4444' : '#3b82f6'
+                            }
+                          }
+                        ],
+                        grid: {
+                          containLabel: true,
+                          left: '3%',
+                          right: '3%',
+                          bottom: '10%',
+                          top: '10%'
+                        }
+                      }}
+                      style={{ height: '100%', width: '100%' }}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-gray-500">No data available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Data Table */}
+            {areFiltersApplied && (
+              <div className="overflow-x-auto rounded-lg shadow-lg">
+                <table className="min-w-full bg-white">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider"></th>
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">State</th>
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Category</th>
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Code</th>
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Program</th>
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Location/Region</th>
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 1</th>
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 2</th>
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {filteredData.map((item, index) => {
+                      const isSelected = selectedEntry?.state_name === item.state_name &&
+                        selectedEntry?.service_code === item.service_code &&
+                        selectedEntry?.program === item.program &&
+                        selectedEntry?.location_region === item.location_region &&
+                        selectedEntry?.modifier_1 === item.modifier_1 &&
+                        selectedEntry?.modifier_2 === item.modifier_2 &&
+                        selectedEntry?.modifier_3 === item.modifier_3 &&
+                        selectedEntry?.modifier_4 === item.modifier_4;
+
+                      return (
+                        <tr 
+                          key={index} 
+                          className={`hover:bg-gray-50 transition-colors cursor-pointer ${
+                            isSelected ? 'bg-blue-50' : ''
+                          }`}
+                          onClick={() => setSelectedEntry(item)}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                                isSelected ? 'border-blue-500 bg-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.2)]' : 'border-gray-300 hover:border-gray-400'
+                              }`}>
+                                {isSelected && (
+                                  <svg 
+                                    className="w-3 h-3 text-white" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path 
+                                      strokeLinecap="round" 
+                                      strokeLinejoin="round" 
+                                      strokeWidth={2} 
+                                      d="M5 13l4 4L19 7" 
+                                    />
+                                  </svg>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.state_name}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_category}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.program}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.location_region}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : '-'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : '-'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || 'No details'}` : '-'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : '-'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Selection Prompt */}
+            {areFiltersApplied && !selectedEntry && (
+              <div className="p-6 bg-white rounded-xl shadow-lg text-center">
+                <div className="flex justify-center items-center mb-4">
+                  <FaChartLine className="h-8 w-8 text-blue-500" />
+                </div>
+                <p className="text-lg font-medium text-gray-700 mb-2">
+                  Select a rate entry to view its historical data
+                </p>
+                <p className="text-sm text-gray-500">
+                  Click on any row in the table above to see the rate history graph
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
