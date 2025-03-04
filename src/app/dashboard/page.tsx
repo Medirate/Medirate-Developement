@@ -186,6 +186,55 @@ export default function Dashboard() {
     dropdownSetter(prev => !prev);
   };
 
+  const handleServiceCategoryChange = (category: string) => {
+    setSelectedServiceCategory(category);
+    setSelectedState("");
+    setSelectedServiceCode("");
+    setSelectedServiceDescription("");
+    setSelectedProgram("");
+    setSelectedLocationRegion("");
+    setSelectedModifier("");
+
+    // Get states for the selected service category
+    const filteredStates = data
+      .filter((item) => item.service_category === category)
+      .map((item) => item.state_name);
+    setStates([...new Set(filteredStates)]);
+
+    // Similarly, update other filters based on the selected service category
+    // ...
+  };
+
+  const handleStateChange = (state: string) => {
+    setSelectedState(state);
+    setSelectedServiceCode("");
+    setSelectedServiceDescription("");
+    setSelectedProgram("");
+    setSelectedLocationRegion("");
+    setSelectedModifier("");
+
+    // Get service codes for the selected state
+    const filteredCodes = data
+      .filter((item) => item.state_name === state)
+      .map((item) => item.service_code);
+    setServiceCodes([...new Set(filteredCodes)]);
+
+    // Similarly, update other filters based on the selected state
+    // ...
+  };
+
+  // Repeat similar logic for other filters...
+
+  // Add a clear button component
+  const ClearButton = ({ onClick }: { onClick: () => void }) => (
+    <button
+      onClick={onClick}
+      className="text-xs text-blue-500 hover:underline mt-1"
+    >
+      Clear
+    </button>
+  );
+
   return (
     <AppLayout activeTab="dashboard">
       <div className="p-4 sm:p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
@@ -239,7 +288,7 @@ export default function Dashboard() {
                 <input
                   type="text"
                   value={selectedServiceCategory || ''}
-                  onChange={(e) => setSelectedServiceCategory(e.target.value)}
+                  onChange={(e) => handleServiceCategoryChange(e.target.value)}
                   placeholder="Search service category..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400"
                 />
@@ -258,7 +307,7 @@ export default function Dashboard() {
                       .map((category) => (
                         <div
                           key={category}
-                          onMouseDown={() => setSelectedServiceCategory(category)}
+                          onMouseDown={() => handleServiceCategoryChange(category)}
                           className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                         >
                           {category}
@@ -267,6 +316,7 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
+              <ClearButton onClick={() => setSelectedServiceCategory("")} />
             </div>
 
             {/* State */}
@@ -276,7 +326,7 @@ export default function Dashboard() {
                 <input
                   type="text"
                   value={selectedState}
-                  onChange={(e) => setSelectedState(e.target.value)}
+                  onChange={(e) => handleStateChange(e.target.value)}
                   placeholder="Search state..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400"
                 />
@@ -295,7 +345,7 @@ export default function Dashboard() {
                       .map((state) => (
                         <div
                           key={state}
-                          onMouseDown={() => setSelectedState(state)}
+                          onMouseDown={() => handleStateChange(state)}
                           className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                         >
                           {state}
@@ -304,6 +354,7 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
+              <ClearButton onClick={() => setSelectedState("")} />
             </div>
 
             {/* Service Code */}
@@ -341,6 +392,7 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
+              <ClearButton onClick={() => setSelectedServiceCode("")} />
             </div>
 
             {/* Service Description */}

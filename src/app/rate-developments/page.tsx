@@ -14,6 +14,7 @@ interface Alert {
   service_lines_impacted_1?: string | null;
   service_lines_impacted_2?: string | null;
   service_lines_impacted_3?: string | null;
+  summary?: string;
 }
 
 interface Bill {
@@ -528,11 +529,12 @@ export default function RateDevelopments() {
         </div>
       </div>
 
-      {/* Add a note about sorting and AI summary */}
+      {/* Update the note about sorting and summaries */}
       <div className="mb-4 text-sm text-gray-600">
         <p>
           <strong>Note:</strong> Click on the column headings (State, Announcement Date, Action Date) to sort the data. 
-          Also, clicking on a bill name in the Legislative Updates table will display an AI-generated summary of the bill.
+          Also, clicking on a bill name in the Legislative Updates table will display an AI-generated summary, 
+          while clicking on a subject in the Provider Alerts table will display a summary of the alert.
         </p>
       </div>
 
@@ -579,7 +581,12 @@ export default function RateDevelopments() {
                         <div className="flex items-center">
                           <span
                             className="cursor-pointer hover:underline"
-                            onClick={() => setSelectedAlert(alert)}
+                            onClick={() => {
+                              if (alert.summary) {
+                                setPopupContent(alert.summary);
+                                setShowPopup(true);
+                              }
+                            }}
                           >
                             {alert.subject || ""}
                           </span>
@@ -739,7 +746,12 @@ export default function RateDevelopments() {
                         <div className="flex items-center">
                           <span
                             className="cursor-pointer hover:underline"
-                            onClick={() => setSelectedAlert(alert)}
+                            onClick={() => {
+                              if (alert.summary) {
+                                setPopupContent(alert.summary);
+                                setShowPopup(true);
+                              }
+                            }}
                           >
                             {alert.subject || ""}
                           </span>
@@ -853,7 +865,11 @@ export default function RateDevelopments() {
       {showPopup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
           <div className="bg-white p-4 rounded-lg max-w-lg w-full">
-            <h3 className="text-lg font-bold">AI Summary</h3>
+            <h3 className="text-lg font-bold">
+              {popupContent === providerAlerts.find(a => a.summary === popupContent)?.summary 
+                ? "Summary" 
+                : "AI Summary"}
+            </h3>
             <p>{popupContent}</p>
             <button
               onClick={() => setShowPopup(false)}
