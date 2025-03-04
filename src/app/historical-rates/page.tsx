@@ -270,12 +270,12 @@ export default function HistoricalRates() {
           <h1 className="text-3xl sm:text-5xl md:text-6xl text-[#012C61] font-lemonMilkRegular uppercase mb-3 sm:mb-4">
             Historical Rates
           </h1>
-          <button
+            <button
             onClick={resetFilters}
             className="px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base bg-[#012C61] text-white rounded-lg hover:bg-blue-800 transition-colors"
-          >
+            >
             Reset All Filters
-          </button>
+            </button>
         </div>
 
         {/* Loading State */}
@@ -283,7 +283,7 @@ export default function HistoricalRates() {
           <div className="flex justify-center items-center h-64">
             <FaSpinner className="animate-spin h-12 w-12 text-blue-500" />
             <p className="ml-4 text-gray-600">Loading data...</p>
-          </div>
+      </div>
         )}
 
         {/* Main Content */}
@@ -347,9 +347,9 @@ export default function HistoricalRates() {
                       ))}
                     </select>
                   </div>
-                )}
-              </div>
-            </div>
+                        )}
+                      </div>
+                    </div>
 
             {/* Empty State Message */}
             {!areFiltersApplied && (
@@ -363,7 +363,7 @@ export default function HistoricalRates() {
                 <p className="text-sm text-gray-500">
                   Choose a service line, state, and service code to see available rate history
                 </p>
-              </div>
+        </div>
             )}
 
             {/* Graph Component */}
@@ -487,8 +487,8 @@ export default function HistoricalRates() {
                       <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 2</th>
                       <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
                       <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
-                    </tr>
-                  </thead>
+              </tr>
+            </thead>
                   <tbody className="divide-y divide-gray-200">
                     {filteredData.map((item, index) => {
                       const isSelected = selectedEntry?.state_name === item.state_name &&
@@ -500,37 +500,37 @@ export default function HistoricalRates() {
                         selectedEntry?.modifier_3 === item.modifier_3 &&
                         selectedEntry?.modifier_4 === item.modifier_4;
 
-                      return (
-                        <tr 
-                          key={index} 
+                return (
+                  <tr 
+                    key={index} 
                           className={`hover:bg-gray-50 transition-colors cursor-pointer ${
                             isSelected ? 'bg-blue-50' : ''
                           }`}
                           onClick={() => setSelectedEntry(item)}
                         >
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      <div className="flex items-center">
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
                                 isSelected ? 'border-blue-500 bg-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.2)]' : 'border-gray-300 hover:border-gray-400'
-                              }`}>
-                                {isSelected && (
-                                  <svg 
-                                    className="w-3 h-3 text-white" 
-                                    fill="none" 
-                                    stroke="currentColor" 
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path 
-                                      strokeLinecap="round" 
-                                      strokeLinejoin="round" 
-                                      strokeWidth={2} 
-                                      d="M5 13l4 4L19 7" 
-                                    />
-                                  </svg>
-                                )}
-                              </div>
-                            </div>
-                          </td>
+                        }`}>
+                          {isSelected && (
+                            <svg 
+                              className="w-3 h-3 text-white" 
+                              fill="none" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
+                            >
+                              <path 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round" 
+                                strokeWidth={2} 
+                                d="M5 13l4 4L19 7" 
+                              />
+                            </svg>
+                          )}
+                        </div>
+                      </div>
+                    </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.state_name}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_category}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code}</td>
@@ -538,23 +538,23 @@ export default function HistoricalRates() {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.location_region}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : '-'}
-                          </td>
+                    </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : '-'}
-                          </td>
+                    </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || 'No details'}` : '-'}
-                          </td>
+                    </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : '-'}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          </div>
+        )}
 
             {/* Selection Prompt */}
             {areFiltersApplied && !selectedEntry && (
@@ -568,9 +568,9 @@ export default function HistoricalRates() {
                 <p className="text-sm text-gray-500">
                   Click on any row in the table above to see the rate history graph
                 </p>
-              </div>
-            )}
-          </div>
+                </div>
+              )}
+            </div>
         )}
       </div>
     </AppLayout>

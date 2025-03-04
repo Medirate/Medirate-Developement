@@ -254,7 +254,7 @@ export default function StatePaymentComparison() {
     const stateAverages = new Map<string, number>();
     const stateCounts = new Map<string, number>();
 
-    filteredData.forEach(item => {
+  filteredData.forEach(item => {
       const rate = showRatePerHour 
         ? parseFloat(item.rate_per_hour?.replace("$", "") || "0")
         : parseFloat(item.rate?.replace("$", "") || "0");
@@ -316,7 +316,17 @@ export default function StatePaymentComparison() {
         barCategoryGap: '20%',
         data: states.map(state => processedData[state]['average'] || null),
         label: {
-          show: false
+          show: true,
+          position: 'top',
+          formatter: (params: any) => {
+            const value = params.value;
+            return value ? `$${value.toFixed(2)}` : '-';
+          },
+          color: '#374151',
+          fontSize: 12,
+          fontWeight: 'bold',
+          textShadowBlur: 2,
+          textShadowColor: 'rgba(255,255,255,0.5)'
         },
         itemStyle: {
           color: '#36A2EBB3'
@@ -340,7 +350,17 @@ export default function StatePaymentComparison() {
           barCategoryGap: '20%',
           data: states.map(s => s === state ? processedData[state][modifierKey] || null : null),
           label: {
-            show: false
+            show: true,
+            position: 'top',
+            formatter: (params: any) => {
+              const value = params.value;
+              return value ? `$${value.toFixed(2)}` : '-';
+            },
+            color: '#374151',
+            fontSize: 12,
+            fontWeight: 'bold',
+            textShadowBlur: 2,
+            textShadowColor: 'rgba(255,255,255,0.5)'
           },
           itemStyle: {
             color: `${colorSequence[index % colorSequence.length]}B3`
@@ -389,7 +409,7 @@ export default function StatePaymentComparison() {
               item.location_region ? `<b>Location Region:</b> ${item.location_region}` : null,
               item.duration_unit ? `<b>Duration Unit:</b> ${item.duration_unit}` : null
             ].filter(Boolean).join('<br>');
-
+            
             return [
               `<b>State:</b> ${state}`,
               modifierDetails ? `<b>Modifier Details:</b><br>${modifierDetails}` : '',
@@ -599,7 +619,7 @@ export default function StatePaymentComparison() {
                         <option key={category} value={category}>
                           {category === 'PERSONAL CARE SERVICES (PCA)' ? 'PERSONAL CARE SERVICES (PCS)' : category}
                         </option>
-                      ))}
+                    ))}
                   </select>
                 </div>
 
@@ -729,7 +749,7 @@ export default function StatePaymentComparison() {
                   </div>
                 )}
                 
-                <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg">
+              <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg">
                   {/* Toggle and Sort Section */}
                   <div className="flex justify-center items-center mb-4 space-x-4">
                     {/* Toggle Switch */}
@@ -771,21 +791,21 @@ export default function StatePaymentComparison() {
                     </div>
                   </div>
                   
-                  <div className="w-full mx-auto">
-                    {chartLoading ? (
-                      <div className="flex justify-center items-center h-48 sm:h-64">
-                        <FaSpinner className="animate-spin h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
-                        <p className="ml-3 sm:ml-4 text-sm sm:text-base text-gray-600">Generating chart...</p>
+                <div className="w-full mx-auto">
+                  {chartLoading ? (
+                    <div className="flex justify-center items-center h-48 sm:h-64">
+                      <FaSpinner className="animate-spin h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
+                      <p className="ml-3 sm:ml-4 text-sm sm:text-base text-gray-600">Generating chart...</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <div className="min-w-[500px] sm:min-w-0">
+                        <ChartWithErrorBoundary />
                       </div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <div className="min-w-[500px] sm:min-w-0">
-                          <ChartWithErrorBoundary />
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
+              </div>
               </>
             )}
 
