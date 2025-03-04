@@ -43,6 +43,7 @@ interface ServiceData {
   rate_effective_date: string;
   program: string;
   location_region: string;
+  duration_unit?: string;
 }
 
 const darkenColor = (color: string, amount: number): string => {
@@ -397,7 +398,8 @@ export default function StatePaymentComparison() {
               `<b>${showRatePerHour ? 'Hourly' : 'Base'} Rate:</b> $${rate?.toFixed(2) || '0.00'}`,
               item.service_code ? `<b>Service Code:</b> ${item.service_code}` : null,
               item.program ? `<b>Program:</b> ${item.program}` : null,
-              item.location_region ? `<b>Location Region:</b> ${item.location_region}` : null
+              item.location_region ? `<b>Location Region:</b> ${item.location_region}` : null,
+              item.duration_unit ? `<b>Duration Unit:</b> ${item.duration_unit}` : null
             ].filter(Boolean).join('<br>');
 
             return [
@@ -878,6 +880,7 @@ export default function StatePaymentComparison() {
                                 <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
                                 <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Rate</th>
                                 <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Rate per Hour</th>
+                                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Duration Unit</th>
                                 <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Effective Date</th>
                               </tr>
                             </thead>
@@ -941,6 +944,7 @@ export default function StatePaymentComparison() {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                       {item.rate_per_hour || '-'}
                                     </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.duration_unit || '-'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(item.rate_effective_date).toLocaleDateString()}</td>
                                   </tr>
                                 );
