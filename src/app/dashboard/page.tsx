@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import AppLayout from "@/app/components/applayout";
 import { FaSpinner, FaExclamationCircle, FaChevronDown } from 'react-icons/fa';
 import DatePicker from "react-datepicker";
@@ -26,6 +26,22 @@ interface ServiceData {
   rate_per_hour?: string;
   duration_unit?: string;
 }
+
+// Update the useClickOutside hook to use HTMLDivElement
+const useClickOutside = (ref: React.RefObject<HTMLDivElement | null>, callback: () => void) => {
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        callback();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [ref, callback]);
+};
 
 export default function Dashboard() {
   const [data, setData] = useState<ServiceData[]>([]);
@@ -63,6 +79,24 @@ export default function Dashboard() {
 
   // Calculate dynamic height based on window size
   const [visibleRows, setVisibleRows] = useState(5); // Default to a minimum number of rows
+
+  // Add refs for each dropdown
+  const serviceCategoryRef = useRef<HTMLDivElement>(null);
+  const stateRef = useRef<HTMLDivElement>(null);
+  const serviceCodeRef = useRef<HTMLDivElement>(null);
+  const serviceDescriptionRef = useRef<HTMLDivElement>(null);
+  const programRef = useRef<HTMLDivElement>(null);
+  const locationRegionRef = useRef<HTMLDivElement>(null);
+  const modifierRef = useRef<HTMLDivElement>(null);
+
+  // Use the click-outside hook for each dropdown
+  useClickOutside(serviceCategoryRef, () => setShowServiceCategoryDropdown(false));
+  useClickOutside(stateRef, () => setShowStateDropdown(false));
+  useClickOutside(serviceCodeRef, () => setShowServiceCodeDropdown(false));
+  useClickOutside(serviceDescriptionRef, () => setShowServiceDescriptionDropdown(false));
+  useClickOutside(programRef, () => setShowProgramDropdown(false));
+  useClickOutside(locationRegionRef, () => setShowLocationRegionDropdown(false));
+  useClickOutside(modifierRef, () => setShowModifierDropdown(false));
 
   const filteredData = useMemo(() => {
     return data.filter(item => {
@@ -207,10 +241,10 @@ export default function Dashboard() {
     setLocationRegions([...new Set(filteredData.map(item => item.location_region || ''))]);
     
     const allModifiers = filteredData.flatMap(item => [
-      item.modifier_1, 
-      item.modifier_2, 
-      item.modifier_3, 
-      item.modifier_4
+      item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : null,
+      item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : null,
+      item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || 'No details'}` : null,
+      item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : null
     ]).filter(Boolean);
     setModifiers([...new Set(allModifiers)].map(modifier => ({
       value: modifier || '',
@@ -244,10 +278,10 @@ export default function Dashboard() {
     
     // Update modifiers
     const allModifiers = filteredData.flatMap(item => [
-      item.modifier_1, 
-      item.modifier_2, 
-      item.modifier_3, 
-      item.modifier_4
+      item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : null,
+      item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : null,
+      item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || 'No details'}` : null,
+      item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : null
     ]).filter(Boolean);
     setModifiers([...new Set(allModifiers)].map(modifier => ({
       value: modifier || '',
@@ -272,10 +306,10 @@ export default function Dashboard() {
     
     // Update modifiers
     const allModifiers = filteredData.flatMap(item => [
-      item.modifier_1, 
-      item.modifier_2, 
-      item.modifier_3, 
-      item.modifier_4
+      item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : null,
+      item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : null,
+      item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || 'No details'}` : null,
+      item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : null
     ]).filter(Boolean);
     setModifiers([...new Set(allModifiers)].map(modifier => ({
       value: modifier || '',
@@ -302,10 +336,10 @@ export default function Dashboard() {
     
     // Update modifiers
     const allModifiers = filteredData.flatMap(item => [
-      item.modifier_1, 
-      item.modifier_2, 
-      item.modifier_3, 
-      item.modifier_4
+      item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : null,
+      item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : null,
+      item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || 'No details'}` : null,
+      item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : null
     ]).filter(Boolean);
     setModifiers([...new Set(allModifiers)].map(modifier => ({
       value: modifier || '',
@@ -422,314 +456,300 @@ export default function Dashboard() {
         </button>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           {/* Service Category */}
-          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
-            <div className="relative">
-              <input
-                type="text"
-                value={selectedServiceCategory || ''}
-                onChange={(e) => setSelectedServiceCategory(e.target.value)}
-                placeholder="Search Service Category..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
-              />
-              <button
-                onClick={() => toggleDropdown(setShowServiceCategoryDropdown, [
-                  setShowStateDropdown,
-                  setShowServiceCodeDropdown,
-                  setShowServiceDescriptionDropdown,
-                  setShowProgramDropdown,
-                  setShowLocationRegionDropdown,
-                  setShowModifierDropdown
-                ])}
-                className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
-              >
-                <FaChevronDown />
-              </button>
-              {showServiceCategoryDropdown && (
-                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {serviceCategories
-                    .filter(category => !['HCBS', 'IDD'].includes(category))
-                    .filter((category) =>
-                      (category || '').toLowerCase().includes((selectedServiceCategory || '').toLowerCase())
-                    )
-                    .map((category) => (
-                      <div
-                        key={category}
-                        onMouseDown={() => handleDropdownSelection(setSelectedServiceCategory, category, 'serviceCategory')}
-                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#004aad]"
-                      >
-                        {category}
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div>
+          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow" ref={serviceCategoryRef}>
+            <input
+              type="text"
+              value={selectedServiceCategory || ''}
+              onChange={(e) => setSelectedServiceCategory(e.target.value)}
+              placeholder="Search Service Category..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
+            />
+            <button
+              onClick={() => toggleDropdown(setShowServiceCategoryDropdown, [
+                setShowStateDropdown,
+                setShowServiceCodeDropdown,
+                setShowServiceDescriptionDropdown,
+                setShowProgramDropdown,
+                setShowLocationRegionDropdown,
+                setShowModifierDropdown
+              ])}
+              className="absolute right-5 top-1/3 transform -translate-y-1/3 text-gray-500 hover:text-gray-700"
+            >
+              <FaChevronDown />
+            </button>
+            {showServiceCategoryDropdown && (
+              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {serviceCategories
+                  .filter(category => !['HCBS', 'IDD'].includes(category))
+                  .filter((category) =>
+                    (category || '').toLowerCase().includes((selectedServiceCategory || '').toLowerCase())
+                  )
+                  .map((category) => (
+                    <div
+                      key={category}
+                      onMouseDown={() => handleDropdownSelection(setSelectedServiceCategory, category, 'serviceCategory')}
+                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#004aad]"
+                    >
+                      {category}
+                    </div>
+                  ))}
+              </div>
+            )}
             <ClearButton onClick={() => setSelectedServiceCategory("")} />
           </div>
 
           {/* State */}
-          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
-            <div className="relative">
-              <input
-                type="text"
-                value={selectedState}
-                onChange={(e) => setSelectedState(e.target.value)}
-                placeholder="Search State..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
-              />
-              <button
-                onClick={() => toggleDropdown(setShowStateDropdown, [
-                  setShowServiceCategoryDropdown,
-                  setShowServiceCodeDropdown,
-                  setShowServiceDescriptionDropdown,
-                  setShowProgramDropdown,
-                  setShowLocationRegionDropdown,
-                  setShowModifierDropdown
-                ])}
-                className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
-              >
-                <FaChevronDown />
-              </button>
-              {showStateDropdown && (
-                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {states
-                    .filter((state) =>
-                      (state || '').toLowerCase().includes((selectedState || '').toLowerCase())
-                    )
-                    .map((state) => (
-                      <div
-                        key={state}
-                        onMouseDown={() => handleDropdownSelection(setSelectedState, state, 'state')}
-                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                      >
-                        {state}
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div>
+          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow" ref={stateRef}>
+            <input
+              type="text"
+              value={selectedState}
+              onChange={(e) => setSelectedState(e.target.value)}
+              placeholder="Search State..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
+            />
+            <button
+              onClick={() => toggleDropdown(setShowStateDropdown, [
+                setShowServiceCategoryDropdown,
+                setShowServiceCodeDropdown,
+                setShowServiceDescriptionDropdown,
+                setShowProgramDropdown,
+                setShowLocationRegionDropdown,
+                setShowModifierDropdown
+              ])}
+              className="absolute right-5 top-1/3 transform -translate-y-1/3 text-gray-500 hover:text-gray-700"
+            >
+              <FaChevronDown />
+            </button>
+            {showStateDropdown && (
+              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {states
+                  .filter((state) =>
+                    (state || '').toLowerCase().includes((selectedState || '').toLowerCase())
+                  )
+                  .map((state) => (
+                    <div
+                      key={state}
+                      onMouseDown={() => handleDropdownSelection(setSelectedState, state, 'state')}
+                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                    >
+                      {state}
+                    </div>
+                  ))}
+              </div>
+            )}
             <ClearButton onClick={() => setSelectedState("")} />
           </div>
 
           {/* Service Code */}
-          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
-            <div className="relative">
-              <input
-                type="text"
-                value={selectedServiceCode}
-                onChange={(e) => setSelectedServiceCode(e.target.value)}
-                placeholder="Search Service Code..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
-              />
-              <button
-                onClick={() => toggleDropdown(setShowServiceCodeDropdown, [
-                  setShowServiceCategoryDropdown,
-                  setShowStateDropdown,
-                  setShowServiceDescriptionDropdown,
-                  setShowProgramDropdown,
-                  setShowLocationRegionDropdown,
-                  setShowModifierDropdown
-                ])}
-                className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
-              >
-                <FaChevronDown />
-              </button>
-              {showServiceCodeDropdown && (
-                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {serviceCodes
-                    .filter((code) =>
-                      (code || '').toLowerCase().includes((selectedServiceCode || '').toLowerCase())
-                    )
-                    .map((code) => (
-                      <div
-                        key={code}
-                        onMouseDown={() => handleDropdownSelection(setSelectedServiceCode, code, 'serviceCode')}
-                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                      >
-                        {code}
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div>
+          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow" ref={serviceCodeRef}>
+            <input
+              type="text"
+              value={selectedServiceCode}
+              onChange={(e) => setSelectedServiceCode(e.target.value)}
+              placeholder="Search Service Code..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
+            />
+            <button
+              onClick={() => toggleDropdown(setShowServiceCodeDropdown, [
+                setShowServiceCategoryDropdown,
+                setShowStateDropdown,
+                setShowServiceDescriptionDropdown,
+                setShowProgramDropdown,
+                setShowLocationRegionDropdown,
+                setShowModifierDropdown
+              ])}
+              className="absolute right-5 top-1/3 transform -translate-y-1/3 text-gray-500 hover:text-gray-700"
+            >
+              <FaChevronDown />
+            </button>
+            {showServiceCodeDropdown && (
+              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {serviceCodes
+                  .filter((code) =>
+                    (code || '').toLowerCase().includes((selectedServiceCode || '').toLowerCase())
+                  )
+                  .map((code) => (
+                    <div
+                      key={code}
+                      onMouseDown={() => handleDropdownSelection(setSelectedServiceCode, code, 'serviceCode')}
+                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                    >
+                      {code}
+                    </div>
+                  ))}
+              </div>
+            )}
             <ClearButton onClick={() => setSelectedServiceCode("")} />
           </div>
 
+          {/* Modifier */}
+          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow" ref={modifierRef}>
+            <input
+              type="text"
+              value={selectedModifier}
+              onChange={(e) => setSelectedModifier(e.target.value)}
+              placeholder="Search Modifier..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
+            />
+            <button
+              onClick={() => toggleDropdown(setShowModifierDropdown, [
+                setShowServiceCategoryDropdown,
+                setShowStateDropdown,
+                setShowServiceCodeDropdown,
+                setShowServiceDescriptionDropdown,
+                setShowProgramDropdown,
+                setShowLocationRegionDropdown
+              ])}
+              className="absolute right-5 top-1/3 transform -translate-y-1/3 text-gray-500 hover:text-gray-700"
+            >
+              <FaChevronDown />
+            </button>
+            {showModifierDropdown && (
+              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {modifiers
+                  .filter((modifier) =>
+                    (modifier.label || '').toLowerCase().includes((selectedModifier || '').toLowerCase())
+                  )
+                  .map((modifier) => (
+                    <div
+                      key={modifier.value}
+                      onMouseDown={() => handleDropdownSelection(setSelectedModifier, modifier.value, 'modifier')}
+                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                    >
+                      {modifier.label}
+                    </div>
+                  ))}
+              </div>
+            )}
+            <ClearButton onClick={() => setSelectedModifier("")} />
+          </div>
+
           {/* Service Description */}
-          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow col-span-full">
-            <div className="relative">
-              <input
-                type="text"
-                value={selectedServiceDescription}
-                onChange={(e) => setSelectedServiceDescription(e.target.value)}
-                placeholder="Search Service Description..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
-              />
-              <button
-                onClick={() => toggleDropdown(setShowServiceDescriptionDropdown, [
-                  setShowServiceCategoryDropdown,
-                  setShowStateDropdown,
-                  setShowServiceCodeDropdown,
-                  setShowProgramDropdown,
-                  setShowLocationRegionDropdown,
-                  setShowModifierDropdown
-                ])}
-                className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
-              >
-                <FaChevronDown />
-              </button>
-              {showServiceDescriptionDropdown && (
-                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {serviceDescriptions
-                    .filter((description) =>
-                      (description || '').toLowerCase().includes((selectedServiceDescription || '').toLowerCase())
-                    )
-                    .map((description) => (
-                      <div
-                        key={description}
-                        onMouseDown={() => handleDropdownSelection(setSelectedServiceDescription, description, 'serviceDescription')}
-                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                      >
-                        {description}
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div>
+          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow col-span-2" ref={serviceDescriptionRef}>
+            <input
+              type="text"
+              value={selectedServiceDescription}
+              onChange={(e) => setSelectedServiceDescription(e.target.value)}
+              placeholder="Search Service Description..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
+            />
+            <button
+              onClick={() => toggleDropdown(setShowServiceDescriptionDropdown, [
+                setShowServiceCategoryDropdown,
+                setShowStateDropdown,
+                setShowServiceCodeDropdown,
+                setShowProgramDropdown,
+                setShowLocationRegionDropdown,
+                setShowModifierDropdown
+              ])}
+              className="absolute right-5 top-1/3 transform -translate-y-1/3 text-gray-500 hover:text-gray-700"
+            >
+              <FaChevronDown />
+            </button>
+            {showServiceDescriptionDropdown && (
+              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {serviceDescriptions
+                  .filter((description) =>
+                    (description || '').toLowerCase().includes((selectedServiceDescription || '').toLowerCase())
+                  )
+                  .map((description) => (
+                    <div
+                      key={description}
+                      onMouseDown={() => handleDropdownSelection(setSelectedServiceDescription, description, 'serviceDescription')}
+                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                    >
+                      {description}
+                    </div>
+                  ))}
+              </div>
+            )}
             <ClearButton onClick={() => setSelectedServiceDescription("")} />
           </div>
 
           {/* Program */}
-          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
-            <div className="relative">
-              <input
-                type="text"
-                value={selectedProgram}
-                onChange={(e) => setSelectedProgram(e.target.value)}
-                placeholder="Search Program..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
-              />
-              <button
-                onClick={() => toggleDropdown(setShowProgramDropdown, [
-                  setShowServiceCategoryDropdown,
-                  setShowStateDropdown,
-                  setShowServiceCodeDropdown,
-                  setShowServiceDescriptionDropdown,
-                  setShowLocationRegionDropdown,
-                  setShowModifierDropdown
-                ])}
-                className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
-              >
-                <FaChevronDown />
-              </button>
-              {showProgramDropdown && (
-                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {programs
-                    .filter((program) =>
-                      (program || '').toLowerCase().includes((selectedProgram || '').toLowerCase())
-                    )
-                    .map((program) => (
-                      <div
-                        key={program}
-                        onMouseDown={() => handleDropdownSelection(setSelectedProgram, program, 'program')}
-                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                      >
-                        {program}
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div>
+          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow" ref={programRef}>
+            <input
+              type="text"
+              value={selectedProgram}
+              onChange={(e) => setSelectedProgram(e.target.value)}
+              placeholder="Search Program..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
+            />
+            <button
+              onClick={() => toggleDropdown(setShowProgramDropdown, [
+                setShowServiceCategoryDropdown,
+                setShowStateDropdown,
+                setShowServiceCodeDropdown,
+                setShowServiceDescriptionDropdown,
+                setShowLocationRegionDropdown,
+                setShowModifierDropdown
+              ])}
+              className="absolute right-5 top-1/3 transform -translate-y-1/3 text-gray-500 hover:text-gray-700"
+            >
+              <FaChevronDown />
+            </button>
+            {showProgramDropdown && (
+              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {programs
+                  .filter((program) =>
+                    (program || '').toLowerCase().includes((selectedProgram || '').toLowerCase())
+                  )
+                  .map((program) => (
+                    <div
+                      key={program}
+                      onMouseDown={() => handleDropdownSelection(setSelectedProgram, program, 'program')}
+                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                    >
+                      {program}
+                    </div>
+                  ))}
+              </div>
+            )}
             <ClearButton onClick={() => setSelectedProgram("")} />
           </div>
 
           {/* Location/Region */}
-          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
-            <div className="relative">
-              <input
-                type="text"
-                value={selectedLocationRegion}
-                onChange={(e) => setSelectedLocationRegion(e.target.value)}
-                placeholder="Search Location/Region..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
-              />
-              <button
-                onClick={() => toggleDropdown(setShowLocationRegionDropdown, [
-                  setShowServiceCategoryDropdown,
-                  setShowStateDropdown,
-                  setShowServiceCodeDropdown,
-                  setShowServiceDescriptionDropdown,
-                  setShowProgramDropdown,
-                  setShowModifierDropdown
-                ])}
-                className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
-              >
-                <FaChevronDown />
-              </button>
-              {showLocationRegionDropdown && (
-                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {locationRegions
-                    .filter((region) =>
-                      (region || '').toLowerCase().includes((selectedLocationRegion || '').toLowerCase())
-                    )
-                    .map((region) => (
-                      <div
-                        key={region}
-                        onMouseDown={() => handleDropdownSelection(setSelectedLocationRegion, region, 'locationRegion')}
-                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                      >
-                        {region}
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div>
+          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow" ref={locationRegionRef}>
+            <input
+              type="text"
+              value={selectedLocationRegion}
+              onChange={(e) => setSelectedLocationRegion(e.target.value)}
+              placeholder="Search Location/Region..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
+            />
+            <button
+              onClick={() => toggleDropdown(setShowLocationRegionDropdown, [
+                setShowServiceCategoryDropdown,
+                setShowStateDropdown,
+                setShowServiceCodeDropdown,
+                setShowServiceDescriptionDropdown,
+                setShowProgramDropdown,
+                setShowModifierDropdown
+              ])}
+              className="absolute right-5 top-1/3 transform -translate-y-1/3 text-gray-500 hover:text-gray-700"
+            >
+              <FaChevronDown />
+            </button>
+            {showLocationRegionDropdown && (
+              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {locationRegions
+                  .filter((region) =>
+                    (region || '').toLowerCase().includes((selectedLocationRegion || '').toLowerCase())
+                  )
+                  .map((region) => (
+                    <div
+                      key={region}
+                      onMouseDown={() => handleDropdownSelection(setSelectedLocationRegion, region, 'locationRegion')}
+                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                    >
+                      {region}
+                    </div>
+                  ))}
+              </div>
+            )}
             <ClearButton onClick={() => setSelectedLocationRegion("")} />
-          </div>
-
-          {/* Modifier */}
-          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
-            <div className="relative">
-              <input
-                type="text"
-                value={selectedModifier}
-                onChange={(e) => setSelectedModifier(e.target.value)}
-                placeholder="Search Modifier..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
-              />
-              <button
-                onClick={() => toggleDropdown(setShowModifierDropdown, [
-                  setShowServiceCategoryDropdown,
-                  setShowStateDropdown,
-                  setShowServiceCodeDropdown,
-                  setShowServiceDescriptionDropdown,
-                  setShowProgramDropdown,
-                  setShowLocationRegionDropdown
-                ])}
-                className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
-              >
-                <FaChevronDown />
-              </button>
-              {showModifierDropdown && (
-                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {modifiers
-                    .filter((modifier) =>
-                      (modifier.label || '').toLowerCase().includes((selectedModifier || '').toLowerCase())
-                    )
-                    .map((modifier) => (
-                      <div
-                        key={modifier.value}
-                        onMouseDown={() => handleDropdownSelection(setSelectedModifier, modifier.value, 'modifier')}
-                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                      >
-                        {modifier.label}
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div>
-            <ClearButton onClick={() => setSelectedModifier("")} />
           </div>
         </div>
 
