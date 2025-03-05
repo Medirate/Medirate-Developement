@@ -56,7 +56,7 @@ export default function Dashboard() {
   const [selectedProgram, setSelectedProgram] = useState("");
   const [selectedLocationRegion, setSelectedLocationRegion] = useState("");
   const [selectedModifier, setSelectedModifier] = useState("");
-  const [startDate, setStartDate] = useState(new Date(2003, 0, 1));
+  const [startDate, setStartDate] = useState(new Date(2000, 0, 1));
   const [endDate, setEndDate] = useState(new Date());
 
   // Visibility states for dropdowns
@@ -121,11 +121,14 @@ export default function Dashboard() {
 
       // Modifier filter (check all modifier columns)
       if (selectedModifier) {
+        // Extract just the modifier code from the selected value
+        const selectedModifierCode = selectedModifier.split(' - ')[0];
+        
         const hasModifier = 
-          item.modifier_1 === selectedModifier ||
-          item.modifier_2 === selectedModifier ||
-          item.modifier_3 === selectedModifier ||
-          item.modifier_4 === selectedModifier;
+          (item.modifier_1 && item.modifier_1.split(' - ')[0] === selectedModifierCode) ||
+          (item.modifier_2 && item.modifier_2.split(' - ')[0] === selectedModifierCode) ||
+          (item.modifier_3 && item.modifier_3.split(' - ')[0] === selectedModifierCode) ||
+          (item.modifier_4 && item.modifier_4.split(' - ')[0] === selectedModifierCode);
         if (!hasModifier) return false;
       }
 
@@ -150,7 +153,7 @@ export default function Dashboard() {
       const rowHeight = 50; // Approximate height of each row
       const maxRows = Math.floor((windowHeight - headerHeight) / rowHeight);
       
-      setVisibleRows(Math.max(5, Math.min(maxRows, 20))); // Show between 5 and 20 rows
+      setVisibleRows(maxRows); // Show all rows that fit
     };
 
     calculateTableHeight(); // Initial calculation
@@ -187,6 +190,11 @@ export default function Dashboard() {
       extractFilters(data);
     }
   }, [selectedServiceCategory, selectedState, selectedServiceCode, data]);
+
+  useEffect(() => {
+    console.log('Total data:', data.length);
+    console.log('Filtered data:', filteredData.length);
+  }, [data, filteredData]);
 
   const ErrorMessage = ({ error }: { error: string }) => {
     if (!error) return null;
@@ -780,7 +788,10 @@ export default function Dashboard() {
                   <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Description</th>
                   <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Program</th>
                   <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Location/Region</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier</th>
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 1</th>
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 2</th>
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
                   <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Rate</th>
                   <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Rate per Hour</th>
                   <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Duration Unit</th>
@@ -788,7 +799,7 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredData.slice(0, visibleRows).map((item, index) => (
+                {filteredData.map((item, index) => (
                   <tr key={index} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.state_name || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_category || '-'}</td>
@@ -798,6 +809,15 @@ export default function Dashboard() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.location_region || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || 'No details'}` : '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
