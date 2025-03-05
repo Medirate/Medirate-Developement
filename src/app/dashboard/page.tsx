@@ -25,6 +25,7 @@ interface ServiceData {
   location_region: string;
   rate_per_hour?: string;
   duration_unit?: string;
+  [key: string]: string | undefined;
 }
 
 // Update the useClickOutside hook to use HTMLDivElement
