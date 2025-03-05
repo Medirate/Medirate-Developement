@@ -146,6 +146,60 @@ export default function Dashboard() {
     selectedModifier
   ]);
 
+  // Add sorting state at the top of the component
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+
+  // Add sorting function
+  const sortedData = useMemo(() => {
+    if (!sortConfig) return filteredData;
+
+    return [...filteredData].sort((a, b) => {
+      let valueA, valueB;
+
+      switch (sortConfig.key) {
+        case 'rate':
+        case 'rate_per_hour':
+          valueA = parseFloat(a[sortConfig.key] || '0');
+          valueB = parseFloat(b[sortConfig.key] || '0');
+          break;
+        case 'rate_effective_date':
+          valueA = new Date(a[sortConfig.key]);
+          valueB = new Date(b[sortConfig.key]);
+          break;
+        default:
+          valueA = a[sortConfig.key] || '';
+          valueB = b[sortConfig.key] || '';
+      }
+
+      if (valueA < valueB) {
+        return sortConfig.direction === 'asc' ? -1 : 1;
+      }
+      if (valueA > valueB) {
+        return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+  }, [filteredData, sortConfig]);
+
+  // Add sort handler
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // Add sort indicator component
+  const SortIndicator = ({ sortKey }: { sortKey: string }) => {
+    if (!sortConfig || sortConfig.key !== sortKey) return null;
+    return (
+      <span className="ml-1">
+        {sortConfig.direction === 'asc' ? '▲' : '▼'}
+      </span>
+    );
+  };
+
   useEffect(() => {
     const calculateTableHeight = () => {
       const windowHeight = window.innerHeight;
@@ -782,29 +836,79 @@ export default function Dashboard() {
             <table className="min-w-full">
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">State</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Category</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Code</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Description</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Program</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Location/Region</th>
+                  <th 
+                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('state_name')}
+                  >
+                    State <SortIndicator sortKey="state_name" />
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('service_category')}
+                  >
+                    Service Category <SortIndicator sortKey="service_category" />
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('service_code')}
+                  >
+                    Service Code <SortIndicator sortKey="service_code" />
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('service_description')}
+                  >
+                    Service Description <SortIndicator sortKey="service_description" />
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('rate')}
+                  >
+                    Rate per Base Unit <SortIndicator sortKey="rate" />
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('rate_per_hour')}
+                  >
+                    Rate per Hour <SortIndicator sortKey="rate_per_hour" />
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('rate_effective_date')}
+                  >
+                    Effective Date <SortIndicator sortKey="rate_effective_date" />
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('program')}
+                  >
+                    Program <SortIndicator sortKey="program" />
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('location_region')}
+                  >
+                    Location/Region <SortIndicator sortKey="location_region" />
+                  </th>
                   <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 1</th>
                   <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 2</th>
                   <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
                   <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Rate</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Rate per Hour</th>
                   <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Duration Unit</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Effective Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredData.map((item, index) => (
+                {sortedData.map((item, index) => (
                   <tr key={index} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.state_name || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_category || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_description || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate_per_hour || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {item.rate_effective_date ? new Date(item.rate_effective_date).toLocaleDateString() : '-'}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.program || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.location_region || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -819,15 +923,7 @@ export default function Dashboard() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : '-'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.rate_per_hour || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.duration_unit || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.rate_effective_date ? new Date(item.rate_effective_date).toLocaleDateString() : '-'}
-                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.duration_unit || '-'}</td>
                   </tr>
                 ))}
               </tbody>
