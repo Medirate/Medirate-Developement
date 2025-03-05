@@ -148,6 +148,12 @@ export default function Dashboard() {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (data.length > 0) {
+      extractFilters(data);
+    }
+  }, [selectedServiceCategory, selectedState, selectedServiceCode, data]);
+
   const ErrorMessage = ({ error }: { error: string }) => {
     if (!error) return null;
     
@@ -162,27 +168,60 @@ export default function Dashboard() {
   };
 
   const extractFilters = (data: ServiceData[]) => {
-    setServiceCategories([...new Set(data.map((item) => item.service_category))]);
-    setStates([...new Set(data.map((item) => item.state_name))]);
-    setServiceCodes([...new Set(data.map((item) => item.service_code))]);
-    setServiceDescriptions([...new Set(data.map((item) => item.service_description || ''))]);
-    setPrograms([...new Set(data.map((item) => item.program || ''))]);
-    setLocationRegions([...new Set(data.map((item) => item.location_region || ''))]);
-
-    // Combine all modifiers from all columns
-    const allModifiers = [
-      ...data.map((item) => item.modifier_1 || '').filter(Boolean),
-      ...data.map((item) => item.modifier_2 || '').filter(Boolean),
-      ...data.map((item) => item.modifier_3 || '').filter(Boolean),
-      ...data.map((item) => item.modifier_4 || '').filter(Boolean)
-    ];
-    setModifiers([...new Set(allModifiers)].map((modifier) => ({
+    let filteredData = data;
+    
+    // Apply all active filters
+    if (selectedServiceCategory) {
+      filteredData = filteredData.filter(item => item.service_category === selectedServiceCategory);
+    }
+    if (selectedState) {
+      filteredData = filteredData.filter(item => item.state_name === selectedState);
+    }
+    if (selectedServiceCode) {
+      filteredData = filteredData.filter(item => item.service_code === selectedServiceCode);
+    }
+    
+    // Update all filter options based on the filtered data
+    setServiceCategories([...new Set(data.map(item => item.service_category))]);
+    setStates([...new Set(data.map(item => item.state_name))]);
+    
+    // Sort service codes: numbers first (ascending), then letters (alphabetical)
+    const sortedServiceCodes = [...new Set(filteredData.map(item => item.service_code))].sort((a, b) => {
+      const isANumber = !isNaN(Number(a));
+      const isBNumber = !isNaN(Number(b));
+      
+      if (isANumber && isBNumber) {
+        return Number(a) - Number(b); // Sort numbers in ascending order
+      } else if (isANumber) {
+        return -1; // Numbers come before letters
+      } else if (isBNumber) {
+        return 1; // Letters come after numbers
+      } else {
+        return a.localeCompare(b); // Sort letters alphabetically
+      }
+    });
+    setServiceCodes(sortedServiceCodes);
+    
+    setServiceDescriptions([...new Set(filteredData.map(item => item.service_description || ''))]);
+    setPrograms([...new Set(filteredData.map(item => item.program || ''))]);
+    setLocationRegions([...new Set(filteredData.map(item => item.location_region || ''))]);
+    
+    const allModifiers = filteredData.flatMap(item => [
+      item.modifier_1, 
+      item.modifier_2, 
+      item.modifier_3, 
+      item.modifier_4
+    ]).filter(Boolean);
+    setModifiers([...new Set(allModifiers)].map(modifier => ({
       value: modifier || '',
       label: modifier || ''
     })));
   };
 
-  const toggleDropdown = (dropdownSetter: React.Dispatch<React.SetStateAction<boolean>>) => {
+  const toggleDropdown = (dropdownSetter: React.Dispatch<React.SetStateAction<boolean>>, otherSetters: React.Dispatch<React.SetStateAction<boolean>>[]) => {
+    // Close all other dropdowns
+    otherSetters.forEach(setter => setter(false));
+    // Toggle the current dropdown
     dropdownSetter(prev => !prev);
   };
 
@@ -194,36 +233,23 @@ export default function Dashboard() {
     setSelectedLocationRegion("");
     setSelectedModifier("");
 
-    // Get states for the selected category
-    const filteredStates = data
-      .filter((item) => item.service_category === category)
-      .map((item) => item.state_name);
-    setStates([...new Set(filteredStates)]);
-
-    // Get service codes for the selected category
-    const filteredCodes = data
-      .filter((item) => item.service_category === category)
-      .map((item) => item.service_code);
-    setServiceCodes([...new Set(filteredCodes)]);
-
-    // Get programs for the selected category
-    const filteredPrograms = data
-      .filter((item) => item.service_category === category)
-      .map((item) => item.program);
-    setPrograms([...new Set(filteredPrograms)]);
-
-    // Get location/regions for the selected category
-    const filteredRegions = data
-      .filter((item) => item.service_category === category)
-      .map((item) => item.location_region);
-    setLocationRegions([...new Set(filteredRegions)]);
-
-    // Get modifiers for the selected category
-    const filteredModifiers = data
-      .filter((item) => item.service_category === category)
-      .flatMap((item) => [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4])
-      .filter(Boolean);
-    setModifiers([...new Set(filteredModifiers)].map((modifier) => ({
+    // Filter data based on selected category
+    const filteredData = data.filter(item => item.service_category === category);
+    
+    // Update all filter options based on filtered data
+    setStates([...new Set(filteredData.map(item => item.state_name))]);
+    setServiceCodes([...new Set(filteredData.map(item => item.service_code))]);
+    setPrograms([...new Set(filteredData.map(item => item.program || ''))]);
+    setLocationRegions([...new Set(filteredData.map(item => item.location_region || ''))]);
+    
+    // Update modifiers
+    const allModifiers = filteredData.flatMap(item => [
+      item.modifier_1, 
+      item.modifier_2, 
+      item.modifier_3, 
+      item.modifier_4
+    ]).filter(Boolean);
+    setModifiers([...new Set(allModifiers)].map(modifier => ({
       value: modifier || '',
       label: modifier || ''
     })));
@@ -236,30 +262,52 @@ export default function Dashboard() {
     setSelectedLocationRegion("");
     setSelectedModifier("");
 
-    // Get service codes for the selected state and category
-    const filteredCodes = data
-      .filter((item) => item.state_name === state && item.service_category === selectedServiceCategory)
-      .map((item) => item.service_code);
-    setServiceCodes([...new Set(filteredCodes)]);
+    // Filter data based on selected state
+    const filteredData = data.filter(item => item.state_name === state);
+    
+    // Update filter options based on the selected state
+    setServiceCodes([...new Set(filteredData.map(item => item.service_code))]);
+    setPrograms([...new Set(filteredData.map(item => item.program || ''))]);
+    setLocationRegions([...new Set(filteredData.map(item => item.location_region || ''))]);
+    
+    // Update modifiers
+    const allModifiers = filteredData.flatMap(item => [
+      item.modifier_1, 
+      item.modifier_2, 
+      item.modifier_3, 
+      item.modifier_4
+    ]).filter(Boolean);
+    setModifiers([...new Set(allModifiers)].map(modifier => ({
+      value: modifier || '',
+      label: modifier || ''
+    })));
+  };
 
-    // Get programs for the selected state and category
-    const filteredPrograms = data
-      .filter((item) => item.state_name === state && item.service_category === selectedServiceCategory)
-      .map((item) => item.program);
-    setPrograms([...new Set(filteredPrograms)]);
+  const handleServiceCodeChange = (code: string) => {
+    setSelectedServiceCode(code);
+    setSelectedProgram("");
+    setSelectedLocationRegion("");
+    setSelectedModifier("");
 
-    // Get location/regions for the selected state and category
-    const filteredRegions = data
-      .filter((item) => item.state_name === state && item.service_category === selectedServiceCategory)
-      .map((item) => item.location_region);
-    setLocationRegions([...new Set(filteredRegions)]);
-
-    // Get modifiers for the selected state and category
-    const filteredModifiers = data
-      .filter((item) => item.state_name === state && item.service_category === selectedServiceCategory)
-      .flatMap((item) => [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4])
-      .filter(Boolean);
-    setModifiers([...new Set(filteredModifiers)].map((modifier) => ({
+    // Filter data based on previous selections
+    const filteredData = data.filter(item => 
+      item.service_category === selectedServiceCategory &&
+      item.state_name === selectedState &&
+      item.service_code === code
+    );
+    
+    // Update filter options
+    setPrograms([...new Set(filteredData.map(item => item.program || ''))]);
+    setLocationRegions([...new Set(filteredData.map(item => item.location_region || ''))]);
+    
+    // Update modifiers
+    const allModifiers = filteredData.flatMap(item => [
+      item.modifier_1, 
+      item.modifier_2, 
+      item.modifier_3, 
+      item.modifier_4
+    ]).filter(Boolean);
+    setModifiers([...new Set(allModifiers)].map(modifier => ({
       value: modifier || '',
       label: modifier || ''
     })));
@@ -291,8 +339,33 @@ export default function Dashboard() {
   };
 
   // Update the dropdown selection logic
-  const handleDropdownSelection = (setter: React.Dispatch<React.SetStateAction<string>>, value: string) => {
+  const handleDropdownSelection = (setter: React.Dispatch<React.SetStateAction<string>>, value: string, type: string) => {
     setter(value);
+    
+    // Call the appropriate handler based on the filter type
+    switch (type) {
+      case 'serviceCategory':
+        handleServiceCategoryChange(value);
+        break;
+      case 'state':
+        handleStateChange(value);
+        break;
+      case 'serviceCode':
+        handleServiceCodeChange(value);
+        break;
+      case 'program':
+        // Add program-specific logic if needed
+        break;
+      case 'locationRegion':
+        // Add location/region-specific logic if needed
+        break;
+      case 'modifier':
+        // Add modifier-specific logic if needed
+        break;
+      default:
+        break;
+    }
+    
     // Close all dropdowns
     setShowServiceCategoryDropdown(false);
     setShowStateDropdown(false);
@@ -351,23 +424,30 @@ export default function Dashboard() {
         {/* Filters */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {/* Service Category */}
-          <div className="relative p-4 bg-[#004aad] rounded-lg shadow-md hover:shadow-lg transition-shadow">
+          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
             <div className="relative">
               <input
                 type="text"
                 value={selectedServiceCategory || ''}
                 onChange={(e) => setSelectedServiceCategory(e.target.value)}
-                placeholder="🔍 Search Service Category..."
-                className="w-full px-3 py-2 border border-transparent rounded-lg focus:ring-2 focus:ring-white focus:border-white mb-2 text-white placeholder-white bg-[#4682d1]"
+                placeholder="Search Service Category..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
               />
               <button
-                onClick={() => toggleDropdown(setShowServiceCategoryDropdown)}
-                className="absolute right-3 top-3 text-white"
+                onClick={() => toggleDropdown(setShowServiceCategoryDropdown, [
+                  setShowStateDropdown,
+                  setShowServiceCodeDropdown,
+                  setShowServiceDescriptionDropdown,
+                  setShowProgramDropdown,
+                  setShowLocationRegionDropdown,
+                  setShowModifierDropdown
+                ])}
+                className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
               >
                 <FaChevronDown />
               </button>
               {showServiceCategoryDropdown && (
-                <div className="absolute z-10 mt-1 w-full bg-[#4682d1] border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                   {serviceCategories
                     .filter(category => !['HCBS', 'IDD'].includes(category))
                     .filter((category) =>
@@ -376,7 +456,7 @@ export default function Dashboard() {
                     .map((category) => (
                       <div
                         key={category}
-                        onMouseDown={() => handleDropdownSelection(setSelectedServiceCategory, category)}
+                        onMouseDown={() => handleDropdownSelection(setSelectedServiceCategory, category, 'serviceCategory')}
                         className="px-3 py-2 hover:bg-gray-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#004aad]"
                       >
                         {category}
@@ -389,23 +469,30 @@ export default function Dashboard() {
           </div>
 
           {/* State */}
-          <div className="relative p-4 bg-[#004aad] rounded-lg shadow-md hover:shadow-lg transition-shadow">
+          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
             <div className="relative">
               <input
                 type="text"
                 value={selectedState}
                 onChange={(e) => setSelectedState(e.target.value)}
-                placeholder="🔍 Search State..."
-                className="w-full px-3 py-2 border border-transparent rounded-lg focus:ring-2 focus:ring-white focus:border-white mb-2 text-white placeholder-white bg-[#4682d1]"
+                placeholder="Search State..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
               />
               <button
-                onClick={() => toggleDropdown(setShowStateDropdown)}
-                className="absolute right-3 top-3 text-white"
+                onClick={() => toggleDropdown(setShowStateDropdown, [
+                  setShowServiceCategoryDropdown,
+                  setShowServiceCodeDropdown,
+                  setShowServiceDescriptionDropdown,
+                  setShowProgramDropdown,
+                  setShowLocationRegionDropdown,
+                  setShowModifierDropdown
+                ])}
+                className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
               >
                 <FaChevronDown />
               </button>
               {showStateDropdown && (
-                <div className="absolute z-10 mt-1 w-full bg-[#4682d1] border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                   {states
                     .filter((state) =>
                       (state || '').toLowerCase().includes((selectedState || '').toLowerCase())
@@ -413,7 +500,7 @@ export default function Dashboard() {
                     .map((state) => (
                       <div
                         key={state}
-                        onMouseDown={() => handleDropdownSelection(setSelectedState, state)}
+                        onMouseDown={() => handleDropdownSelection(setSelectedState, state, 'state')}
                         className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                       >
                         {state}
@@ -426,23 +513,30 @@ export default function Dashboard() {
           </div>
 
           {/* Service Code */}
-          <div className="relative p-4 bg-[#004aad] rounded-lg shadow-md hover:shadow-lg transition-shadow">
+          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
             <div className="relative">
               <input
                 type="text"
                 value={selectedServiceCode}
                 onChange={(e) => setSelectedServiceCode(e.target.value)}
-                placeholder="🔍 Search Service Code..."
-                className="w-full px-3 py-2 border border-transparent rounded-lg focus:ring-2 focus:ring-white focus:border-white mb-2 text-white placeholder-white bg-[#4682d1]"
+                placeholder="Search Service Code..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
               />
               <button
-                onClick={() => toggleDropdown(setShowServiceCodeDropdown)}
-                className="absolute right-3 top-3 text-white"
+                onClick={() => toggleDropdown(setShowServiceCodeDropdown, [
+                  setShowServiceCategoryDropdown,
+                  setShowStateDropdown,
+                  setShowServiceDescriptionDropdown,
+                  setShowProgramDropdown,
+                  setShowLocationRegionDropdown,
+                  setShowModifierDropdown
+                ])}
+                className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
               >
                 <FaChevronDown />
               </button>
               {showServiceCodeDropdown && (
-                <div className="absolute z-10 mt-1 w-full bg-[#4682d1] border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                   {serviceCodes
                     .filter((code) =>
                       (code || '').toLowerCase().includes((selectedServiceCode || '').toLowerCase())
@@ -450,7 +544,7 @@ export default function Dashboard() {
                     .map((code) => (
                       <div
                         key={code}
-                        onMouseDown={() => handleDropdownSelection(setSelectedServiceCode, code)}
+                        onMouseDown={() => handleDropdownSelection(setSelectedServiceCode, code, 'serviceCode')}
                         className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                       >
                         {code}
@@ -463,23 +557,30 @@ export default function Dashboard() {
           </div>
 
           {/* Service Description */}
-          <div className="relative p-4 bg-[#004aad] rounded-lg shadow-md hover:shadow-lg transition-shadow col-span-full">
+          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow col-span-full">
             <div className="relative">
               <input
                 type="text"
                 value={selectedServiceDescription}
                 onChange={(e) => setSelectedServiceDescription(e.target.value)}
-                placeholder="🔍 Search Service Description..."
-                className="w-full px-3 py-2 border border-transparent rounded-lg focus:ring-2 focus:ring-white focus:border-white mb-2 text-white placeholder-white bg-[#4682d1]"
+                placeholder="Search Service Description..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
               />
               <button
-                onClick={() => toggleDropdown(setShowServiceDescriptionDropdown)}
-                className="absolute right-3 top-3 text-white"
+                onClick={() => toggleDropdown(setShowServiceDescriptionDropdown, [
+                  setShowServiceCategoryDropdown,
+                  setShowStateDropdown,
+                  setShowServiceCodeDropdown,
+                  setShowProgramDropdown,
+                  setShowLocationRegionDropdown,
+                  setShowModifierDropdown
+                ])}
+                className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
               >
                 <FaChevronDown />
               </button>
               {showServiceDescriptionDropdown && (
-                <div className="absolute z-10 mt-1 w-full bg-[#4682d1] border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                   {serviceDescriptions
                     .filter((description) =>
                       (description || '').toLowerCase().includes((selectedServiceDescription || '').toLowerCase())
@@ -487,7 +588,7 @@ export default function Dashboard() {
                     .map((description) => (
                       <div
                         key={description}
-                        onMouseDown={() => handleDropdownSelection(setSelectedServiceDescription, description)}
+                        onMouseDown={() => handleDropdownSelection(setSelectedServiceDescription, description, 'serviceDescription')}
                         className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                       >
                         {description}
@@ -500,23 +601,30 @@ export default function Dashboard() {
           </div>
 
           {/* Program */}
-          <div className="relative p-4 bg-[#004aad] rounded-lg shadow-md hover:shadow-lg transition-shadow">
+          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
             <div className="relative">
               <input
                 type="text"
                 value={selectedProgram}
                 onChange={(e) => setSelectedProgram(e.target.value)}
-                placeholder="🔍 Search Program..."
-                className="w-full px-3 py-2 border border-transparent rounded-lg focus:ring-2 focus:ring-white focus:border-white mb-2 text-white placeholder-white bg-[#4682d1]"
+                placeholder="Search Program..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
               />
               <button
-                onClick={() => toggleDropdown(setShowProgramDropdown)}
-                className="absolute right-3 top-3 text-white"
+                onClick={() => toggleDropdown(setShowProgramDropdown, [
+                  setShowServiceCategoryDropdown,
+                  setShowStateDropdown,
+                  setShowServiceCodeDropdown,
+                  setShowServiceDescriptionDropdown,
+                  setShowLocationRegionDropdown,
+                  setShowModifierDropdown
+                ])}
+                className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
               >
                 <FaChevronDown />
               </button>
               {showProgramDropdown && (
-                <div className="absolute z-10 mt-1 w-full bg-[#4682d1] border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                   {programs
                     .filter((program) =>
                       (program || '').toLowerCase().includes((selectedProgram || '').toLowerCase())
@@ -524,7 +632,7 @@ export default function Dashboard() {
                     .map((program) => (
                       <div
                         key={program}
-                        onMouseDown={() => handleDropdownSelection(setSelectedProgram, program)}
+                        onMouseDown={() => handleDropdownSelection(setSelectedProgram, program, 'program')}
                         className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                       >
                         {program}
@@ -537,23 +645,30 @@ export default function Dashboard() {
           </div>
 
           {/* Location/Region */}
-          <div className="relative p-4 bg-[#004aad] rounded-lg shadow-md hover:shadow-lg transition-shadow">
+          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
             <div className="relative">
               <input
                 type="text"
                 value={selectedLocationRegion}
                 onChange={(e) => setSelectedLocationRegion(e.target.value)}
-                placeholder="🔍 Search Location/Region..."
-                className="w-full px-3 py-2 border border-transparent rounded-lg focus:ring-2 focus:ring-white focus:border-white mb-2 text-white placeholder-white bg-[#4682d1]"
+                placeholder="Search Location/Region..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
               />
               <button
-                onClick={() => toggleDropdown(setShowLocationRegionDropdown)}
-                className="absolute right-3 top-3 text-white"
+                onClick={() => toggleDropdown(setShowLocationRegionDropdown, [
+                  setShowServiceCategoryDropdown,
+                  setShowStateDropdown,
+                  setShowServiceCodeDropdown,
+                  setShowServiceDescriptionDropdown,
+                  setShowProgramDropdown,
+                  setShowModifierDropdown
+                ])}
+                className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
               >
                 <FaChevronDown />
               </button>
               {showLocationRegionDropdown && (
-                <div className="absolute z-10 mt-1 w-full bg-[#4682d1] border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                   {locationRegions
                     .filter((region) =>
                       (region || '').toLowerCase().includes((selectedLocationRegion || '').toLowerCase())
@@ -561,7 +676,7 @@ export default function Dashboard() {
                     .map((region) => (
                       <div
                         key={region}
-                        onMouseDown={() => handleDropdownSelection(setSelectedLocationRegion, region)}
+                        onMouseDown={() => handleDropdownSelection(setSelectedLocationRegion, region, 'locationRegion')}
                         className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                       >
                         {region}
@@ -574,23 +689,30 @@ export default function Dashboard() {
           </div>
 
           {/* Modifier */}
-          <div className="relative p-4 bg-[#004aad] rounded-lg shadow-md hover:shadow-lg transition-shadow">
+          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
             <div className="relative">
               <input
                 type="text"
                 value={selectedModifier}
                 onChange={(e) => setSelectedModifier(e.target.value)}
-                placeholder="🔍 Search Modifier..."
-                className="w-full px-3 py-2 border border-transparent rounded-lg focus:ring-2 focus:ring-white focus:border-white mb-2 text-white placeholder-white bg-[#4682d1]"
+                placeholder="Search Modifier..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
               />
               <button
-                onClick={() => toggleDropdown(setShowModifierDropdown)}
-                className="absolute right-3 top-3 text-white"
+                onClick={() => toggleDropdown(setShowModifierDropdown, [
+                  setShowServiceCategoryDropdown,
+                  setShowStateDropdown,
+                  setShowServiceCodeDropdown,
+                  setShowServiceDescriptionDropdown,
+                  setShowProgramDropdown,
+                  setShowLocationRegionDropdown
+                ])}
+                className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
               >
                 <FaChevronDown />
               </button>
               {showModifierDropdown && (
-                <div className="absolute z-10 mt-1 w-full bg-[#4682d1] border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                   {modifiers
                     .filter((modifier) =>
                       (modifier.label || '').toLowerCase().includes((selectedModifier || '').toLowerCase())
@@ -598,7 +720,7 @@ export default function Dashboard() {
                     .map((modifier) => (
                       <div
                         key={modifier.value}
-                        onMouseDown={() => handleDropdownSelection(setSelectedModifier, modifier.value)}
+                        onMouseDown={() => handleDropdownSelection(setSelectedModifier, modifier.value, 'modifier')}
                         className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                       >
                         {modifier.label}
