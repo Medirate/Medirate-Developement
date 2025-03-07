@@ -130,6 +130,13 @@ export default function StatePaymentComparison() {
   // Add this near other state declarations
   const [sortOrder, setSortOrder] = useState<'default' | 'asc' | 'desc'>('default');
 
+  // Add this near other state declarations
+  const [selectedStateDetails, setSelectedStateDetails] = useState<{
+    state: string;
+    average: number;
+    entries: ServiceData[];
+  } | null>(null);
+
   useEffect(() => {
     setInitialLoading(true);
     setFetchError(null);
@@ -210,10 +217,11 @@ export default function StatePaymentComparison() {
     setFilterLoading(false);
   };
 
-  // First, get all unique combinations and their latest rates
+  // Update the latestRatesMap creation to include program and location_region
   const latestRatesMap = new Map<string, ServiceData>();
   data.forEach((item) => {
-    const key = `${item.state_name}|${item.service_category}|${item.service_code}|${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}`;
+    // Include program and location_region in the key
+    const key = `${item.state_name}|${item.service_category}|${item.service_code}|${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}|${item.program}|${item.location_region}`;
     const currentDate = new Date(item.rate_effective_date);
     const existing = latestRatesMap.get(key);
     
@@ -246,7 +254,7 @@ export default function StatePaymentComparison() {
     return groups;
   }, [filteredData]);
 
-  // Modify the processedData calculation
+  // Update the processedData calculation to include program and location_region
   const processedData: { [state: string]: { [modifierKey: string]: number } } = {};
 
   if (isAllStatesSelected && selectedServiceCode) {
@@ -254,11 +262,13 @@ export default function StatePaymentComparison() {
     const stateAverages = new Map<string, number>();
     const stateCounts = new Map<string, number>();
 
-  filteredData.forEach(item => {
+    filteredData.forEach(item => {
       const rate = showRatePerHour 
-        ? parseFloat(item.rate_per_hour?.replace("$", "") || "0")
-        : parseFloat(item.rate?.replace("$", "") || "0");
+        ? Math.round(parseFloat(item.rate_per_hour?.replace("$", "") || "0") * 100) / 100
+        : Math.round(parseFloat(item.rate?.replace("$", "") || "0") * 100) / 100;
       
+      console.log(`State: ${item.state_name}, Rate: ${rate}, Program: ${item.program}, Region: ${item.location_region}`);
+
       if (!stateAverages.has(item.state_name)) {
         stateAverages.set(item.state_name, 0);
         stateCounts.set(item.state_name, 0);
@@ -270,20 +280,23 @@ export default function StatePaymentComparison() {
     // Calculate the average for each state
     stateAverages.forEach((sum, state) => {
       const count = stateCounts.get(state)!;
+      const average = sum / count;
+      console.log(`State: ${state}, Sum: ${sum}, Count: ${count}, Average: ${average}`);
       processedData[state] = {
-        'average': sum / count
+        'average': average
       };
     });
   } else {
     // Original logic for individual state selection
     filteredData.forEach(item => {
-      const currentModifier = `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}`;
+      // Include program and location_region in the modifier key
+      const currentModifier = `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}|${item.program}|${item.location_region}`;
       const stateSelections = selectedTableRows[item.state_name] || [];
       
       if (stateSelections.includes(currentModifier)) {
         const rate = showRatePerHour 
-          ? parseFloat(item.rate_per_hour?.replace("$", "") || "0")
-          : parseFloat(item.rate?.replace("$", "") || "0");
+          ? Math.round(parseFloat(item.rate_per_hour?.replace("$", "") || "0") * 100) / 100
+          : Math.round(parseFloat(item.rate?.replace("$", "") || "0") * 100) / 100;
         if (!processedData[item.state_name]) {
           processedData[item.state_name] = {};
         }
@@ -388,7 +401,7 @@ export default function StatePaymentComparison() {
 
             const item = filteredData.find(d => 
               d.state_name === state && 
-              `${d.modifier_1}|${d.modifier_2}|${d.modifier_3}|${d.modifier_4}` === modifierKey
+              `${d.modifier_1}|${d.modifier_2}|${d.modifier_3}|${d.modifier_4}|${d.program}|${d.location_region}` === modifierKey
             );
 
             if (!item) {
@@ -445,6 +458,36 @@ export default function StatePaymentComparison() {
       },
       toolbox: {
         show: false,
+      },
+      on: {
+        click: (params: any) => {
+          console.log("Chart clicked:", params);
+          if (isAllStatesSelected && params.componentType === 'series') {
+            const state = params.name;
+            const stateData = filteredData.filter(item => item.state_name === state);
+            const sum = stateData.reduce((acc, item) => {
+              const rate = showRatePerHour 
+                ? parseFloat((parseFloat(item.rate_per_hour?.replace("$", "") || "0").toFixed(2)))
+                : parseFloat((parseFloat(item.rate?.replace("$", "") || "0").toFixed(2)));
+              console.log(`Rate for ${item.program} - ${item.location_region}:`, rate);
+              return acc + rate;
+            }, 0);
+            const average = sum / stateData.length;
+            console.log("Sum:", sum, "Average:", average);
+
+            console.log("State:", state);
+            console.log("Sum:", sum);
+            console.log("Entries:", stateData);
+
+            console.log("Filtered Data for State:", state, stateData);
+
+            setSelectedStateDetails({
+              state,
+              average,
+              entries: stateData
+            });
+          }
+        }
       }
     };
 
@@ -462,10 +505,31 @@ export default function StatePaymentComparison() {
           }}
           onEvents={{
             click: (params: any) => {
-              if (params.componentType === 'series') {
+              console.log("Chart clicked:", params);
+              if (isAllStatesSelected && params.componentType === 'series') {
                 const state = params.name;
-                const rate = params.value;
-                alert(`State: ${state}\nRate: $${rate.toFixed(2)}`);
+                const stateData = filteredData.filter(item => item.state_name === state);
+                const sum = stateData.reduce((acc, item) => {
+                  const rate = showRatePerHour 
+                    ? parseFloat((parseFloat(item.rate_per_hour?.replace("$", "") || "0").toFixed(2)))
+                    : parseFloat((parseFloat(item.rate?.replace("$", "") || "0").toFixed(2)));
+                  console.log(`Rate for ${item.program} - ${item.location_region}:`, rate);
+                  return acc + rate;
+                }, 0);
+                const average = sum / stateData.length;
+                console.log("Sum:", sum, "Average:", average);
+
+                console.log("State:", state);
+                console.log("Sum:", sum);
+                console.log("Entries:", stateData);
+
+                console.log("Filtered Data for State:", state, stateData);
+
+                setSelectedStateDetails({
+                  state,
+                  average,
+                  entries: stateData
+                });
               }
             }
           }}
@@ -526,9 +590,9 @@ export default function StatePaymentComparison() {
         item.service_code === selectedServiceCode
       )
       .map(item => 
-        parseFloat(
+        Math.round(parseFloat(
           (showRatePerHour ? item.rate_per_hour : item.rate)?.replace("$", "") || "0"
-        )
+        ) * 100) / 100
       )
       .filter(rate => rate > 0);
 
@@ -538,7 +602,10 @@ export default function StatePaymentComparison() {
     return (sum / rates.length).toFixed(2);
   }, [data, selectedServiceCategory, selectedServiceCode, showRatePerHour]);
 
-  const handleTableRowSelection = (state: string, modifierKey: string) => {
+  const handleTableRowSelection = (state: string, item: ServiceData) => {
+    // Create modifier key including program and location_region
+    const modifierKey = `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}|${item.program}|${item.location_region}`;
+    
     setSelectedTableRows(prev => {
       const currentSelections = prev[state] || [];
       const newSelections = currentSelections.includes(modifierKey)
@@ -559,6 +626,75 @@ export default function StatePaymentComparison() {
         [state]: newSelections
       };
     });
+  };
+
+  // Add this component to display the calculation details
+  const CalculationDetails = () => {
+    if (!selectedStateDetails) return null;
+
+    return (
+      <div className="mt-6 p-6 bg-white rounded-xl shadow-lg">
+        <h3 className="text-xl font-semibold mb-4">
+          Average Calculation for {selectedStateDetails.state}
+        </h3>
+        <div className="grid grid-cols-1 gap-4">
+          <div>
+            <p className="text-sm text-gray-600">
+              <strong>Average Rate:</strong> ${selectedStateDetails.average.toFixed(2)}
+            </p>
+            <p className="text-sm text-gray-600">
+              <strong>Number of Entries:</strong> {selectedStateDetails.entries.length}
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left text-gray-500">
+              <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2">Service Code</th>
+                  <th className="px-4 py-2">Program</th>
+                  <th className="px-4 py-2">Region</th>
+                  <th className="px-4 py-2">Modifier 1</th>
+                  <th className="px-4 py-2">Modifier 2</th>
+                  <th className="px-4 py-2">Modifier 3</th>
+                  <th className="px-4 py-2">Modifier 4</th>
+                  <th className="px-4 py-2">Rate</th>
+                  <th className="px-4 py-2">Effective Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedStateDetails.entries.map((entry, index) => (
+                  <tr key={index} className="bg-white border-b">
+                    <td className="px-4 py-2">{entry.service_code}</td>
+                    <td className="px-4 py-2">{entry.program}</td>
+                    <td className="px-4 py-2">{entry.location_region}</td>
+                    <td className="px-4 py-2">
+                      {entry.modifier_1 ? `${entry.modifier_1} - ${entry.modifier_1_details || 'No details'}` : '-'}
+                    </td>
+                    <td className="px-4 py-2">
+                      {entry.modifier_2 ? `${entry.modifier_2} - ${entry.modifier_2_details || 'No details'}` : '-'}
+                    </td>
+                    <td className="px-4 py-2">
+                      {entry.modifier_3 ? `${entry.modifier_3} - ${entry.modifier_3_details || 'No details'}` : '-'}
+                    </td>
+                    <td className="px-4 py-2">
+                      {entry.modifier_4 ? `${entry.modifier_4} - ${entry.modifier_4_details || 'No details'}` : '-'}
+                    </td>
+                    <td className="px-4 py-2">
+                      ${showRatePerHour 
+                        ? parseFloat(entry.rate_per_hour?.replace("$", "") || "0").toFixed(2)
+                        : parseFloat(entry.rate?.replace("$", "") || "0").toFixed(2)}
+                    </td>
+                    <td className="px-4 py-2">
+                      {new Date(entry.rate_effective_date).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -749,7 +885,7 @@ export default function StatePaymentComparison() {
                   </div>
                 )}
                 
-              <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg">
+                <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg">
                   {/* Toggle and Sort Section */}
                   <div className="flex justify-center items-center mb-4 space-x-4">
                     {/* Toggle Switch */}
@@ -791,21 +927,22 @@ export default function StatePaymentComparison() {
                     </div>
                   </div>
                   
-                <div className="w-full mx-auto">
-                  {chartLoading ? (
-                    <div className="flex justify-center items-center h-48 sm:h-64">
-                      <FaSpinner className="animate-spin h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
-                      <p className="ml-3 sm:ml-4 text-sm sm:text-base text-gray-600">Generating chart...</p>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <div className="min-w-[500px] sm:min-w-0">
-                        <ChartWithErrorBoundary />
+                  <div className="w-full mx-auto">
+                    {chartLoading ? (
+                      <div className="flex justify-center items-center h-48 sm:h-64">
+                        <FaSpinner className="animate-spin h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
+                        <p className="ml-3 sm:ml-4 text-sm sm:text-base text-gray-600">Generating chart...</p>
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <div className="min-w-[500px] sm:min-w-0">
+                          <ChartWithErrorBoundary />
+                          <CalculationDetails />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
               </>
             )}
 
@@ -860,13 +997,13 @@ export default function StatePaymentComparison() {
                             </thead>
                             <tbody className="divide-y divide-gray-200">
                               {stateData.map((item, index) => {
-                                const currentModifierKey = `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}`;
+                                const currentModifierKey = `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}|${item.program}|${item.location_region}`;
                                 const isSelected = selectedModifierKeys.includes(currentModifierKey);
                                 
                                 return (
                                   <tr 
                                     key={index} 
-                                    onClick={() => handleTableRowSelection(state, currentModifierKey)}
+                                    onClick={() => handleTableRowSelection(state, item)}
                                     className={`${
                                       selectedTableRows[state]?.includes(currentModifierKey)
                                         ? 'bg-blue-50 cursor-pointer'
