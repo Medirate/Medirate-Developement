@@ -16,6 +16,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
+import { useData } from "@/context/DataContext";
 
 interface ServiceData {
   state_name: string;
@@ -49,9 +50,21 @@ ChartJS.register(
 );
 
 export default function HistoricalRates() {
-  const [data, setData] = useState<ServiceData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { data, loading, error } = useData();
+
+  useEffect(() => {
+    if (data.length > 0) {
+      extractFilters(data);
+    }
+  }, [data]);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
 
   // Filters
   const [selectedServiceCategory, setSelectedServiceCategory] = useState("");
@@ -70,25 +83,6 @@ export default function HistoricalRates() {
   const [showRatePerHour, setShowRatePerHour] = useState(false);
 
   const areFiltersApplied = selectedServiceCategory && selectedState && selectedServiceCode;
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch("/api/state-payment-comparison");
-        if (!response.ok) throw new Error("Failed to fetch data");
-        const data = await response.json();
-        setData(data);
-        extractFilters(data);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        setError("Failed to load data. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
 
   const extractFilters = (data: ServiceData[]) => {
     setServiceCategories([...new Set(data.map((item) => item.service_category))]);

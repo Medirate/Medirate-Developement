@@ -11,6 +11,7 @@ import Modal from "@/app/components/modal";
 import { FaChartLine, FaArrowUp, FaArrowDown, FaDollarSign, FaSpinner, FaFilter, FaChartBar, FaExclamationCircle } from 'react-icons/fa';
 import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
+import { useData } from "@/context/DataContext";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -77,12 +78,10 @@ const lightenColor = (color: string, amount: number): string => {
 };
 
 export default function StatePaymentComparison() {
-  const [data, setData] = useState<ServiceData[]>([]);
-  const [initialLoading, setInitialLoading] = useState(true);
+  const { data, loading, error } = useData();
   const [filterLoading, setFilterLoading] = useState(false);
   const [chartLoading, setChartLoading] = useState(false);
   const [tableLoading, setTableLoading] = useState(false);
-  const [error, setError] = useState("");
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [filterError, setFilterError] = useState<string | null>(null);
   const [chartError, setChartError] = useState<string | null>(null);
@@ -137,26 +136,13 @@ export default function StatePaymentComparison() {
     entries: ServiceData[];
   } | null>(null);
 
+  // Add this useEffect to extract filters when data is loaded
   useEffect(() => {
-    setInitialLoading(true);
-    setFetchError(null);
-    fetch("/api/state-payment-comparison")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then((data: ServiceData[]) => {
-        setData(data);
-        extractFilters(data);
-      })
-      .catch((error) => {
-        console.error("Error fetching data:", error);
-        setFetchError("Failed to load data. Please try again.");
-      })
-      .finally(() => setInitialLoading(false));
-  }, []);
+    if (data.length > 0) {
+      console.log("Data loaded:", data);
+      extractFilters(data);
+    }
+  }, [data]);
 
   // Extract unique filter options
   const extractFilters = (data: ServiceData[]) => {
@@ -697,6 +683,14 @@ export default function StatePaymentComparison() {
     );
   };
 
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
+
   return (
     <AppLayout activeTab="stateRateComparison">
       <div className="p-4 sm:p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
@@ -728,14 +722,14 @@ export default function StatePaymentComparison() {
         </div>
 
         {/* Loading State */}
-        {initialLoading && (
+        {loading && (
           <div className="flex justify-center items-center h-64">
             <FaSpinner className="animate-spin h-12 w-12 text-blue-500" />
             <p className="ml-4 text-gray-600">Loading data...</p>
           </div>
         )}
 
-        {!initialLoading && (
+        {!loading && (
           <>
             {/* Filters */}
             <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg">

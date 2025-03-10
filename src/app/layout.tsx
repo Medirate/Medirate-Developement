@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Navbar from "./components/Navbar"; // Correct import path for Navbar
 import "./globals.css";
 import { cn } from "./lib/utils";
+import { DataProvider } from "@/context/DataContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,9 +33,10 @@ export default function RootLayout({
           geistMono.variable // Applying `geistMono` styles dynamically
         )}
       >
-        {/* Add Navbar at the top */}
-        <Navbar />
-        {children}
+        <DataProvider>
+          <Navbar />
+          {children}
+        </DataProvider>
       </body>
     </html>
   );

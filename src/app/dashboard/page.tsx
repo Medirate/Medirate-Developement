@@ -5,28 +5,7 @@ import AppLayout from "@/app/components/applayout";
 import { FaSpinner, FaExclamationCircle, FaChevronDown } from 'react-icons/fa';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-
-interface ServiceData {
-  state_name: string;
-  service_category: string;
-  service_code: string;
-  service_description?: string;
-  modifier_1?: string;
-  modifier_1_details?: string;
-  modifier_2?: string;
-  modifier_2_details?: string;
-  modifier_3?: string;
-  modifier_3_details?: string;
-  modifier_4?: string;
-  modifier_4_details?: string;
-  rate: string;
-  rate_effective_date: string;
-  program: string;
-  location_region: string;
-  rate_per_hour?: string;
-  duration_unit?: string;
-  [key: string]: string | undefined;
-}
+import { useData, ServiceData } from "@/context/DataContext";
 
 // Update the useClickOutside hook to use HTMLDivElement
 const useClickOutside = (ref: React.RefObject<HTMLDivElement | null>, callback: () => void) => {
@@ -45,9 +24,8 @@ const useClickOutside = (ref: React.RefObject<HTMLDivElement | null>, callback: 
 };
 
 export default function Dashboard() {
-  const [data, setData] = useState<ServiceData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  // Always call hooks at the top level
+  const { data, loading, error } = useData();
 
   // Filter states
   const [selectedServiceCategory, setSelectedServiceCategory] = useState("");
@@ -219,25 +197,6 @@ export default function Dashboard() {
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch("/api/state-payment-comparison");
-        if (!response.ok) throw new Error("Failed to fetch data");
-        const data = await response.json();
-        setData(data);
-        extractFilters(data);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        setError("Failed to load data. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
   }, []);
 
   useEffect(() => {
