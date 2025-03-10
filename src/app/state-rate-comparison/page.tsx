@@ -136,6 +136,9 @@ export default function StatePaymentComparison() {
     entries: ServiceData[];
   } | null>(null);
 
+  // Add this near other state declarations
+  const [selectedEntry, setSelectedEntry] = useState<ServiceData | null>(null);
+
   // Add this useEffect to extract filters when data is loaded
   useEffect(() => {
     if (data.length > 0) {
@@ -154,6 +157,7 @@ export default function StatePaymentComparison() {
     setSelectedServiceCategory(category);
     setSelectedStates([]);
     setSelectedServiceCode("");
+    setSelectedEntry(null);
     setFilterLoading(true);
 
     const filteredStates = data
@@ -181,6 +185,7 @@ export default function StatePaymentComparison() {
     }
     
     setSelectedServiceCode("");
+    setSelectedEntry(null);
     setFilterLoading(true);
 
     if (selectedServiceCategory) {
@@ -199,6 +204,8 @@ export default function StatePaymentComparison() {
 
   const handleServiceCodeChange = (code: string) => {
     setSelectedServiceCode(code);
+    setSelectedEntry(null);
+    setSelectedTableRows({});
     setFilterLoading(true);
     setFilterLoading(false);
   };
@@ -307,7 +314,6 @@ export default function StatePaymentComparison() {
     const series: echarts.SeriesOption[] = [];
     
     if (isAllStatesSelected) {
-      // Single series for average rates
       series.push({
         name: 'Average Rate',
         type: 'bar',
@@ -316,7 +322,8 @@ export default function StatePaymentComparison() {
         data: states.map(state => processedData[state]['average'] || null),
         label: {
           show: true,
-          position: 'top',
+          position: 'insideTop',
+          rotate: 45,
           formatter: (params: any) => {
             const value = params.value;
             return value ? `$${value.toFixed(2)}` : '-';
@@ -552,6 +559,7 @@ export default function StatePaymentComparison() {
     setSelectedServiceCategory("");
     setSelectedStates([]);
     setSelectedServiceCode("");
+    setSelectedEntry(null);
     setServiceCodes([]);
   };
 
@@ -589,29 +597,33 @@ export default function StatePaymentComparison() {
   }, [data, selectedServiceCategory, selectedServiceCode, showRatePerHour]);
 
   const handleTableRowSelection = (state: string, item: ServiceData) => {
-    // Create modifier key including program and location_region
-    const modifierKey = `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}|${item.program}|${item.location_region}`;
+    const currentModifierKey = `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}|${item.program}|${item.location_region}`;
     
     setSelectedTableRows(prev => {
-      const currentSelections = prev[state] || [];
-      const newSelections = currentSelections.includes(modifierKey)
-        ? currentSelections.filter(key => key !== modifierKey)
-        : [...currentSelections, modifierKey];
+      const stateSelections = prev[state] || [];
+      const newSelections = stateSelections.includes(currentModifierKey)
+        ? stateSelections.filter(key => key !== currentModifierKey)
+        : [...stateSelections, currentModifierKey];
       
-      // Update global selection order
-      if (!currentSelections.includes(modifierKey)) {
-        setGlobalSelectionOrder(prevOrder => {
-          const newOrder = new Map(prevOrder);
-          newOrder.set(`${state}|${modifierKey}`, prevOrder.size);
-          return newOrder;
-        });
-      }
-
       return {
         ...prev,
         [state]: newSelections
       };
     });
+
+    // Update the selected entry
+    setSelectedEntry(prev => 
+      prev?.state_name === item.state_name &&
+      prev?.service_code === item.service_code &&
+      prev?.program === item.program &&
+      prev?.location_region === item.location_region &&
+      prev?.modifier_1 === item.modifier_1 &&
+      prev?.modifier_2 === item.modifier_2 &&
+      prev?.modifier_3 === item.modifier_3 &&
+      prev?.modifier_4 === item.modifier_4
+        ? null
+        : item
+    );
   };
 
   // Add this component to display the calculation details

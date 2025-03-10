@@ -443,6 +443,15 @@ export default function HistoricalRates() {
                             smooth: false,
                             itemStyle: {
                               color: showRatePerHour ? '#ef4444' : '#3b82f6'
+                            },
+                            label: {
+                              show: true,
+                              position: 'top',
+                              formatter: (params: any) => {
+                                return `$${params.value.toFixed(2)}`;
+                              },
+                              fontSize: 12,
+                              color: '#374151'
                             }
                           }
                         ],
