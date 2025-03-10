@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import AppLayout from "@/app/components/applayout";
-import { FaSpinner, FaExclamationCircle, FaChevronDown } from 'react-icons/fa';
+import { FaSpinner, FaExclamationCircle, FaChevronDown, FaFilter } from 'react-icons/fa';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useData, ServiceData } from "@/context/DataContext";
@@ -432,6 +432,10 @@ export default function Dashboard() {
     setShowModifierDropdown(false);
   };
 
+  // Add this check to determine if any filters are applied
+  const areFiltersApplied = selectedServiceCategory || selectedState || selectedServiceCode || 
+    selectedServiceDescription || selectedProgram || selectedLocationRegion || selectedModifier;
+
   return (
     <AppLayout activeTab="dashboard">
       <div className="p-4 sm:p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
@@ -780,11 +784,26 @@ export default function Dashboard() {
           <div className="flex justify-center items-center h-64">
             <FaSpinner className="animate-spin h-12 w-12 text-blue-500" />
             <p className="ml-4 text-gray-600">Loading data...</p>
-        </div>
-      )}
+          </div>
+        )}
+
+        {/* Empty State Message */}
+        {!loading && !areFiltersApplied && (
+          <div className="p-6 bg-white rounded-xl shadow-lg text-center">
+            <div className="flex justify-center items-center mb-4">
+              <FaFilter className="h-8 w-8 text-blue-500" />
+            </div>
+            <p className="text-lg font-medium text-gray-700 mb-2">
+              Please select filters to view dashboard data
+            </p>
+            <p className="text-sm text-gray-500">
+              Choose at least one filter to see the dashboard information
+            </p>
+          </div>
+        )}
 
         {/* Data Table */}
-        {!loading && (
+        {!loading && areFiltersApplied && (
           <div 
             className="rounded-lg shadow-lg bg-white"
             style={{ 
@@ -888,8 +907,8 @@ export default function Dashboard() {
                 ))}
               </tbody>
             </table>
-        </div>
-      )}
+          </div>
+        )}
       </div>
 
       {/* Custom CSS for select dropdowns */}

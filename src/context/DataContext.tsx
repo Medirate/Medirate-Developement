@@ -42,6 +42,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    console.log("Fetching data...");
     if (typeof window !== "undefined" && window.__INITIAL_DATA__) {
       setData(window.__INITIAL_DATA__);
     } else {

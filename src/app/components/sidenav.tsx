@@ -13,6 +13,7 @@ import {
   Mail,
   ChartColumnStacked,
   ChartLine,
+  Table2,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -92,7 +93,7 @@ const SideNav = ({
               }`}
             >
               <div className="flex items-center justify-center w-6 h-6">
-                <ChartNoAxesCombined size={20} />
+                <Table2 size={20} />
               </div>
               <span
                 className={`ml-4 font-semibold transition-opacity duration-300 ease-in-out flex-grow ${
