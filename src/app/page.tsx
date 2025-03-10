@@ -22,14 +22,20 @@ export default function Home() {
         <div className="relative z-10 flex flex-col items-center justify-center h-full text-center px-4 bg-black/40">
           {/* Heading */}
           <h1 className="text-white text-4xl sm:text-5xl md:text-7xl font-lemonMilkRegular leading-tight font-lightBold">
-            <span className="block leading-snug">Medicaid Rate Tracking Made Easy</span>
-            <span className="block text-[0.5em] leading-snug whitespace-nowrap">Monitor and search Medicaid provider payment rates with MediRate</span>
+            <span className="block leading-snug whitespace-normal break-words">
+              Medicaid Rate Tracking Made Easy
+            </span>
+            <span className="block text-[0.5em] leading-snug whitespace-normal break-words px-4">
+              Monitor and search Medicaid provider payment rates with MediRate
+            </span>
           </h1>
 
           {/* Get Started Button */}
           <div className="mt-8">
             <Link
-              href="/dashboard"
+              href="https://calendar.app.google/DKoJB2VqwdcX4D6Z9"
+              target="_blank"
+              rel="noopener noreferrer"
               className={buttonVariants({
                 className:
                   "bg-[#012C61] text-white px-6 py-3 rounded-md border border-transparent transition-colors duration-300 hover:bg-transparent hover:border-white hover:text-white",
@@ -62,6 +68,10 @@ export default function Home() {
         date.
       </p>
       <p className="text-gray-700 leading-[1.2] mb-6">
+        MediRate's trending and comparative tools help surface key insights in the data, 
+        informing strategic decision-making.
+      </p>
+      <p className="text-gray-700 leading-[1.2] mb-6">
         MediRate's solution is designed to support Medicaid provider
         organizations and other stakeholders in tracking payment rate
         trends for key service lines and to inform market and product
@@ -75,7 +85,9 @@ export default function Home() {
       {/* Buttons */}
       <div className="flex space-x-4">
         <a
-          href="/subscribe"
+          href="https://calendar.app.google/DKoJB2VqwdcX4D6Z9"
+          target="_blank"
+          rel="noopener noreferrer"
           className="bg-[#012C61] text-white px-6 py-3 rounded-md transition-colors duration-300 hover:bg-transparent hover:border hover:border-[#012C61] hover:text-[#012C61]"
         >
           Schedule a Demo
@@ -162,7 +174,9 @@ export default function Home() {
             {/* Schedule a Demo Button */}
             <div className="mt-4 flex justify-center">
               <Link
-                href="/dashboard"
+                href="https://calendar.app.google/DKoJB2VqwdcX4D6Z9"
+                target="_blank"
+                rel="noopener noreferrer"
                 className={buttonVariants({
                   className:
                     "bg-[#1a1a1a] text-white px-6 py-3 rounded-md border border-transparent transition-colors duration-300 hover:bg-transparent hover:border-white hover:text-white",

@@ -32,7 +32,7 @@ export default function OurSolution() {
         />
         <div className="absolute inset-0 flex items-center justify-center">
           <h1 className="text-4xl md:text-5xl text-white font-lemonMilkRegular uppercase tracking-wide">
-            Our Solution
+            The MediRate Platform
           </h1>
         </div>
       </section>
@@ -68,11 +68,12 @@ export default function OurSolution() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[
                   "Are we being reimbursed accurately for the services we offer and populations we serve?",
-                  "How do the payment rates in our market compare to those in contiguous geographies/programs? Is there an opportunity to advocate for higher payment amounts?",
+                  "How do the payment rates in our market compare to those in other geographies/programs? Is there an opportunity to advocate for higher payment amounts?",
                   "How do our managed care payment rates compare to fee-for-service reimbursement?",
                   "Can we design value-based contracting models with our managed care payers to drive improved outcomes?",
                   "Are there other service lines we can offer to broaden the array of treatment options we offer to patients?",
                   "Which expansion markets may be attractive for our organization to consider, either organically or through acquisitions?",
+                  "How frequently are reimbursement rates adjusted and what has been the historical trend?",
                   "When considering acquisitions, how do we assess the stability of the Target's reimbursement and are there opportunities for future growth in financially viable markets?"
                 ].map((question, index) => (
                   <div key={index} className="flex items-start p-4 bg-gray-50 rounded-lg">
@@ -245,27 +246,9 @@ export default function OurSolution() {
           </div>
 
           {/* Video and Table Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mt-12 items-start">
-            {/* Left: Video Section */}
-            <div className="w-full h-full">
-              <h2 className="text-lg font-lemonMilkRegular text-[#012C61] mb-4">
-                Learn more about how MediRate can help your business succeed
-                with a video presentation:
-              </h2>
-              <div className="aspect-video">
-                <iframe
-                  className="w-full h-full rounded-lg shadow-lg"
-                  src="https://www.youtube.com/embed/jPQlEpInwTE"
-                  title="MediRate Video Presentation"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                ></iframe>
-              </div>
-            </div>
-
-            {/* Right: Table */}
-            <div className="w-full h-full bg-white/90 p-6 rounded-lg shadow-sm">
-              <h3 className="text-lg font-semibold mb-4">
+          <div className="mt-12">
+            <div className="w-full bg-white/90 p-6 rounded-lg shadow-sm">
+              <h3 className="text-lg font-lemonMilkRegular mb-4">
                 MediRate tracks reimbursement data for the following service lines
               </h3>
               <table className="w-full border border-gray-300 text-left">
@@ -278,24 +261,24 @@ export default function OurSolution() {
                 </thead>
                 <tbody>
                   <tr>
-                    <td className="p-2 border">Applied Behavioral Analysis (ABA)</td>
+                    <td className="p-2 border">Applied Behavioral Analysis (ABA) and Early Intervention (EI) Services</td>
                     <td className="p-2 border flex justify-center"><Check className="text-green-600" /></td>
                     <td className="p-2 border"></td>
                   </tr>
                   <tr>
-                    <td className="p-2 border">Personal Care Services (PCS)</td>
+                    <td className="p-2 border">Home and Community Based Services including Personal Care</td>
                     <td className="p-2 border flex justify-center"><Check className="text-green-600" /></td>
                     <td className="p-2 border"></td>
                   </tr>
                   <tr>
-                    <td className="p-2 border">Other Home and Community-Based Services</td>
-                    <td className="p-2 border"></td>
+                    <td className="p-2 border">Behavioral Health services</td>
                     <td className="p-2 border flex justify-center"><Check className="text-green-600" /></td>
+                    <td className="p-2 border"></td>
                   </tr>
                   <tr>
-                    <td className="p-2 border">Behavioral Health and Substance Use Disorder (SUD) Services</td>
-                    <td className="p-2 border"></td>
+                    <td className="p-2 border">Substance Use Disorder services</td>
                     <td className="p-2 border flex justify-center"><Check className="text-green-600" /></td>
+                    <td className="p-2 border"></td>
                   </tr>
                   <tr>
                     <td className="p-2 border">Services for Individuals Living with Intellectual and Developmental Disabilities</td>
@@ -309,7 +292,9 @@ export default function OurSolution() {
         </div>
         <div className="mt-12 text-center">
           <a
-            href="mailto:contact@medirate.net"
+            href="https://calendar.app.google/DKoJB2VqwdcX4D6Z9"
+            target="_blank"
+            rel="noopener noreferrer"
             className="relative bg-[#012C61] text-white px-6 py-3 rounded-lg overflow-hidden group transition-all duration-500 ease-in-out w-64 mx-auto flex items-center justify-center space-x-2"
             style={{ transform: 'translateZ(0)' }}
           >

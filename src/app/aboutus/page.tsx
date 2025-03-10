@@ -45,41 +45,62 @@ export default function AboutUs() {
           </h2>
           
           {/* Founder */}
+          <h3 className="text-3xl font-lemonMilkRegular text-[#002F6C] uppercase tracking-wide mb-12 text-center">Founder</h3>
           <div className="flex flex-col md:flex-row items-center md:space-x-12 mb-16 bg-gray-100 p-8 rounded-lg">
-            <Image
-              src="/images/greg.png"
-              alt="Greg Nersessian"
-              width={300}
-              height={400}
-              className="rounded-lg shadow-lg"
-            />
-            <div className="text-lg text-left">
-              <h4 className="text-xl font-semibold text-[#002F6C] mb-4">Founder</h4>
+            <div className="flex-shrink-0">
+              <Image
+                src="/images/greg.png"
+                alt="Greg Nersessian"
+                width={350}
+                height={650}
+                className="rounded-lg shadow-lg"
+              />
+            </div>
+            <div className="text-lg text-left flex-grow">
               <h3 className="text-2xl font-semibold text-[#002F6C] mb-6">Greg Nersessian</h3>
               <p className="text-gray-700 leading-relaxed mb-8">
                 Greg Nersessian is President and Founder of MediRate, LLC. Prior to founding MediRate, Greg spent 14 years as a healthcare consultant for Health Management Associates (HMA), the nation's largest consulting firm focused on government-sponsored healthcare programs.
               </p>
               <p className="text-gray-700 leading-relaxed mb-8">
-                Greg's work at HMA involved supporting healthcare providers, investors, and other stakeholders in their evaluation of capital allocation opportunities within government-funded businesses. In this role, Greg recognized the key role that reimbursement rate dynamics play in private sector partnerships.
+                Greg's work at HMA involved supporting healthcare providers, investors, and other stakeholders in their evaluation of capital allocation opportunities within government-funded businesses. In this role, Greg recognized the key role that reimbursement rate dynamics play in private sector partnerships. Greg founded MediRate with the goal of improving cost transparency and data comparability across programs.
               </p>
               <p className="text-gray-700 leading-relaxed">
-                Greg founded MediRate with the goal of improving cost transparency and data comparability across programs. Prior to joining HMA, Greg spent a decade on Wall Street as a sell-side equity research analyst covering the managed care sector. In this role, Greg was known for his groundbreaking research into the Medicaid managed care sector.
+                Prior to joining HMA, Greg spent a decade on Wall Street as an equity research analyst.
               </p>
             </div>
           </div>
           
           {/* Advisors */}
-          <h3 className="text-3xl font-lemonMilkRegular text-[#002F6C] uppercase tracking-wide mb-12">Advisors</h3>
-          <div className="grid md:grid-cols-3 gap-12">
-            <div className="text-lg text-gray-700 text-left">
-              <h4 className="text-xl font-semibold text-[#002F6C]">Kevin Hancock</h4>
+          <h3 className="text-3xl font-lemonMilkRegular text-[#002F6C] uppercase tracking-wide mb-12 text-center">Advisors</h3>
+          <div className="flex flex-col md:flex-row items-center md:space-x-12 mb-16 bg-gray-100 p-8 rounded-lg">
+            <div className="flex-shrink-0">
+              <Image
+                src="/images/Kevin Hancock.png"
+                alt="Kevin Hancock"
+                width={350}
+                height={650}
+                className="rounded-lg shadow-lg"
+              />
             </div>
-            
-            <div className="text-lg text-gray-700 text-left">
+            <div className="text-lg text-left flex-grow">
+              <h4 className="text-xl font-semibold text-[#002F6C] mb-4">Kevin Hancock</h4>
+              <p className="text-gray-700 leading-relaxed mb-8">
+                Kevin Hancock has three decades of expertise in Medicaid, Long-term Services and Supports, Managed Care, strategic planning, and program evaluation. With a long background in Pennsylvania state government,
+                Kevin held roles such as Special Advisor to the Secretary for the Pennsylvania Department of Aging. In this capacity, he spearheaded the development of Aging Our Way, PA, the state's comprehensive 10-year strategic plan aimed at enhancing the health, well-being, and quality of life of its sizable older adult population.
+              </p>
+              <p className="text-gray-700 leading-relaxed">
+                Kevin's extensive government service also includes serving as Deputy Secretary for the Department of Human Services Office of Long-term Living, where he led the implementation of Pennsylvania's Community HealthChoices Program, a Medicaid-funded managed long-term services and supports initiative valued at over $15 billion.
+              </p>
+            </div>
+          </div>
+
+          {/* Other Advisors */}
+          <div className="flex justify-between md:justify-around gap-12">
+            <div className="text-lg text-gray-700 text-center">
               <h4 className="text-xl font-semibold text-[#002F6C]">Gina Eckart</h4>
             </div>
             
-            <div className="text-lg text-gray-700 text-left">
+            <div className="text-lg text-gray-700 text-center">
               <h4 className="text-xl font-semibold text-[#002F6C]">Corey Waller</h4>
             </div>
           </div>
