@@ -192,7 +192,7 @@ export default function Dashboard() {
     );
   };
 
-  // Update the sortedData calculation to handle multiple sorts
+  // Update the sortedData calculation to handle numerical sorting for service_code
   const sortedData = useMemo(() => {
     if (sortConfig.length === 0) return filteredData;
 
@@ -209,6 +209,11 @@ export default function Dashboard() {
           case 'rate_effective_date':
             valueA = new Date(a[sort.key]);
             valueB = new Date(b[sort.key]);
+            break;
+          case 'service_code':
+            // Convert service codes to numbers for numerical sorting
+            valueA = parseFloat(a[sort.key] || '0');
+            valueB = parseFloat(b[sort.key] || '0');
             break;
           default:
             valueA = a[sort.key] || '';
@@ -865,7 +870,7 @@ export default function Dashboard() {
             }}
           >
             <table className="min-w-full">
-              <thead className="bg-gray-50 sticky top-0">
+              <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
                   <th 
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
@@ -935,8 +940,35 @@ export default function Dashboard() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_category || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_description || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate_per_hour || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 relative group">
+                      {item.rate || '-'}
+                      {item.rate && item.duration_unit && (
+                        <div className="absolute z-10 bg-gray-800 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 bottom-full left-1/2 transform -translate-x-1/2 mb-2">
+                          Duration Unit: {item.duration_unit}
+                          <div className="absolute w-2 h-2 bg-gray-800 rotate-45 -bottom-1 left-1/2 -translate-x-1/2"></div>
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {(() => {
+                        // Remove dollar sign and parse the rate
+                        const rateStr = (item.rate || '').replace('$', '');
+                        const rate = parseFloat(rateStr);
+                        const durationUnit = item.duration_unit?.toUpperCase();
+                        
+                        // Check if rate is a valid number
+                        if (isNaN(rate)) return '-';
+                        
+                        if (durationUnit === '15 MINUTES') {
+                          return `$${(rate * 4).toFixed(2)}`;
+                        } else if (durationUnit === 'PER HOUR') {
+                          return `$${rate.toFixed(2)}`;
+                        } else if (durationUnit) {
+                          return `N/A, Base Unit is ${durationUnit}`;
+                        }
+                        return '-';
+                      })()}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {item.rate_effective_date ? new Date(item.rate_effective_date).toLocaleDateString() : '-'}
                     </td>
