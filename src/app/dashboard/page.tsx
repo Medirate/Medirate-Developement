@@ -126,55 +126,27 @@ export default function Dashboard() {
   ]);
 
   // Initialize sortConfig with default service_code sort
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }[]>([
-    { key: 'service_code', direction: 'asc' }
-  ]);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }[]>([]);
 
   // Update the sort handler to always include service_code as secondary sort
   const handleSort = (key: string, event: React.MouseEvent) => {
-    const isShiftKey = event.shiftKey;
-    
     setSortConfig(prev => {
-      // If shift key is pressed, add to existing sort
-      if (isShiftKey) {
-        // Check if the column is already sorted
-        const existingSort = prev.find(sort => sort.key === key);
-        if (existingSort) {
-          // Toggle direction if already sorted
-          return prev.map(sort => 
-            sort.key === key 
-              ? { ...sort, direction: sort.direction === 'asc' ? 'desc' : 'asc' }
-              : sort
-          );
-        }
-        // Add new sort with default direction
-        return [...prev, { key, direction: 'asc' }];
-      }
-      
-      // If shift key is not pressed, handle primary sort
-      const existingPrimary = prev[0];
-      
-      // If clicking the same column as primary sort
-      if (existingPrimary?.key === key) {
-        // If already in default direction, remove it (deselect)
-        if (existingPrimary.direction === 'asc') {
-          return [
-            { key: 'service_code', direction: 'asc' }
-          ];
-        }
+      const existingSort = prev.find(sort => sort.key === key);
+
+      if (existingSort) {
         // Toggle direction
-        return [
-          { key, direction: 'asc' },
-          { key: 'service_code', direction: 'asc' }
-        ];
+        if (existingSort.direction === 'asc') {
+          return prev.map(sort =>
+            sort.key === key ? { ...sort, direction: 'desc' } : sort
+          );
+        } else {
+          // Deselect sort
+          return prev.filter(sort => sort.key !== key);
+        }
       }
-      
-      // If clicking a different column, make it primary sort
-      // and keep service_code as secondary
-      return [
-        { key, direction: 'asc' },
-        { key: 'service_code', direction: 'asc' }
-      ];
+
+      // Add new sort
+      return [{ key, direction: 'asc' }];
     });
   };
 
@@ -203,15 +175,15 @@ export default function Dashboard() {
         switch (sort.key) {
           case 'rate':
           case 'rate_per_hour':
-            valueA = parseFloat(a[sort.key] || '0');
-            valueB = parseFloat(b[sort.key] || '0');
+            // Remove dollar sign and parse the rate
+            valueA = parseFloat((a[sort.key] || '').replace(/[^0-9.-]+/g, ''));
+            valueB = parseFloat((b[sort.key] || '').replace(/[^0-9.-]+/g, ''));
             break;
           case 'rate_effective_date':
             valueA = new Date(a[sort.key]);
             valueB = new Date(b[sort.key]);
             break;
           case 'service_code':
-            // Convert service codes to numbers for numerical sorting
             valueA = parseFloat(a[sort.key] || '0');
             valueB = parseFloat(b[sort.key] || '0');
             break;
