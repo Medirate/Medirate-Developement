@@ -142,9 +142,7 @@ export default function Home() {
                 "Long term services and supports providers",
                 "Behavioral health providers",
                 "Organizations serving individuals living with addiction",
-                "Organizations serving individuals living with intellectual and developmental disabilities",
-                "Organizations serving children with complex medical needs",
-                "Dental services organizations",
+                "Other Medicaid-reimbursed Provider Types",
                 "Managed care organizations",
                 "Trade associations",
                 "Investment firms and other financial services organizations",
@@ -234,7 +232,7 @@ export default function Home() {
 
           {/* Newsletter */}
           <h2 className="text-[#012C61] text-4xl font-medium mb-8">
-            Sign Up for Our Free Weekly Newsletter
+            Sign Up for Our Free Newsletter
           </h2>
           <Link
             href="/newsletter"

@@ -125,59 +125,106 @@ export default function Dashboard() {
     selectedModifier
   ]);
 
-  // Add sorting state at the top of the component
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  // Initialize sortConfig with default service_code sort
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }[]>([
+    { key: 'service_code', direction: 'asc' }
+  ]);
 
-  // Add sorting function
+  // Update the sort handler to always include service_code as secondary sort
+  const handleSort = (key: string, event: React.MouseEvent) => {
+    const isShiftKey = event.shiftKey;
+    
+    setSortConfig(prev => {
+      // If shift key is pressed, add to existing sort
+      if (isShiftKey) {
+        // Check if the column is already sorted
+        const existingSort = prev.find(sort => sort.key === key);
+        if (existingSort) {
+          // Toggle direction if already sorted
+          return prev.map(sort => 
+            sort.key === key 
+              ? { ...sort, direction: sort.direction === 'asc' ? 'desc' : 'asc' }
+              : sort
+          );
+        }
+        // Add new sort with default direction
+        return [...prev, { key, direction: 'asc' }];
+      }
+      
+      // If shift key is not pressed, handle primary sort
+      const existingPrimary = prev[0];
+      
+      // If clicking the same column as primary sort
+      if (existingPrimary?.key === key) {
+        // If already in default direction, remove it (deselect)
+        if (existingPrimary.direction === 'asc') {
+          return [
+            { key: 'service_code', direction: 'asc' }
+          ];
+        }
+        // Toggle direction
+        return [
+          { key, direction: 'asc' },
+          { key: 'service_code', direction: 'asc' }
+        ];
+      }
+      
+      // If clicking a different column, make it primary sort
+      // and keep service_code as secondary
+      return [
+        { key, direction: 'asc' },
+        { key: 'service_code', direction: 'asc' }
+      ];
+    });
+  };
+
+  // Update the sort indicator to show multiple sort levels
+  const SortIndicator = ({ sortKey }: { sortKey: string }) => {
+    const sortIndex = sortConfig.findIndex(sort => sort.key === sortKey);
+    if (sortIndex === -1) return null;
+    
+    const direction = sortConfig[sortIndex].direction;
+    return (
+      <span className="ml-1">
+        {direction === 'asc' ? '▲' : '▼'}
+        {sortIndex > 0 && <sup>{sortIndex + 1}</sup>}
+      </span>
+    );
+  };
+
+  // Update the sortedData calculation to handle multiple sorts
   const sortedData = useMemo(() => {
-    if (!sortConfig) return filteredData;
+    if (sortConfig.length === 0) return filteredData;
 
     return [...filteredData].sort((a, b) => {
-      let valueA, valueB;
+      for (const sort of sortConfig) {
+        let valueA, valueB;
 
-      switch (sortConfig.key) {
-        case 'rate':
-        case 'rate_per_hour':
-          valueA = parseFloat(a[sortConfig.key] || '0');
-          valueB = parseFloat(b[sortConfig.key] || '0');
-          break;
-        case 'rate_effective_date':
-          valueA = new Date(a[sortConfig.key]);
-          valueB = new Date(b[sortConfig.key]);
-          break;
-        default:
-          valueA = a[sortConfig.key] || '';
-          valueB = b[sortConfig.key] || '';
-      }
+        switch (sort.key) {
+          case 'rate':
+          case 'rate_per_hour':
+            valueA = parseFloat(a[sort.key] || '0');
+            valueB = parseFloat(b[sort.key] || '0');
+            break;
+          case 'rate_effective_date':
+            valueA = new Date(a[sort.key]);
+            valueB = new Date(b[sort.key]);
+            break;
+          default:
+            valueA = a[sort.key] || '';
+            valueB = b[sort.key] || '';
+        }
 
-      if (valueA < valueB) {
-        return sortConfig.direction === 'asc' ? -1 : 1;
-      }
-      if (valueA > valueB) {
-        return sortConfig.direction === 'asc' ? 1 : -1;
+        if (valueA < valueB) {
+          return sort.direction === 'asc' ? -1 : 1;
+        }
+        if (valueA > valueB) {
+          return sort.direction === 'asc' ? 1 : -1;
+        }
       }
       return 0;
     });
   }, [filteredData, sortConfig]);
-
-  // Add sort handler
-  const handleSort = (key: string) => {
-    let direction: 'asc' | 'desc' = 'asc';
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ key, direction });
-  };
-
-  // Add sort indicator component
-  const SortIndicator = ({ sortKey }: { sortKey: string }) => {
-    if (!sortConfig || sortConfig.key !== sortKey) return null;
-    return (
-      <span className="ml-1">
-        {sortConfig.direction === 'asc' ? '▲' : '▼'}
-      </span>
-    );
-  };
 
   useEffect(() => {
     const calculateTableHeight = () => {
@@ -779,6 +826,11 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Sorting Instructions */}
+        <div className="text-sm text-gray-600 mb-4">
+          <p>Note: Click any column header to sort the data. Click again to toggle between ascending and descending order. Click a third time to deselect the sort. Hold Shift while clicking to apply multiple sort levels. Sort priority is indicated by numbers next to the sort arrows (1 = primary sort, 2 = secondary sort, etc.).</p>
+        </div>
+
         {/* Loading State */}
         {loading && (
           <div className="flex justify-center items-center h-64">
@@ -817,55 +869,55 @@ export default function Dashboard() {
                 <tr>
                   <th 
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    onClick={() => handleSort('state_name')}
+                    onClick={(e) => handleSort('state_name', e)}
                   >
                     State <SortIndicator sortKey="state_name" />
                   </th>
                   <th 
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    onClick={() => handleSort('service_category')}
+                    onClick={(e) => handleSort('service_category', e)}
                   >
                     Service Category <SortIndicator sortKey="service_category" />
                   </th>
                   <th 
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    onClick={() => handleSort('service_code')}
+                    onClick={(e) => handleSort('service_code', e)}
                   >
                     Service Code <SortIndicator sortKey="service_code" />
                   </th>
                   <th 
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    onClick={() => handleSort('service_description')}
+                    onClick={(e) => handleSort('service_description', e)}
                   >
                     Service Description <SortIndicator sortKey="service_description" />
                   </th>
                   <th 
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    onClick={() => handleSort('rate')}
+                    onClick={(e) => handleSort('rate', e)}
                   >
                     Rate per Base Unit <SortIndicator sortKey="rate" />
                   </th>
                   <th 
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    onClick={() => handleSort('rate_per_hour')}
+                    onClick={(e) => handleSort('rate_per_hour', e)}
                   >
                     Rate per Hour <SortIndicator sortKey="rate_per_hour" />
                   </th>
                   <th 
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    onClick={() => handleSort('rate_effective_date')}
+                    onClick={(e) => handleSort('rate_effective_date', e)}
                   >
                     Effective Date <SortIndicator sortKey="rate_effective_date" />
                   </th>
                   <th 
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    onClick={() => handleSort('program')}
+                    onClick={(e) => handleSort('program', e)}
                   >
                     Program <SortIndicator sortKey="program" />
                   </th>
                   <th 
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    onClick={() => handleSort('location_region')}
+                    onClick={(e) => handleSort('location_region', e)}
                   >
                     Location/Region <SortIndicator sortKey="location_region" />
                   </th>
