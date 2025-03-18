@@ -77,32 +77,26 @@ export default function Dashboard() {
   useClickOutside(locationRegionRef, () => setShowLocationRegionDropdown(false));
   useClickOutside(modifierRef, () => setShowModifierDropdown(false));
 
+  const areFiltersApplied = selectedServiceCategory && selectedState && selectedServiceCode;
+
   const filteredData = useMemo(() => {
+    if (!areFiltersApplied) return [];
+    
     return data.filter(item => {
       // Date filter
       const effectiveDate = new Date(item.rate_effective_date);
       if (effectiveDate < startDate || effectiveDate > endDate) return false;
 
-      // Service Category filter
-      if (selectedServiceCategory && item.service_category !== selectedServiceCategory) return false;
+      // Required filters
+      if (item.service_category !== selectedServiceCategory) return false;
+      if (item.state_name !== selectedState) return false;
+      if (item.service_code !== selectedServiceCode) return false;
 
-      // State filter
-      if (selectedState && item.state_name !== selectedState) return false;
-
-      // Service Code filter
-      if (selectedServiceCode && item.service_code !== selectedServiceCode) return false;
-
-      // Program filter
+      // Optional filters
       if (selectedProgram && item.program !== selectedProgram) return false;
-
-      // Location/Region filter
       if (selectedLocationRegion && item.location_region !== selectedLocationRegion) return false;
-
-      // Modifier filter (check all modifier columns)
       if (selectedModifier) {
-        // Extract just the modifier code from the selected value
         const selectedModifierCode = selectedModifier.split(' - ')[0];
-        
         const hasModifier = 
           (item.modifier_1 && item.modifier_1.split(' - ')[0] === selectedModifierCode) ||
           (item.modifier_2 && item.modifier_2.split(' - ')[0] === selectedModifierCode) ||
@@ -480,10 +474,6 @@ export default function Dashboard() {
     setShowLocationRegionDropdown(false);
     setShowModifierDropdown(false);
   };
-
-  // Add this check to determine if any filters are applied
-  const areFiltersApplied = selectedServiceCategory || selectedState || selectedServiceCode || 
-    selectedServiceDescription || selectedProgram || selectedLocationRegion || selectedModifier;
 
   return (
     <AppLayout activeTab="dashboard">
@@ -902,10 +892,10 @@ export default function Dashboard() {
               <FaFilter className="h-8 w-8 text-blue-500" />
             </div>
             <p className="text-lg font-medium text-gray-700 mb-2">
-              Please select filters to view dashboard data
+              Please select all required filters to view dashboard data
             </p>
             <p className="text-sm text-gray-500">
-              Choose at least one filter to see the dashboard information
+              Choose a Service Category, State, and Service Code to see the dashboard information
             </p>
           </div>
         )}
