@@ -145,7 +145,7 @@ export default function Dashboard() {
           }
           // Otherwise, toggle direction
           return [
-            { key, direction: existingSort.direction === 'asc' ? 'desc' : 'asc' },
+            { key, direction: existingSort.direction === 'asc' ? 'desc' : 'asc' as const },
             ...prev.slice(1)
           ];
         }
@@ -154,7 +154,7 @@ export default function Dashboard() {
       }
       
       // Add new sort
-      const newSort = { key, direction: 'asc' };
+      const newSort = { key, direction: 'asc' as const };
       
       if (isShiftPressed) {
         return [...prev, newSort];
@@ -200,8 +200,8 @@ export default function Dashboard() {
 
     return [...filteredData].sort((a, b) => {
       for (const sort of sortConfig) {
-        let valueA = a[sort.key] || '';
-        let valueB = b[sort.key] || '';
+        let valueA: string | number | Date = a[sort.key] || '';
+        let valueB: string | number | Date = b[sort.key] || '';
         
         // Handle numeric strings
         if (typeof valueA === 'string' && !isNaN(Number(valueA))) {
