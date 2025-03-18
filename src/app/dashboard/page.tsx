@@ -871,8 +871,20 @@ export default function Dashboard() {
         </div>
 
         {/* Sorting Instructions */}
-        <div className="text-sm text-gray-600 mb-4">
-          <p>Note: Click any column header to sort the data. Click again to toggle between ascending and descending order. Click a third time to deselect the sort. Hold Shift while clicking to apply multiple sort levels. Sort priority is indicated by numbers next to the sort arrows (1 = primary sort, 2 = secondary sort, etc.).</p>
+        <div className="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-200">
+          <div className="flex items-center space-x-2 mb-2">
+            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <h3 className="text-sm font-semibold text-blue-800">Sorting Instructions</h3>
+          </div>
+          <ul className="text-sm text-blue-700 space-y-1 pl-5 list-disc">
+            <li>Click any column header to sort the data</li>
+            <li>Click again to toggle between ascending and descending order</li>
+            <li>Click a third time to deselect the sort</li>
+            <li>Hold <kbd className="px-1.5 py-0.5 bg-white border border-gray-200 rounded text-xs">Shift</kbd> while clicking to apply multiple sort levels</li>
+            <li>Sort priority is indicated by numbers next to the sort arrows (1 = primary sort, 2 = secondary sort, etc.)</li>
+          </ul>
         </div>
 
         {/* Loading State */}
@@ -912,10 +924,14 @@ export default function Dashboard() {
               <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
                   <th 
-                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
+                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable relative group"
                     onClick={(e) => handleSort('state_name', e)}
                   >
                     State <SortIndicator sortKey="state_name" />
+                    <div className="absolute z-10 bg-gray-800 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 bottom-full left-1/2 transform -translate-x-1/2 mb-2 whitespace-nowrap">
+                      Click to sort
+                      <div className="absolute w-2 h-2 bg-gray-800 rotate-45 -bottom-1 left-1/2 -translate-x-1/2"></div>
+                    </div>
                   </th>
                   <th 
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
@@ -974,7 +990,12 @@ export default function Dashboard() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {sortedData.map((item, index) => (
-                  <tr key={index} className="hover:bg-gray-50 transition-colors">
+                  <tr 
+                    key={index} 
+                    className={`hover:bg-gray-50 transition-colors ${
+                      sortConfig.some(sort => sort.key === 'state_name') ? 'bg-blue-50' : ''
+                    }`}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.state_name || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_category || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code || '-'}</td>
@@ -1089,31 +1110,7 @@ export default function Dashboard() {
           background-color: #e8f0fe;
           padding: 2px 4px;
           border-radius: 3px;
-        }
-
-        .sortable-header {
-          position: relative;
-        }
-
-        .sortable-header::after {
-          content: 'Click to sort, Shift+Click for multiple sorts';
-          position: absolute;
-          bottom: 100%;
-          left: 50%;
-          transform: translateX(-50%);
-          background-color: #333;
-          color: #fff;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 12px;
-          white-space: nowrap;
-          opacity: 0;
-          pointer-events: none;
-          transition: opacity 0.2s ease;
-        }
-
-        .sortable-header:hover::after {
-          opacity: 1;
+          transition: all 0.2s ease;
         }
 
         .arrow {
@@ -1126,6 +1123,16 @@ export default function Dashboard() {
 
         .sorted-column:hover {
           background-color: #e9ecef;
+        }
+
+        .sort-animation {
+          animation: sortPulse 0.2s ease;
+        }
+
+        @keyframes sortPulse {
+          0% { background-color: transparent; }
+          50% { background-color: #e8f0fe; }
+          100% { background-color: transparent; }
         }
       `}</style>
     </AppLayout>
