@@ -77,7 +77,7 @@ export default function Dashboard() {
   useClickOutside(locationRegionRef, () => setShowLocationRegionDropdown(false));
   useClickOutside(modifierRef, () => setShowModifierDropdown(false));
 
-  const areFiltersApplied = selectedServiceCategory && selectedState && selectedServiceCode;
+  const areFiltersApplied = selectedState;
 
   const filteredData = useMemo(() => {
     if (!areFiltersApplied) return [];
@@ -87,12 +87,12 @@ export default function Dashboard() {
       const effectiveDate = new Date(item.rate_effective_date);
       if (effectiveDate < startDate || effectiveDate > endDate) return false;
 
-      // Required filters
-      if (item.service_category !== selectedServiceCategory) return false;
+      // Required filter
       if (item.state_name !== selectedState) return false;
-      if (item.service_code !== selectedServiceCode) return false;
 
       // Optional filters
+      if (selectedServiceCategory && item.service_category !== selectedServiceCategory) return false;
+      if (selectedServiceCode && item.service_code !== selectedServiceCode) return false;
       if (selectedProgram && item.program !== selectedProgram) return false;
       if (selectedLocationRegion && item.location_region !== selectedLocationRegion) return false;
       if (selectedModifier) {
@@ -111,8 +111,8 @@ export default function Dashboard() {
     data,
     startDate,
     endDate,
-    selectedServiceCategory,
     selectedState,
+    selectedServiceCategory,
     selectedServiceCode,
     selectedProgram,
     selectedLocationRegion,
@@ -892,10 +892,10 @@ export default function Dashboard() {
               <FaFilter className="h-8 w-8 text-blue-500" />
             </div>
             <p className="text-lg font-medium text-gray-700 mb-2">
-              Please select all required filters to view dashboard data
+              Please select a state to view dashboard data
             </p>
             <p className="text-sm text-gray-500">
-              Choose a Service Category, State, and Service Code to see the dashboard information
+              Choose a state to see the dashboard information
             </p>
           </div>
         )}
