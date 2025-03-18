@@ -125,26 +125,27 @@ export default function Dashboard() {
     selectedModifier
   ]);
 
-  // Initialize sortConfig with default service_code sort
+  // Update the sortConfig state initialization
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }[]>([]);
 
-  // Update the handleSort function to handle Shift key
+  // Update the handleSort function
   const handleSort = (key: string, event: React.MouseEvent) => {
     event.preventDefault();
     
     setSortConfig(prev => {
-      // Check if Shift key is pressed
       const isShiftPressed = event.shiftKey;
+      const existingSort = prev.find(sort => sort.key === key);
       
-      // Find existing sort for this key
-      const existingSortIndex = prev.findIndex(sort => sort.key === key);
-      
-      if (existingSortIndex !== -1) {
-        // Toggle direction if it's the primary sort
-        if (existingSortIndex === 0) {
-          const newDirection = prev[0].direction === 'asc' ? 'desc' : 'asc';
+      if (existingSort) {
+        // If it's the primary sort and Shift isn't pressed
+        if (!isShiftPressed && prev[0].key === key) {
+          // If already descending, remove the sort
+          if (existingSort.direction === 'desc') {
+            return prev.filter(sort => sort.key !== key);
+          }
+          // Otherwise, toggle direction
           return [
-            { key, direction: newDirection },
+            { key, direction: existingSort.direction === 'asc' ? 'desc' : 'asc' },
             ...prev.slice(1)
           ];
         }
@@ -152,69 +153,70 @@ export default function Dashboard() {
         return prev.filter(sort => sort.key !== key);
       }
       
-      // If Shift is pressed, add as secondary sort
-      if (isShiftPressed && prev.length > 0) {
-        return [
-          ...prev,
-          { key, direction: 'asc' }
-        ];
+      // Add new sort
+      const newSort = { key, direction: 'asc' };
+      
+      if (isShiftPressed) {
+        return [...prev, newSort];
       }
       
-      // Default behavior: set as primary sort
-      return [
-        { key, direction: 'asc' },
-        ...prev.filter(sort => sort.key !== key)
-      ];
+      return [newSort];
     });
+    
+    // Add animation class
+    const header = event.currentTarget;
+    header.classList.add('sort-animation');
+    setTimeout(() => {
+      header.classList.remove('sort-animation');
+    }, 200);
   };
 
-  // Update the SortIndicator component to show multiple sort levels
+  // Update the SortIndicator component
   const SortIndicator = ({ sortKey }: { sortKey: string }) => {
-    const sortIndex = sortConfig.findIndex(sort => sort.key === sortKey);
-    if (sortIndex === -1) return null;
+    const sort = sortConfig.find(sort => sort.key === sortKey);
+    if (!sort) return null;
     
-    const direction = sortConfig[sortIndex].direction;
     return (
-      <span className="ml-1">
-        {direction === 'asc' ? '▲' : '▼'}
-        {sortIndex > 0 && <sup>{sortIndex + 1}</sup>}
+      <span className="ml-1 sort-indicator">
+        <span className="arrow" style={{ 
+          display: 'inline-block',
+          transition: 'transform 0.2s ease',
+          transform: sort.direction === 'asc' ? 'rotate(0deg)' : 'rotate(180deg)'
+        }}>
+          ▲
+        </span>
+        {sortConfig.length > 1 && (
+          <sup className="sort-priority">
+            {sortConfig.findIndex(s => s.key === sortKey) + 1}
+          </sup>
+        )}
       </span>
     );
   };
 
-  // Update the sortedData calculation to handle multiple sort levels
+  // Update the sortedData calculation
   const sortedData = useMemo(() => {
     if (sortConfig.length === 0) return filteredData;
 
     return [...filteredData].sort((a, b) => {
       for (const sort of sortConfig) {
-        let valueA, valueB;
-
-        switch (sort.key) {
-          case 'rate':
-          case 'rate_per_hour':
-            valueA = parseFloat((a[sort.key] || '').replace(/[^0-9.-]+/g, ''));
-            valueB = parseFloat((b[sort.key] || '').replace(/[^0-9.-]+/g, ''));
-            break;
-          case 'rate_effective_date':
-            valueA = new Date(a[sort.key]);
-            valueB = new Date(b[sort.key]);
-            break;
-          case 'service_code':
-            valueA = parseFloat(a[sort.key] || '0');
-            valueB = parseFloat(b[sort.key] || '0');
-            break;
-          default:
-            valueA = a[sort.key] || '';
-            valueB = b[sort.key] || '';
+        let valueA = a[sort.key] || '';
+        let valueB = b[sort.key] || '';
+        
+        // Handle numeric strings
+        if (typeof valueA === 'string' && !isNaN(Number(valueA))) {
+          valueA = Number(valueA);
+          valueB = Number(valueB);
         }
-
-        if (valueA < valueB) {
-          return sort.direction === 'asc' ? -1 : 1;
+        
+        // Handle dates
+        if (sort.key === 'rate_effective_date') {
+          valueA = new Date(valueA);
+          valueB = new Date(valueB);
         }
-        if (valueA > valueB) {
-          return sort.direction === 'asc' ? 1 : -1;
-        }
+        
+        if (valueA < valueB) return sort.direction === 'asc' ? -1 : 1;
+        if (valueA > valueB) return sort.direction === 'asc' ? 1 : -1;
       }
       return 0;
     });
@@ -904,55 +906,55 @@ export default function Dashboard() {
               <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
                   <th 
-                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
                     onClick={(e) => handleSort('state_name', e)}
                   >
                     State <SortIndicator sortKey="state_name" />
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
                     onClick={(e) => handleSort('service_category', e)}
                   >
                     Service Category <SortIndicator sortKey="service_category" />
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
                     onClick={(e) => handleSort('service_code', e)}
                   >
                     Service Code <SortIndicator sortKey="service_code" />
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
                     onClick={(e) => handleSort('service_description', e)}
                   >
                     Service Description <SortIndicator sortKey="service_description" />
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
                     onClick={(e) => handleSort('rate', e)}
                   >
                     Rate per Base Unit <SortIndicator sortKey="rate" />
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
                     onClick={(e) => handleSort('rate_per_hour', e)}
                   >
                     Rate per Hour <SortIndicator sortKey="rate_per_hour" />
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
                     onClick={(e) => handleSort('rate_effective_date', e)}
                   >
                     Effective Date <SortIndicator sortKey="rate_effective_date" />
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
                     onClick={(e) => handleSort('program', e)}
                   >
                     Program <SortIndicator sortKey="program" />
                   </th>
                   <th 
-                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
                     onClick={(e) => handleSort('location_region', e)}
                   >
                     Location/Region <SortIndicator sortKey="location_region" />
@@ -1039,6 +1041,85 @@ export default function Dashboard() {
         select:focus {
           outline: none;
           box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+        }
+        th.sortable {
+          cursor: pointer;
+          position: relative;
+          user-select: none;
+          transition: all 0.2s ease;
+          padding: 12px 16px;
+        }
+
+        th.sortable:hover {
+          background-color: #f5f5f5;
+          box-shadow: inset 0 -2px 0 #3b82f6;
+        }
+
+        th.sortable.active {
+          background-color: #e8f0fe;
+          font-weight: 600;
+          box-shadow: inset 0 -2px 0 #3b82f6;
+        }
+
+        .sort-indicator {
+          margin-left: 4px;
+          font-size: 0.8em;
+          color: #666;
+          transition: all 0.2s ease;
+          display: inline-flex;
+          align-items: center;
+        }
+
+        th.sortable:hover .sort-indicator {
+          color: #3b82f6;
+        }
+
+        .sort-priority {
+          font-size: 0.6em;
+          vertical-align: super;
+          color: #3b82f6;
+          margin-left: 2px;
+          font-weight: 500;
+          background-color: #e8f0fe;
+          padding: 2px 4px;
+          border-radius: 3px;
+        }
+
+        .sortable-header {
+          position: relative;
+        }
+
+        .sortable-header::after {
+          content: 'Click to sort, Shift+Click for multiple sorts';
+          position: absolute;
+          bottom: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          background-color: #333;
+          color: #fff;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+          white-space: nowrap;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.2s ease;
+        }
+
+        .sortable-header:hover::after {
+          opacity: 1;
+        }
+
+        .arrow {
+          transition: transform 0.2s ease;
+        }
+
+        .sorted-column {
+          background-color: #f8f9fa;
+        }
+
+        .sorted-column:hover {
+          background-color: #e9ecef;
         }
       `}</style>
     </AppLayout>
