@@ -809,9 +809,6 @@ export default function StatePaymentComparison() {
           >
             Reset All Filters
           </button>
-          <p className="text-sm text-gray-500 mt-2">
-            <strong>Note:</strong> The rates displayed are the current rates as of the latest available data. Rates are subject to change based on updates from state programs.
-          </p>
         </div>
 
         {/* Loading State */}
@@ -997,9 +994,6 @@ export default function StatePaymentComparison() {
                       <div>
                         <p className="text-sm font-medium text-gray-700">
                           You've selected all states. The chart below displays the average rate for the selected service code across each state.
-                        </p>
-                        <p className="text-sm text-gray-500 mt-1">
-                          <strong>Note:</strong> The rates displayed are the current rates as of the latest available data. Rates are subject to change based on updates from state programs.
                         </p>
                       </div>
                     </div>
