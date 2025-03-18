@@ -773,9 +773,6 @@ export default function StatePaymentComparison() {
     );
   };
 
-  // Add this near other state declarations
-  const areFiltersApplied = selectedServiceCategory && selectedStates.length > 0 && selectedServiceCode;
-
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -809,6 +806,9 @@ export default function StatePaymentComparison() {
           >
             Reset All Filters
           </button>
+          <p className="text-sm text-gray-500 mt-2">
+            <strong>Note:</strong> The rates displayed are the current rates as of the latest available data. Rates are subject to change based on updates from state programs.
+          </p>
         </div>
 
         {/* Loading State */}
@@ -816,20 +816,6 @@ export default function StatePaymentComparison() {
           <div className="flex justify-center items-center h-64">
             <FaSpinner className="animate-spin h-12 w-12 text-blue-500" />
             <p className="ml-4 text-gray-600">Loading data...</p>
-          </div>
-        )}
-
-        {!loading && !areFiltersApplied && (
-          <div className="p-6 bg-white rounded-xl shadow-lg text-center">
-            <div className="flex justify-center items-center mb-4">
-              <FaFilter className="h-8 w-8 text-blue-500" />
-            </div>
-            <p className="text-lg font-medium text-gray-700 mb-2">
-              Please select all required filters to view comparison data
-            </p>
-            <p className="text-sm text-gray-500">
-              Choose a Service Category, State, and Service Code to see the rate comparison
-            </p>
           </div>
         )}
 
@@ -994,6 +980,9 @@ export default function StatePaymentComparison() {
                       <div>
                         <p className="text-sm font-medium text-gray-700">
                           You've selected all states. The chart below displays the average rate for the selected service code across each state.
+                        </p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          <strong>Note:</strong> The rates displayed are the current rates as of the latest available data. Rates are subject to change based on updates from state programs.
                         </p>
                       </div>
                     </div>
