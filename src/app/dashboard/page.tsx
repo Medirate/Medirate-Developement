@@ -128,29 +128,47 @@ export default function Dashboard() {
   // Initialize sortConfig with default service_code sort
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }[]>([]);
 
-  // Update the sort handler to always include service_code as secondary sort
+  // Update the handleSort function to handle Shift key
   const handleSort = (key: string, event: React.MouseEvent) => {
+    event.preventDefault();
+    
     setSortConfig(prev => {
-      const existingSort = prev.find(sort => sort.key === key);
-
-      if (existingSort) {
-        // Toggle direction
-        if (existingSort.direction === 'asc') {
-          return prev.map(sort =>
-            sort.key === key ? { ...sort, direction: 'desc' } : sort
-          );
-        } else {
-          // Deselect sort
-          return prev.filter(sort => sort.key !== key);
+      // Check if Shift key is pressed
+      const isShiftPressed = event.shiftKey;
+      
+      // Find existing sort for this key
+      const existingSortIndex = prev.findIndex(sort => sort.key === key);
+      
+      if (existingSortIndex !== -1) {
+        // Toggle direction if it's the primary sort
+        if (existingSortIndex === 0) {
+          const newDirection = prev[0].direction === 'asc' ? 'desc' : 'asc';
+          return [
+            { key, direction: newDirection },
+            ...prev.slice(1)
+          ];
         }
+        // Remove if it's a secondary sort
+        return prev.filter(sort => sort.key !== key);
       }
-
-      // Add new sort
-      return [{ key, direction: 'asc' }];
+      
+      // If Shift is pressed, add as secondary sort
+      if (isShiftPressed && prev.length > 0) {
+        return [
+          ...prev,
+          { key, direction: 'asc' }
+        ];
+      }
+      
+      // Default behavior: set as primary sort
+      return [
+        { key, direction: 'asc' },
+        ...prev.filter(sort => sort.key !== key)
+      ];
     });
   };
 
-  // Update the sort indicator to show multiple sort levels
+  // Update the SortIndicator component to show multiple sort levels
   const SortIndicator = ({ sortKey }: { sortKey: string }) => {
     const sortIndex = sortConfig.findIndex(sort => sort.key === sortKey);
     if (sortIndex === -1) return null;
@@ -164,7 +182,7 @@ export default function Dashboard() {
     );
   };
 
-  // Update the sortedData calculation to handle numerical sorting for service_code
+  // Update the sortedData calculation to handle multiple sort levels
   const sortedData = useMemo(() => {
     if (sortConfig.length === 0) return filteredData;
 
@@ -175,7 +193,6 @@ export default function Dashboard() {
         switch (sort.key) {
           case 'rate':
           case 'rate_per_hour':
-            // Remove dollar sign and parse the rate
             valueA = parseFloat((a[sort.key] || '').replace(/[^0-9.-]+/g, ''));
             valueB = parseFloat((b[sort.key] || '').replace(/[^0-9.-]+/g, ''));
             break;
@@ -517,14 +534,17 @@ export default function Dashboard() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
             />
             <button
-              onClick={() => toggleDropdown(setShowServiceCategoryDropdown, [
-                setShowStateDropdown,
-                setShowServiceCodeDropdown,
-                setShowServiceDescriptionDropdown,
-                setShowProgramDropdown,
-                setShowLocationRegionDropdown,
-                setShowModifierDropdown
-              ])}
+              onClick={(e) => {
+                e.preventDefault();
+                toggleDropdown(setShowServiceCategoryDropdown, [
+                  setShowStateDropdown,
+                  setShowServiceCodeDropdown,
+                  setShowServiceDescriptionDropdown,
+                  setShowProgramDropdown,
+                  setShowLocationRegionDropdown,
+                  setShowModifierDropdown
+                ]);
+              }}
               className="absolute right-5 top-1/3 transform -translate-y-1/3 text-gray-500 hover:text-gray-700"
             >
               <FaChevronDown />
@@ -539,7 +559,10 @@ export default function Dashboard() {
                   .map((category) => (
                     <div
                       key={category}
-                      onMouseDown={() => handleDropdownSelection(setSelectedServiceCategory, category, 'serviceCategory')}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleDropdownSelection(setSelectedServiceCategory, category, 'serviceCategory');
+                      }}
                       className="px-3 py-2 hover:bg-gray-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#004aad]"
                     >
                       {category}
@@ -560,14 +583,17 @@ export default function Dashboard() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
             />
             <button
-              onClick={() => toggleDropdown(setShowStateDropdown, [
-                setShowServiceCategoryDropdown,
-                setShowServiceCodeDropdown,
-                setShowServiceDescriptionDropdown,
-                setShowProgramDropdown,
-                setShowLocationRegionDropdown,
-                setShowModifierDropdown
-              ])}
+              onClick={(e) => {
+                e.preventDefault();
+                toggleDropdown(setShowStateDropdown, [
+                  setShowServiceCategoryDropdown,
+                  setShowServiceCodeDropdown,
+                  setShowServiceDescriptionDropdown,
+                  setShowProgramDropdown,
+                  setShowLocationRegionDropdown,
+                  setShowModifierDropdown
+                ]);
+              }}
               className="absolute right-5 top-1/3 transform -translate-y-1/3 text-gray-500 hover:text-gray-700"
             >
               <FaChevronDown />
@@ -581,7 +607,10 @@ export default function Dashboard() {
                   .map((state) => (
                     <div
                       key={state}
-                      onMouseDown={() => handleDropdownSelection(setSelectedState, state, 'state')}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleDropdownSelection(setSelectedState, state, 'state');
+                      }}
                       className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                     >
                       {state}
@@ -602,14 +631,17 @@ export default function Dashboard() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
             />
             <button
-              onClick={() => toggleDropdown(setShowServiceCodeDropdown, [
-                setShowServiceCategoryDropdown,
-                setShowStateDropdown,
-                setShowServiceDescriptionDropdown,
-                setShowProgramDropdown,
-                setShowLocationRegionDropdown,
-                setShowModifierDropdown
-              ])}
+              onClick={(e) => {
+                e.preventDefault();
+                toggleDropdown(setShowServiceCodeDropdown, [
+                  setShowServiceCategoryDropdown,
+                  setShowStateDropdown,
+                  setShowServiceDescriptionDropdown,
+                  setShowProgramDropdown,
+                  setShowLocationRegionDropdown,
+                  setShowModifierDropdown
+                ]);
+              }}
               className="absolute right-5 top-1/3 transform -translate-y-1/3 text-gray-500 hover:text-gray-700"
             >
               <FaChevronDown />
@@ -623,7 +655,10 @@ export default function Dashboard() {
                   .map((code) => (
                     <div
                       key={code}
-                      onMouseDown={() => handleDropdownSelection(setSelectedServiceCode, code, 'serviceCode')}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleDropdownSelection(setSelectedServiceCode, code, 'serviceCode');
+                      }}
                       className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                     >
                       {code}
@@ -644,14 +679,17 @@ export default function Dashboard() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
             />
             <button
-              onClick={() => toggleDropdown(setShowModifierDropdown, [
-                setShowServiceCategoryDropdown,
-                setShowStateDropdown,
-                setShowServiceCodeDropdown,
-                setShowServiceDescriptionDropdown,
-                setShowProgramDropdown,
-                setShowLocationRegionDropdown
-              ])}
+              onClick={(e) => {
+                e.preventDefault();
+                toggleDropdown(setShowModifierDropdown, [
+                  setShowServiceCategoryDropdown,
+                  setShowStateDropdown,
+                  setShowServiceCodeDropdown,
+                  setShowServiceDescriptionDropdown,
+                  setShowProgramDropdown,
+                  setShowLocationRegionDropdown
+                ]);
+              }}
               className="absolute right-5 top-1/3 transform -translate-y-1/3 text-gray-500 hover:text-gray-700"
             >
               <FaChevronDown />
@@ -665,7 +703,10 @@ export default function Dashboard() {
                   .map((modifier) => (
                     <div
                       key={modifier.value}
-                      onMouseDown={() => handleDropdownSelection(setSelectedModifier, modifier.value, 'modifier')}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleDropdownSelection(setSelectedModifier, modifier.value, 'modifier');
+                      }}
                       className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                     >
                       {modifier.label}
@@ -686,14 +727,17 @@ export default function Dashboard() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
             />
             <button
-              onClick={() => toggleDropdown(setShowServiceDescriptionDropdown, [
-                setShowServiceCategoryDropdown,
-                setShowStateDropdown,
-                setShowServiceCodeDropdown,
-                setShowProgramDropdown,
-                setShowLocationRegionDropdown,
-                setShowModifierDropdown
-              ])}
+              onClick={(e) => {
+                e.preventDefault();
+                toggleDropdown(setShowServiceDescriptionDropdown, [
+                  setShowServiceCategoryDropdown,
+                  setShowStateDropdown,
+                  setShowServiceCodeDropdown,
+                  setShowProgramDropdown,
+                  setShowLocationRegionDropdown,
+                  setShowModifierDropdown
+                ]);
+              }}
               className="absolute right-5 top-1/3 transform -translate-y-1/3 text-gray-500 hover:text-gray-700"
             >
               <FaChevronDown />
@@ -707,7 +751,10 @@ export default function Dashboard() {
                   .map((description) => (
                     <div
                       key={description}
-                      onMouseDown={() => handleDropdownSelection(setSelectedServiceDescription, description, 'serviceDescription')}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleDropdownSelection(setSelectedServiceDescription, description, 'serviceDescription');
+                      }}
                       className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                     >
                       {description}
@@ -728,14 +775,17 @@ export default function Dashboard() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
             />
             <button
-              onClick={() => toggleDropdown(setShowProgramDropdown, [
-                setShowServiceCategoryDropdown,
-                setShowStateDropdown,
-                setShowServiceCodeDropdown,
-                setShowServiceDescriptionDropdown,
-                setShowLocationRegionDropdown,
-                setShowModifierDropdown
-              ])}
+              onClick={(e) => {
+                e.preventDefault();
+                toggleDropdown(setShowProgramDropdown, [
+                  setShowServiceCategoryDropdown,
+                  setShowStateDropdown,
+                  setShowServiceCodeDropdown,
+                  setShowServiceDescriptionDropdown,
+                  setShowLocationRegionDropdown,
+                  setShowModifierDropdown
+                ]);
+              }}
               className="absolute right-5 top-1/3 transform -translate-y-1/3 text-gray-500 hover:text-gray-700"
             >
               <FaChevronDown />
@@ -749,7 +799,10 @@ export default function Dashboard() {
                   .map((program) => (
                     <div
                       key={program}
-                      onMouseDown={() => handleDropdownSelection(setSelectedProgram, program, 'program')}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleDropdownSelection(setSelectedProgram, program, 'program');
+                      }}
                       className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                     >
                       {program}
@@ -770,14 +823,17 @@ export default function Dashboard() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
             />
             <button
-              onClick={() => toggleDropdown(setShowLocationRegionDropdown, [
-                setShowServiceCategoryDropdown,
-                setShowStateDropdown,
-                setShowServiceCodeDropdown,
-                setShowServiceDescriptionDropdown,
-                setShowProgramDropdown,
-                setShowModifierDropdown
-              ])}
+              onClick={(e) => {
+                e.preventDefault();
+                toggleDropdown(setShowLocationRegionDropdown, [
+                  setShowServiceCategoryDropdown,
+                  setShowStateDropdown,
+                  setShowServiceCodeDropdown,
+                  setShowServiceDescriptionDropdown,
+                  setShowProgramDropdown,
+                  setShowModifierDropdown
+                ]);
+              }}
               className="absolute right-5 top-1/3 transform -translate-y-1/3 text-gray-500 hover:text-gray-700"
             >
               <FaChevronDown />
@@ -791,7 +847,10 @@ export default function Dashboard() {
                   .map((region) => (
                     <div
                       key={region}
-                      onMouseDown={() => handleDropdownSelection(setSelectedLocationRegion, region, 'locationRegion')}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleDropdownSelection(setSelectedLocationRegion, region, 'locationRegion');
+                      }}
                       className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                     >
                       {region}

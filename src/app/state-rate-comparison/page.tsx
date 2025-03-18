@@ -45,6 +45,7 @@ interface ServiceData {
   program: string;
   location_region: string;
   duration_unit?: string;
+  service_description?: string;
 }
 
 const darkenColor = (color: string, amount: number): string => {
@@ -149,7 +150,10 @@ export default function StatePaymentComparison() {
 
   // Extract unique filter options
   const extractFilters = (data: ServiceData[]) => {
-    setServiceCategories([...new Set(data.map((item) => item.service_category))]);
+    const categories = data
+      .map((item) => item.service_category?.trim()) // Trim whitespace
+      .filter(category => category); // Remove empty strings
+    setServiceCategories([...new Set(categories)]);
   };
 
   // Update filter handlers to remove URL updates
@@ -257,7 +261,17 @@ export default function StatePaymentComparison() {
 
     filteredData.forEach(item => {
       const rate = showRatePerHour 
-        ? Math.round(parseFloat(item.rate_per_hour?.replace("$", "") || "0") * 100) / 100
+        ? (() => {
+            let rateValue = parseFloat(item.rate?.replace('$', '') || '0');
+            const durationUnit = item.duration_unit?.toUpperCase();
+            
+            if (durationUnit === '15 MINUTES') {
+              rateValue *= 4;
+            } else if (durationUnit !== 'PER HOUR') {
+              rateValue = 0; // Or handle differently if needed
+            }
+            return Math.round(rateValue * 100) / 100;
+          })()
         : Math.round(parseFloat(item.rate?.replace("$", "") || "0") * 100) / 100;
       
       console.log(`State: ${item.state_name}, Rate: ${rate}, Program: ${item.program}, Region: ${item.location_region}`);
@@ -282,14 +296,25 @@ export default function StatePaymentComparison() {
   } else {
     // Original logic for individual state selection
     filteredData.forEach(item => {
+      const rate = showRatePerHour 
+        ? (() => {
+            let rateValue = parseFloat(item.rate?.replace('$', '') || '0');
+            const durationUnit = item.duration_unit?.toUpperCase();
+            
+            if (durationUnit === '15 MINUTES') {
+              rateValue *= 4;
+            } else if (durationUnit !== 'PER HOUR') {
+              rateValue = 0; // Or handle differently if needed
+            }
+            return Math.round(rateValue * 100) / 100;
+          })()
+        : Math.round(parseFloat(item.rate?.replace("$", "") || "0") * 100) / 100;
+      
       // Include program and location_region in the modifier key
       const currentModifier = `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}|${item.program}|${item.location_region}`;
       const stateSelections = selectedTableRows[item.state_name] || [];
       
       if (stateSelections.includes(currentModifier)) {
-        const rate = showRatePerHour 
-          ? Math.round(parseFloat(item.rate_per_hour?.replace("$", "") || "0") * 100) / 100
-          : Math.round(parseFloat(item.rate?.replace("$", "") || "0") * 100) / 100;
         if (!processedData[item.state_name]) {
           processedData[item.state_name] = {};
         }
@@ -301,19 +326,18 @@ export default function StatePaymentComparison() {
   // ✅ Prepare ECharts Data
   const echartOptions = useMemo(() => {
     let states = Object.keys(processedData);
+    let series: echarts.SeriesOption[] = [];
 
-    // Sort states based on the selected order
-    if (sortOrder !== 'default') {
-      states = states.sort((a, b) => {
-        const rateA = processedData[a]['average'] || 0;
-        const rateB = processedData[b]['average'] || 0;
-        return sortOrder === 'asc' ? rateA - rateB : rateB - rateA;
-      });
-    }
-
-    const series: echarts.SeriesOption[] = [];
-    
     if (isAllStatesSelected) {
+      // Existing logic for "All States" selection
+      if (sortOrder !== 'default') {
+        states = states.sort((a, b) => {
+          const rateA = processedData[a]['average'] || 0;
+          const rateB = processedData[b]['average'] || 0;
+          return sortOrder === 'asc' ? rateA - rateB : rateB - rateA;
+        });
+      }
+
       series.push({
         name: 'Average Rate',
         type: 'bar',
@@ -339,22 +363,32 @@ export default function StatePaymentComparison() {
         }
       });
     } else {
-      // Get all selected modifier combinations across all states
-      const allSelections: { state: string, modifierKey: string }[] = [];
+      // New logic for manual state selection with sorting
+      const allSelections: { state: string, modifierKey: string, rate: number }[] = [];
+      
+      // Collect all selected modifier combinations with their rates
       Object.entries(selectedTableRows).forEach(([state, selections]) => {
         selections.forEach(modifierKey => {
-          allSelections.push({ state, modifierKey });
+          const rate = processedData[state][modifierKey] || 0;
+          allSelections.push({ state, modifierKey, rate });
         });
       });
 
+      // Sort the selections based on the selected order
+      if (sortOrder !== 'default') {
+        allSelections.sort((a, b) => 
+          sortOrder === 'asc' ? a.rate - b.rate : b.rate - a.rate
+        );
+      }
+
       // Create a series for each selection
-      allSelections.forEach(({ state, modifierKey }, index) => {
+      allSelections.forEach(({ state, modifierKey, rate }, index) => {
         series.push({
           name: `${state} - ${modifierKey}`,
           type: 'bar',
           barGap: '0%',
           barCategoryGap: '20%',
-          data: states.map(s => s === state ? processedData[state][modifierKey] || null : null),
+          data: states.map(s => s === state ? rate : null),
           label: {
             show: true,
             position: 'top',
@@ -373,6 +407,9 @@ export default function StatePaymentComparison() {
           }
         });
       });
+
+      // Update the states array to reflect the sorted order
+      states = [...new Set(allSelections.map(s => s.state))];
     }
 
     const option: echarts.EChartsOption = {
@@ -401,24 +438,27 @@ export default function StatePaymentComparison() {
               return `State: ${state}<br>${showRatePerHour ? 'Hourly' : 'Base'} Rate: $${rate?.toFixed(2) || '0.00'}`;
             }
 
-            const modifierDetails = [
-              item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : null,
-              item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : null,
-              item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || 'No details'}` : null,
-              item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : null
-            ].filter(Boolean).join('<br>');
+            // Collect modifiers that exist
+            const modifiers = [
+              item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || ''}` : null,
+              item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || ''}` : null,
+              item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || ''}` : null,
+              item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || ''}` : null
+            ].filter(Boolean);
 
             const additionalDetails = [
               `<b>${showRatePerHour ? 'Hourly' : 'Base'} Rate:</b> $${rate?.toFixed(2) || '0.00'}`,
               item.service_code ? `<b>Service Code:</b> ${item.service_code}` : null,
               item.program ? `<b>Program:</b> ${item.program}` : null,
               item.location_region ? `<b>Location Region:</b> ${item.location_region}` : null,
+              item.rate_per_hour ? `<b>Rate Per Hour:</b> $${item.rate_per_hour}` : null,
+              item.rate_effective_date ? `<b>Effective Date:</b> ${new Date(item.rate_effective_date).toLocaleDateString()}` : null,
               item.duration_unit ? `<b>Duration Unit:</b> ${item.duration_unit}` : null
             ].filter(Boolean).join('<br>');
             
             return [
               `<b>State:</b> ${state}`,
-              modifierDetails ? `<b>Modifier Details:</b><br>${modifierDetails}` : '',
+              modifiers.length > 0 ? `<b>Modifiers:</b><br>${modifiers.join('<br>')}` : '<b>Modifiers:</b> None',
               additionalDetails
             ].filter(Boolean).join('<br>');
           }
@@ -460,7 +500,17 @@ export default function StatePaymentComparison() {
             const stateData = filteredData.filter(item => item.state_name === state);
             const sum = stateData.reduce((acc, item) => {
               const rate = showRatePerHour 
-                ? parseFloat((parseFloat(item.rate_per_hour?.replace("$", "") || "0").toFixed(2)))
+                ? (() => {
+                    let rateValue = parseFloat(item.rate?.replace('$', '') || '0');
+                    const durationUnit = item.duration_unit?.toUpperCase();
+                    
+                    if (durationUnit === '15 MINUTES') {
+                      rateValue *= 4;
+                    } else if (durationUnit !== 'PER HOUR') {
+                      rateValue = 0; // Or handle differently if needed
+                    }
+                    return Math.round(rateValue * 100) / 100;
+                  })()
                 : parseFloat((parseFloat(item.rate?.replace("$", "") || "0").toFixed(2)));
               console.log(`Rate for ${item.program} - ${item.location_region}:`, rate);
               return acc + rate;
@@ -504,7 +554,17 @@ export default function StatePaymentComparison() {
                 const stateData = filteredData.filter(item => item.state_name === state);
                 const sum = stateData.reduce((acc, item) => {
                   const rate = showRatePerHour 
-                    ? parseFloat((parseFloat(item.rate_per_hour?.replace("$", "") || "0").toFixed(2)))
+                    ? (() => {
+                        let rateValue = parseFloat(item.rate?.replace('$', '') || '0');
+                        const durationUnit = item.duration_unit?.toUpperCase();
+                        
+                        if (durationUnit === '15 MINUTES') {
+                          rateValue *= 4;
+                        } else if (durationUnit !== 'PER HOUR') {
+                          rateValue = 0; // Or handle differently if needed
+                        }
+                        return Math.round(rateValue * 100) / 100;
+                      })()
                     : parseFloat((parseFloat(item.rate?.replace("$", "") || "0").toFixed(2)));
                   console.log(`Rate for ${item.program} - ${item.location_region}:`, rate);
                   return acc + rate;
@@ -584,9 +644,17 @@ export default function StatePaymentComparison() {
         item.service_code === selectedServiceCode
       )
       .map(item => 
-        Math.round(parseFloat(
-          (showRatePerHour ? item.rate_per_hour : item.rate)?.replace("$", "") || "0"
-        ) * 100) / 100
+        (() => {
+          let rateValue = parseFloat(item.rate?.replace('$', '') || '0');
+          const durationUnit = item.duration_unit?.toUpperCase();
+          
+          if (durationUnit === '15 MINUTES') {
+            rateValue *= 4;
+          } else if (durationUnit !== 'PER HOUR') {
+            rateValue = 0; // Or handle differently if needed
+          }
+          return Math.round(rateValue * 100) / 100;
+        })()
       )
       .filter(rate => rate > 0);
 
@@ -666,20 +734,30 @@ export default function StatePaymentComparison() {
                     <td className="px-4 py-2">{entry.program}</td>
                     <td className="px-4 py-2">{entry.location_region}</td>
                     <td className="px-4 py-2">
-                      {entry.modifier_1 ? `${entry.modifier_1} - ${entry.modifier_1_details || 'No details'}` : '-'}
+                      {entry.modifier_1 ? (entry.modifier_1_details ? `${entry.modifier_1} - ${entry.modifier_1_details}` : entry.modifier_1) : '-'}
                     </td>
                     <td className="px-4 py-2">
-                      {entry.modifier_2 ? `${entry.modifier_2} - ${entry.modifier_2_details || 'No details'}` : '-'}
+                      {entry.modifier_2 ? (entry.modifier_2_details ? `${entry.modifier_2} - ${entry.modifier_2_details}` : entry.modifier_2) : '-'}
                     </td>
                     <td className="px-4 py-2">
-                      {entry.modifier_3 ? `${entry.modifier_3} - ${entry.modifier_3_details || 'No details'}` : '-'}
+                      {entry.modifier_3 ? (entry.modifier_3_details ? `${entry.modifier_3} - ${entry.modifier_3_details}` : entry.modifier_3) : '-'}
                     </td>
                     <td className="px-4 py-2">
-                      {entry.modifier_4 ? `${entry.modifier_4} - ${entry.modifier_4_details || 'No details'}` : '-'}
+                      {entry.modifier_4 ? (entry.modifier_4_details ? `${entry.modifier_4} - ${entry.modifier_4_details}` : entry.modifier_4) : '-'}
                     </td>
                     <td className="px-4 py-2">
                       ${showRatePerHour 
-                        ? parseFloat(entry.rate_per_hour?.replace("$", "") || "0").toFixed(2)
+                        ? (() => {
+                            let rateValue = parseFloat(entry.rate_per_hour?.replace('$', '') || '0');
+                            const durationUnit = entry.duration_unit?.toUpperCase();
+                            
+                            if (durationUnit === '15 MINUTES') {
+                              rateValue *= 4;
+                            } else if (durationUnit !== 'PER HOUR') {
+                              rateValue = 0; // Or handle differently if needed
+                            }
+                            return Math.round(rateValue * 100) / 100;
+                          })()
                         : parseFloat(entry.rate?.replace("$", "") || "0").toFixed(2)}
                     </td>
                     <td className="px-4 py-2">
@@ -754,14 +832,18 @@ export default function StatePaymentComparison() {
                     onChange={(e) => handleServiceCategoryChange(e.target.value)} 
                     className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                   >
-                    <option value="">Select Service Line</option>
+                    <option value="" disabled hidden>Select Service Line</option>
                     {serviceCategories
-                      .filter(category => !['HCBS', 'IDD'].includes(category))
+                      .filter(category => {
+                        const trimmedCategory = category.trim();
+                        return trimmedCategory && 
+                               !['HCBS', 'IDD'].includes(trimmedCategory);
+                      })
                       .map((category) => (
                         <option key={category} value={category}>
                           {category === 'PERSONAL CARE SERVICES (PCA)' ? 'PERSONAL CARE SERVICES (PCS)' : category}
                         </option>
-                    ))}
+                      ))}
                   </select>
                 </div>
 
@@ -791,6 +873,9 @@ export default function StatePaymentComparison() {
                       className="react-select-container"
                       classNamePrefix="react-select"
                       placeholder="Select States"
+                      menuPlacement="auto"
+                      menuPosition="fixed"
+                      maxMenuHeight={200}
                       styles={{
                         control: (base) => ({
                           ...base,
@@ -800,6 +885,11 @@ export default function StatePaymentComparison() {
                           '&:hover': {
                             borderColor: '#3b82f6'
                           }
+                        }),
+                        menu: (base) => ({
+                          ...base,
+                          position: 'absolute',
+                          zIndex: 9999
                         })
                       }}
                     />
@@ -819,6 +909,9 @@ export default function StatePaymentComparison() {
                       isSearchable
                       className="react-select-container"
                       classNamePrefix="react-select"
+                      menuPlacement="auto"
+                      menuPosition="fixed"
+                      maxMenuHeight={200}
                       styles={{
                         control: (base) => ({
                           ...base,
@@ -828,6 +921,11 @@ export default function StatePaymentComparison() {
                           '&:hover': {
                             borderColor: '#3b82f6'
                           }
+                        }),
+                        menu: (base) => ({
+                          ...base,
+                          position: 'absolute',
+                          zIndex: 9999
                         })
                       }}
                     />
@@ -983,12 +1081,16 @@ export default function StatePaymentComparison() {
                         </div>
                       ) : (
                         <div className="overflow-x-auto rounded-lg" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                          <table className="min-w-full bg-white">
+                          <table className="min-w-full bg-white" style={{ tableLayout: 'fixed' }}>
+                            <colgroup>
+                              <col style={{ width: '50px' }} /><col style={{ width: '150px' }} /><col style={{ width: '100px' }} /><col style={{ width: '200px' }} /><col style={{ width: '120px' }} /><col style={{ width: '150px' }} /><col style={{ width: '150px' }} /><col style={{ width: '150px' }} /><col style={{ width: '100px' }} /><col style={{ width: '100px' }} /><col style={{ width: '100px' }} /><col style={{ width: '120px' }} />
+                            </colgroup>
                             <thead className="bg-gray-50 sticky top-0">
                               <tr>
                                 <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Select</th>
                                 <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Category</th>
                                 <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Code</th>
+                                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Description</th>
                                 <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Program</th>
                                 <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Location Region</th>
                                 <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 1</th>
@@ -1043,19 +1145,25 @@ export default function StatePaymentComparison() {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_category}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code}</td>
+                                    <td 
+                                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate"
+                                      title={item.service_description || ''}
+                                    >
+                                      {item.service_description || '-'}
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.program || '-'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.location_region || '-'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                      {item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : '-'}
+                                      {item.modifier_1 ? (item.modifier_1_details ? `${item.modifier_1} - ${item.modifier_1_details}` : item.modifier_1) : '-'}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                      {item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : '-'}
+                                      {item.modifier_2 ? (item.modifier_2_details ? `${item.modifier_2} - ${item.modifier_2_details}` : item.modifier_2) : '-'}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                      {item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || 'No details'}` : '-'}
+                                      {item.modifier_3 ? (item.modifier_3_details ? `${item.modifier_3} - ${item.modifier_3_details}` : item.modifier_3) : '-'}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                      {item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : '-'}
+                                      {item.modifier_4 ? (item.modifier_4_details ? `${item.modifier_4} - ${item.modifier_4_details}` : item.modifier_4) : '-'}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

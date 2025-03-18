@@ -36,6 +36,7 @@ interface ServiceData {
   location_region: string;
   rate_per_hour?: string;
   duration_unit?: string;
+  service_description?: string;
 }
 
 // Register Chart.js components
@@ -85,7 +86,10 @@ export default function HistoricalRates() {
   const areFiltersApplied = selectedServiceCategory && selectedState && selectedServiceCode;
 
   const extractFilters = (data: ServiceData[]) => {
-    setServiceCategories([...new Set(data.map((item) => item.service_category))]);
+    const categories = data
+      .map((item) => item.service_category?.trim()) // Trim whitespace
+      .filter(category => category); // Remove empty strings
+    setServiceCategories([...new Set(categories)]);
   };
 
   // Get filtered data based on selections
@@ -127,10 +131,20 @@ export default function HistoricalRates() {
     );
   };
 
+  const resetFilters = () => {
+    setSelectedServiceCategory("");
+    setSelectedState("");
+    setSelectedServiceCode("");
+    setServiceCodes([]);
+    setStates([]);
+    setSelectedEntry(null);
+  };
+
   const handleServiceCategoryChange = (category: string) => {
     setSelectedServiceCategory(category);
     setSelectedState("");
     setSelectedServiceCode("");
+    setSelectedEntry(null);
 
     // Get states and service codes for the selected category
     const filteredStates = data
@@ -147,6 +161,7 @@ export default function HistoricalRates() {
   const handleStateChange = (state: string) => {
     setSelectedState(state);
     setSelectedServiceCode("");
+    setSelectedEntry(null);
 
     // Get service codes for the selected state and category
     if (selectedServiceCategory) {
@@ -163,36 +178,12 @@ export default function HistoricalRates() {
 
   const handleServiceCodeChange = (code: string) => {
     setSelectedServiceCode(code);
-  };
-
-  const resetFilters = () => {
-    setSelectedServiceCategory("");
-    setSelectedState("");
-    setSelectedServiceCode("");
-    setServiceCodes([]);
-    setStates([]);
-  };
-
-  // Update the row selection handler
-  const handleRowSelection = (entry: ServiceData) => {
-    setSelectedEntry(prev => 
-      prev?.state_name === entry.state_name &&
-      prev?.service_code === entry.service_code &&
-      prev?.program === entry.program &&
-      prev?.location_region === entry.location_region &&
-      prev?.modifier_1 === entry.modifier_1 &&
-      prev?.modifier_2 === entry.modifier_2 &&
-      prev?.modifier_3 === entry.modifier_3 &&
-      prev?.modifier_4 === entry.modifier_4
-        ? null
-        : entry
-    );
+    setSelectedEntry(null);
   };
 
   const getGraphData = () => {
     if (!selectedEntry) return { xAxis: [], series: [] };
 
-    // Get all entries for the selected combination
     const allEntries = data.filter(item => 
       item.state_name === selectedEntry.state_name &&
       item.service_code === selectedEntry.service_code &&
@@ -204,12 +195,10 @@ export default function HistoricalRates() {
       item.modifier_4 === selectedEntry.modifier_4
     );
 
-    // Sort by date
     const sortedEntries = allEntries.sort((a, b) => 
       new Date(a.rate_effective_date).getTime() - new Date(b.rate_effective_date).getTime()
     );
 
-    // Add current date as the last point
     const currentDate = new Date();
     const lastEntry = sortedEntries[sortedEntries.length - 1];
     const extendedEntries = [
@@ -220,7 +209,6 @@ export default function HistoricalRates() {
       }
     ];
 
-    // Format dates as mm/dd/yyyy
     const formatDate = (dateString: string) => {
       const date = new Date(dateString);
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -231,25 +219,34 @@ export default function HistoricalRates() {
 
     return {
       xAxis: extendedEntries.map(entry => formatDate(entry.rate_effective_date)),
-      series: extendedEntries.map(entry => ({
-        value: showRatePerHour 
-          ? parseFloat(entry.rate_per_hour?.replace('$', '') || '0')
-          : parseFloat(entry.rate.replace('$', '') || '0'),
-        state: entry.state_name,
-        serviceCode: entry.service_code,
-        program: entry.program,
-        locationRegion: entry.location_region,
-        modifier1: entry.modifier_1,
-        modifier1Details: entry.modifier_1_details,
-        modifier2: entry.modifier_2,
-        modifier2Details: entry.modifier_2_details,
-        modifier3: entry.modifier_3,
-        modifier3Details: entry.modifier_3_details,
-        modifier4: entry.modifier_4,
-        modifier4Details: entry.modifier_4_details,
-        durationUnit: entry.duration_unit,
-        date: formatDate(entry.rate_effective_date)
-      }))
+      series: extendedEntries.map(entry => {
+        let rateValue = parseFloat(entry.rate.replace('$', '') || '0');
+        const durationUnit = entry.duration_unit?.toUpperCase();
+
+        if (durationUnit === '15 MINUTES') {
+          rateValue *= 4;
+        } else if (durationUnit !== 'PER HOUR') {
+          rateValue = 0; // Or handle differently if needed
+        }
+
+        return {
+          value: showRatePerHour ? rateValue : parseFloat(entry.rate.replace('$', '') || '0'),
+          state: entry.state_name,
+          serviceCode: entry.service_code,
+          program: entry.program,
+          locationRegion: entry.location_region,
+          modifier1: entry.modifier_1,
+          modifier1Details: entry.modifier_1_details,
+          modifier2: entry.modifier_2,
+          modifier2Details: entry.modifier_2_details,
+          modifier3: entry.modifier_3,
+          modifier3Details: entry.modifier_3_details,
+          modifier4: entry.modifier_4,
+          modifier4Details: entry.modifier_4_details,
+          durationUnit: entry.duration_unit,
+          date: formatDate(entry.rate_effective_date)
+        };
+      })
     };
   };
 
@@ -293,10 +290,15 @@ export default function HistoricalRates() {
                     value={selectedServiceCategory}
                     onChange={(e) => handleServiceCategoryChange(e.target.value)}
                     className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    style={{ maxHeight: '200px', overflowY: 'auto' }}
                   >
-                    <option value="">Select Service Line</option>
+                    <option value="" disabled hidden>Select Service Line</option>
                     {serviceCategories
-                      .filter(category => !['HCBS', 'IDD'].includes(category))
+                      .filter(category => {
+                        const trimmedCategory = category.trim();
+                        return trimmedCategory && 
+                               !['HCBS', 'IDD', 'SERVICE CATEGORY'].includes(trimmedCategory);
+                      })
                       .map((category) => (
                         <option key={category} value={category}>
                           {category}
@@ -313,8 +315,9 @@ export default function HistoricalRates() {
                       value={selectedState}
                       onChange={(e) => handleStateChange(e.target.value)}
                       className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      style={{ maxHeight: '200px', overflowY: 'auto' }}
                     >
-                      <option value="">Select State</option>
+                      <option value="" disabled hidden>Select State</option>
                       {states.map((state) => (
                         <option key={state} value={state}>
                           {state}
@@ -332,8 +335,9 @@ export default function HistoricalRates() {
                       value={selectedServiceCode}
                       onChange={(e) => handleServiceCodeChange(e.target.value)}
                       className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      style={{ maxHeight: '200px', overflowY: 'auto' }}
                     >
-                      <option value="">Select Service Code</option>
+                      <option value="" disabled hidden>Select Service Code</option>
                       {serviceCodes.map((code) => (
                         <option key={code} value={code}>
                           {code}
@@ -341,9 +345,9 @@ export default function HistoricalRates() {
                       ))}
                     </select>
                   </div>
-                        )}
-                      </div>
-                    </div>
+                )}
+              </div>
+            </div>
 
             {/* Empty State Message */}
             {!areFiltersApplied && (
@@ -392,84 +396,93 @@ export default function HistoricalRates() {
                 </div>
 
                 <div className="w-full h-80">
-                  {filteredData.length > 0 ? (
-                    <ReactECharts
-                      option={{
-                        tooltip: {
-                          trigger: 'axis',
-                          formatter: (params: any) => {
-                            const data = params[0].data;
-                            const rate = data.value ? `$${data.value.toFixed(2)}` : '-';
-                            
-                            const modifiers = [
-                              data.modifier1 ? `${data.modifier1} - ${data.modifier1Details || 'No details'}` : null,
-                              data.modifier2 ? `${data.modifier2} - ${data.modifier2Details || 'No details'}` : null,
-                              data.modifier3 ? `${data.modifier3} - ${data.modifier3Details || 'No details'}` : null,
-                              data.modifier4 ? `${data.modifier4} - ${data.modifier4Details || 'No details'}` : null
-                            ].filter(Boolean).join('<br>');
+                  <ReactECharts
+                    option={{
+                      tooltip: {
+                        trigger: 'axis',
+                        formatter: (params: any) => {
+                          const data = params[0].data;
+                          const rate = data.value ? `$${data.value.toFixed(2)}` : '-';
+                          
+                          const modifiers = [
+                            data.modifier1 ? `${data.modifier1} - ${data.modifier1Details || 'No details'}` : null,
+                            data.modifier2 ? `${data.modifier2} - ${data.modifier2Details || 'No details'}` : null,
+                            data.modifier3 ? `${data.modifier3} - ${data.modifier3Details || 'No details'}` : null,
+                            data.modifier4 ? `${data.modifier4} - ${data.modifier4Details || 'No details'}` : null
+                          ].filter(Boolean).join('<br>');
 
-                            return `
-                              <b>State:</b> ${data.state || '-'}<br>
-                              <b>Service Code:</b> ${data.serviceCode || '-'}<br>
-                              <b>Program:</b> ${data.program || '-'}<br>
-                              <b>Location/Region:</b> ${data.locationRegion || '-'}<br>
-                              <b>${showRatePerHour ? 'Rate Per Hour' : 'Rate Per Base Unit'}:</b> ${rate}<br>
-                              <b>Duration Unit:</b> ${data.durationUnit || '-'}<br>
-                              <b>Effective Date:</b> ${data.date || '-'}<br>
-                              ${modifiers ? `<b>Modifiers:</b><br>${modifiers}` : ''}
-                            `;
-                          }
-                        },
-                        xAxis: {
-                          type: 'category',
-                          data: getGraphData().xAxis,
-                          name: 'Effective Date',
-                          nameLocation: 'middle',
-                          nameGap: 30,
-                          axisLabel: {
-                            formatter: (value: string) => value
-                          }
-                        },
-                        yAxis: {
-                          type: 'value',
-                          name: showRatePerHour ? 'Rate Per Hour ($)' : 'Rate Per Base Unit ($)',
-                          nameLocation: 'middle',
-                          nameGap: 30
-                        },
-                        series: [
-                          {
-                            data: getGraphData().series,
-                            type: 'line',
-                            smooth: false,
-                            itemStyle: {
-                              color: showRatePerHour ? '#ef4444' : '#3b82f6'
-                            },
-                            label: {
-                              show: true,
-                              position: 'top',
-                              formatter: (params: any) => {
-                                return `$${params.value.toFixed(2)}`;
-                              },
-                              fontSize: 12,
-                              color: '#374151'
-                            }
-                          }
-                        ],
-                        grid: {
-                          containLabel: true,
-                          left: '3%',
-                          right: '3%',
-                          bottom: '10%',
-                          top: '10%'
+                          return `
+                            <b>State:</b> ${data.state || '-'}<br>
+                            <b>Service Code:</b> ${data.serviceCode || '-'}<br>
+                            <b>Program:</b> ${data.program || '-'}<br>
+                            <b>Location/Region:</b> ${data.locationRegion || '-'}<br>
+                            <b>${showRatePerHour ? 'Rate Per Hour' : 'Rate Per Base Unit'}:</b> ${rate}<br>
+                            <b>Duration Unit:</b> ${data.durationUnit || '-'}<br>
+                            <b>Effective Date:</b> ${data.date || '-'}<br>
+                            ${modifiers ? `<b>Modifiers:</b><br>${modifiers}` : ''}
+                          `;
                         }
-                      }}
-                      style={{ height: '100%', width: '100%' }}
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-gray-500">No data available</p>
-                    </div>
-                  )}
+                      },
+                      xAxis: {
+                        type: 'category',
+                        data: getGraphData().xAxis,
+                        name: 'Effective Date',
+                        nameLocation: 'middle',
+                        nameGap: 30,
+                        axisLabel: {
+                          formatter: (value: string) => value
+                        }
+                      },
+                      yAxis: {
+                        type: 'value',
+                        name: showRatePerHour ? 'Rate Per Hour ($)' : 'Rate Per Base Unit ($)',
+                        nameLocation: 'middle',
+                        nameGap: 40,
+                        scale: true,
+                        min: (value: { min: number }) => value.min * 0.95,
+                        max: (value: { max: number }) => value.max * 1.05,
+                        axisLabel: {
+                          formatter: (value: number) => value.toFixed(2)
+                        }
+                      },
+                      series: [
+                        {
+                          data: getGraphData().series,
+                          type: 'line',
+                          smooth: false,
+                          itemStyle: {
+                            color: showRatePerHour ? '#ef4444' : '#3b82f6'
+                          },
+                          label: {
+                            show: true,
+                            position: 'top',
+                            formatter: (params: any) => {
+                              return `$${params.value.toFixed(2)}`;
+                            },
+                            fontSize: 12,
+                            color: '#374151'
+                          }
+                        }
+                      ],
+                      grid: {
+                        containLabel: true,
+                        left: '10%',
+                        right: '3%',
+                        bottom: '10%',
+                        top: '10%'
+                      }
+                    }}
+                    style={{ height: '100%', width: '100%' }}
+                    notMerge={true}
+                    showLoading={filteredData.length === 0}
+                    loadingOption={{
+                      text: 'No data available',
+                      color: '#3b82f6',
+                      textColor: '#374151',
+                      maskColor: 'rgba(255, 255, 255, 0.8)',
+                      zlevel: 0
+                    }}
+                  />
                 </div>
               </div>
             )}
@@ -484,14 +497,15 @@ export default function HistoricalRates() {
                       <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">State</th>
                       <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Category</th>
                       <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Code</th>
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Description</th>
                       <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Program</th>
                       <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Location/Region</th>
                       <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 1</th>
                       <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 2</th>
                       <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
                       <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
-              </tr>
-            </thead>
+                    </tr>
+                  </thead>
                   <tbody className="divide-y divide-gray-200">
                     {filteredData.map((item, index) => {
                       const isSelected = selectedEntry?.state_name === item.state_name &&
@@ -503,61 +517,62 @@ export default function HistoricalRates() {
                         selectedEntry?.modifier_3 === item.modifier_3 &&
                         selectedEntry?.modifier_4 === item.modifier_4;
 
-                return (
-                  <tr 
-                    key={index} 
+                      return (
+                        <tr 
+                          key={index} 
                           className={`hover:bg-gray-50 transition-colors cursor-pointer ${
                             isSelected ? 'bg-blue-50' : ''
                           }`}
                           onClick={() => setSelectedEntry(item)}
                         >
                           <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                            <div className="flex items-center">
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
                                 isSelected ? 'border-blue-500 bg-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.2)]' : 'border-gray-300 hover:border-gray-400'
-                        }`}>
-                          {isSelected && (
-                            <svg 
-                              className="w-3 h-3 text-white" 
-                              fill="none" 
-                              stroke="currentColor" 
-                              viewBox="0 0 24 24"
-                            >
-                              <path 
-                                strokeLinecap="round" 
-                                strokeLinejoin="round" 
-                                strokeWidth={2} 
-                                d="M5 13l4 4L19 7" 
-                              />
-                            </svg>
-                          )}
-                        </div>
-                      </div>
-                    </td>
+                              }`}>
+                                {isSelected && (
+                                  <svg 
+                                    className="w-3 h-3 text-white" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path 
+                                      strokeLinecap="round" 
+                                      strokeLinejoin="round" 
+                                      strokeWidth={2} 
+                                      d="M5 13l4 4L19 7" 
+                                    />
+                                  </svg>
+                                )}
+                              </div>
+                            </div>
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.state_name}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_category}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_description || '-'}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.program}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.location_region}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : '-'}
-                    </td>
+                            {item.modifier_1 ? (item.modifier_1_details ? `${item.modifier_1} - ${item.modifier_1_details}` : item.modifier_1) : '-'}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : '-'}
-                    </td>
+                            {item.modifier_2 ? (item.modifier_2_details ? `${item.modifier_2} - ${item.modifier_2_details}` : item.modifier_2) : '-'}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || 'No details'}` : '-'}
-                    </td>
+                            {item.modifier_3 ? (item.modifier_3_details ? `${item.modifier_3} - ${item.modifier_3_details}` : item.modifier_3) : '-'}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : '-'}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          </div>
-        )}
+                            {item.modifier_4 ? (item.modifier_4_details ? `${item.modifier_4} - ${item.modifier_4_details}` : item.modifier_4) : '-'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {/* Selection Prompt */}
             {areFiltersApplied && !selectedEntry && (
