@@ -990,14 +990,8 @@ export default function Dashboard() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_category || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_description || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 relative group">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {item.rate || '-'}
-                      {item.rate && item.duration_unit && (
-                        <div className="absolute z-10 bg-gray-800 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 bottom-full left-1/2 transform -translate-x-1/2 mb-2">
-                          Duration Unit: {item.duration_unit}
-                          <div className="absolute w-2 h-2 bg-gray-800 rotate-45 -bottom-1 left-1/2 -translate-x-1/2"></div>
-                        </div>
-                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {(() => {
