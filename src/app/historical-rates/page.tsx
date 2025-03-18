@@ -308,7 +308,7 @@ export default function HistoricalRates() {
                 </div>
 
                 {/* State Selector */}
-                {selectedServiceCategory && (
+                {selectedServiceCategory ? (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">State</label>
                     <select
@@ -325,10 +325,17 @@ export default function HistoricalRates() {
                       ))}
                     </select>
                   </div>
+                ) : (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">State</label>
+                    <div className="text-gray-400 text-sm">
+                      Select a service line first
+                    </div>
+                  </div>
                 )}
 
                 {/* Service Code Selector */}
-                {selectedServiceCategory && selectedState && (
+                {selectedServiceCategory && selectedState ? (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Service Code</label>
                     <select
@@ -344,6 +351,13 @@ export default function HistoricalRates() {
                         </option>
                       ))}
                     </select>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Service Code</label>
+                    <div className="text-gray-400 text-sm">
+                      {selectedServiceCategory ? "Select a state to see available service codes" : "Select a service line first"}
+                    </div>
                   </div>
                 )}
               </div>
