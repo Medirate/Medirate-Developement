@@ -135,21 +135,27 @@ export default function Dashboard() {
     setSortConfig(prev => {
       const isShiftPressed = event.shiftKey;
       const existingSort = prev.find(sort => sort.key === key);
+      const existingIndex = prev.findIndex(sort => sort.key === key);
       
       if (existingSort) {
-        // If it's the primary sort and Shift isn't pressed
-        if (!isShiftPressed && prev[0].key === key) {
+        // If it's any sort (primary or secondary) and Shift isn't pressed
+        if (!isShiftPressed) {
           // If already descending, remove the sort
           if (existingSort.direction === 'desc') {
             return prev.filter(sort => sort.key !== key);
           }
           // Otherwise, toggle direction
-          return [
-            { key, direction: existingSort.direction === 'asc' ? 'desc' : 'asc' as const },
-            ...prev.slice(1)
-          ];
+          return prev.map((sort, i) => 
+            i === existingIndex ? { ...sort, direction: sort.direction === 'asc' ? 'desc' : 'asc' } : sort
+          );
         }
-        // Remove if it's a secondary sort
+        // If Shift is pressed and it's a secondary sort, toggle its direction
+        if (existingIndex > 0) {
+          return prev.map((sort, i) => 
+            i === existingIndex ? { ...sort, direction: sort.direction === 'asc' ? 'desc' : 'asc' } : sort
+          );
+        }
+        // Remove if it's a secondary sort with Shift pressed
         return prev.filter(sort => sort.key !== key);
       }
       
