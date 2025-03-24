@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     }
 
     // ✅ Check if the user already exists in the User table
-    let { data: user, error: userError } = await supabase
+    const { data: user, error: userError } = await supabase
       .from("User")
       .select("*")
       .eq("Email", email)

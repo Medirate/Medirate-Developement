@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
       "lh3.googleusercontent.com",
       "www.gravatar.com",
       "gravatar.com",
+      "qpadwftthiuotvnchbvt.supabase.co" // Add your Supabase domain here
     ], // Add the allowed domains here
   },
   eslint: {
