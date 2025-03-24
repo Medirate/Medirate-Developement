@@ -31,7 +31,8 @@ export async function POST(req: Request) {
     }
 
     // ✅ If the user does not exist, create a new user
-    if (!user) {
+    let userData = user;
+    if (!userData) {
       const { data: newUser, error: insertUserError } = await supabase
         .from("User")
         .insert([{ Email: email, FirstName: firstName, LastName: lastName, KindeUserID: kindeId }])
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Failed to create user." }, { status: 500 });
       }
 
-      user = newUser;
+      userData = newUser;
     }
 
     // ✅ If primaryUserEmail exists, link the user as a sub-user
