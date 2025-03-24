@@ -81,35 +81,65 @@ export default function Profile() {
 
   // ✅ Handle Image Upload to Supabase
   const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || event.target.files.length === 0) return;
-    if (!user?.email) {
-      console.error("❌ Cannot upload image: Email is null.");
+    if (!event.target.files || event.target.files.length === 0) {
+      alert("Please select an image file.");
       return;
     }
 
     const file = event.target.files[0];
-    const fileExt = file.name.split(".").pop();
-    const safeEmail = user.email.replace(/[^a-zA-Z0-9]/g, "_"); // Sanitize email for file naming
-    const fileName = safeEmail ? `${safeEmail}.${fileExt}` : `default_profile.${fileExt}`;
-    const filePath = `profile_pictures/${fileName}`;
-
-    // Upload Image to Supabase Storage
-    const { error } = await supabase.storage
-      .from("profile_pictures")
-      .upload(filePath, file, { upsert: true });
-
-    if (error) {
-      console.error("❌ Image Upload Error:", error);
-      alert("Failed to upload image.");
+    
+    // Basic validation
+    if (!file.type.startsWith('image/')) {
+      alert("Please upload a valid image file (JPG, PNG, etc.).");
       return;
     }
 
-    // Get Public URL of the Image
-    const { data } = supabase.storage.from("profile_pictures").getPublicUrl(filePath);
-    setProfilePicture(data.publicUrl);
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      alert("File size must be less than 5MB.");
+      return;
+    }
 
-    // Save to Database
-    await handleSave();
+    // Generate unique filename
+    const fileExt = file.name.split(".").pop();
+    const timestamp = Date.now();
+    const fileName = `profile_${timestamp}.${fileExt}`;
+    const filePath = `profile_pictures/${fileName}`;
+
+    try {
+      // Upload image to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from("profile_pictures")
+        .upload(filePath, file, {
+          contentType: file.type
+        });
+
+      if (uploadError) {
+        console.error("Upload Error:", uploadError);
+        alert(`Failed to upload image: ${uploadError.message}`);
+        return;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from("profile_pictures")
+        .getPublicUrl(filePath);
+
+      // Update local state
+      setProfilePicture(urlData.publicUrl);
+      alert("Profile picture uploaded successfully!");
+      
+      // Optionally update the database if needed
+      if (user?.email) {
+        await supabase
+          .from("User")
+          .update({ Picture: urlData.publicUrl })
+          .eq("Email", user.email);
+      }
+
+    } catch (err) {
+      console.error("Upload failed:", err);
+      alert("An error occurred during upload.");
+    }
   };
 
   return (

@@ -27,7 +27,7 @@ const Navbar = () => {
     picture: undefined,
   });
 
-  // ✅ Fetch user info from Supabase if Gmail login is disabled
+  // ✅ Fetch user info from Supabase
   useEffect(() => {
     if (user && user.email) {
       fetchUserFromSupabase(user.email);
@@ -35,7 +35,6 @@ const Navbar = () => {
   }, [user]);
 
   const fetchUserFromSupabase = async (email: string) => {
-    console.log("Fetching user from Supabase:", email);
     const { data, error } = await supabase
       .from("User")
       .select("FirstName, LastName, Email, Picture")
@@ -99,7 +98,7 @@ const Navbar = () => {
       <nav className="sticky inset-x-0 top-0 z-30 w-full border-b backdrop-blur-lg transition-all" style={navbarStyle}>
         <div className="flex h-[5.5rem] items-center justify-between px-8">
           {/* Wordmark on the Left */}
-          <div className="flex-shrink-0 transform -translate-x-4"> {/* Move 1rem (16px) to the left */}
+          <div className="flex-shrink-0 transform -translate-x-4">
             <Link href="/" className="flex items-center">
               <Image src="/top-black-just-word.png" alt="MediRate Wordmark" width={200} height={80} priority />
             </Link>
@@ -112,44 +111,45 @@ const Navbar = () => {
                 className="relative w-10 h-10 rounded-full overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white"
               >
                 {userInfo.picture ? (
-                  <Image src={userInfo.picture} alt="User Avatar" className="object-cover w-full h-full" fill />
-                ) : (
-                  <Image 
-                    src="https://www.gravatar.com/avatar/default?s=200&d=mp" 
-                    alt="Default Avatar" 
+                  <img 
+                    src={userInfo.picture} 
+                    alt="User Avatar" 
                     className="object-cover w-full h-full" 
-                    width={40}
-                    height={40}
                   />
+                ) : (
+                  <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                    <span className="text-gray-600 text-sm">
+                      {userInfo.name.split(' ').map(n => n[0]).join('')}
+                    </span>
+                  </div>
                 )}
               </button>
               {dropdownOpen && (
-  <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg py-4">
-    <div className="px-4 pb-4 border-b">
-      <p className="text-sm font-medium text-gray-900">{userInfo.name}</p>
-      <p className="text-xs text-gray-500">{userInfo.email}</p>
-    </div>
-    <div className="py-2 border-t">
-      <LogoutLink
-        postLogoutRedirectURL="/"
-        className="w-full flex items-center px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-100"
-        onClick={() => {
-          sessionStorage.clear(); // Clears acceptedTerms and resets session storage
-        }}
-      >
-        <LogOut className="w-5 h-5 mr-2" />
-        Sign Out
-      </LogoutLink>
-    </div>
-  </div>
-)}
-
+                <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg py-4">
+                  <div className="px-4 pb-4 border-b">
+                    <p className="text-sm font-medium text-gray-900">{userInfo.name}</p>
+                    <p className="text-xs text-gray-500">{userInfo.email}</p>
+                  </div>
+                  <div className="py-2 border-t">
+                    <LogoutLink
+                      postLogoutRedirectURL="/"
+                      className="w-full flex items-center px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-100"
+                      onClick={() => {
+                        sessionStorage.clear();
+                      }}
+                    >
+                      <LogOut className="w-5 h-5 mr-2" />
+                      Sign Out
+                    </LogoutLink>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Logo on the Right */}
-          <div className="flex-shrink-0 transform -translate-x-4"> {/* Move 1rem (16px) to the right */}
-          <Image src="/top-black-just-logo.png" alt="MediRate Logo" width={80} height={80} priority />
+          <div className="flex-shrink-0 transform -translate-x-4">
+            <Image src="/top-black-just-logo.png" alt="MediRate Logo" width={80} height={80} priority />
           </div>
         </div>
       </nav>
@@ -160,7 +160,7 @@ const Navbar = () => {
     <nav className="sticky inset-x-0 top-0 z-30 w-full border-b backdrop-blur-lg transition-all" style={navbarStyle}>
       <div className="flex h-[5.5rem] items-center justify-between px-8">
         {/* Wordmark on the Left */}
-        <div className="flex-shrink-0 transform -translate-x-4"> {/* Move 1rem (16px) to the left */}
+        <div className="flex-shrink-0 transform -translate-x-4">
           <Link href="/" className="flex items-center">
             <Image src="/top-black-just-word.png" alt="MediRate Wordmark" width={200} height={80} priority />
           </Link>
@@ -194,7 +194,7 @@ const Navbar = () => {
         </div>
 
         {/* Logo on the Right */}
-        <div className="flex-shrink-0 transform -translate-x-4"> {/* Move 1rem (16px) to the right */}
+        <div className="flex-shrink-0 transform -translate-x-4">
           <Image src="/top-black-just-logo.png" alt="MediRate Logo" width={80} height={80} priority />
         </div>
       </div>
