@@ -951,7 +951,7 @@ export default function Dashboard() {
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
                     onClick={(e) => handleSort('rate_per_hour', e)}
                   >
-                    Rate per Hour <SortIndicator sortKey="rate_per_hour" />
+                    Hourly Equivalent Rate <SortIndicator sortKey="rate_per_hour" />
                   </th>
                   <th 
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"

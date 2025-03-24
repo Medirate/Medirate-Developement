@@ -223,10 +223,29 @@ export default function HistoricalRates() {
         let rateValue = parseFloat(entry.rate.replace('$', '') || '0');
         const durationUnit = entry.duration_unit?.toUpperCase();
 
-        if (durationUnit === '15 MINUTES') {
-          rateValue *= 4;
-        } else if (durationUnit !== 'PER HOUR') {
-          rateValue = 0; // Or handle differently if needed
+        if (showRatePerHour) {
+          if (durationUnit === '15 MINUTES') {
+            rateValue *= 4;
+          } else if (durationUnit !== 'PER HOUR') {
+            return {
+              value: null,
+              displayValue: `Hourly equivalent rates not available as the duration unit is "${durationUnit || 'Unknown'}"`,
+              state: entry.state_name,
+              serviceCode: entry.service_code,
+              program: entry.program,
+              locationRegion: entry.location_region,
+              modifier1: entry.modifier_1,
+              modifier1Details: entry.modifier_1_details,
+              modifier2: entry.modifier_2,
+              modifier2Details: entry.modifier_2_details,
+              modifier3: entry.modifier_3,
+              modifier3Details: entry.modifier_3_details,
+              modifier4: entry.modifier_4,
+              modifier4Details: entry.modifier_4_details,
+              durationUnit: entry.duration_unit,
+              date: formatDate(entry.rate_effective_date)
+            };
+          }
         }
 
         return {
@@ -286,44 +305,36 @@ export default function HistoricalRates() {
                 {/* Service Category Selector */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Service Line</label>
-                  <select
-                    value={selectedServiceCategory}
-                    onChange={(e) => handleServiceCategoryChange(e.target.value)}
-                    className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                    style={{ maxHeight: '200px', overflowY: 'auto' }}
-                  >
-                    <option value="" disabled hidden>Select Service Line</option>
-                    {serviceCategories
+                  <Select
+                    options={serviceCategories
                       .filter(category => {
                         const trimmedCategory = category.trim();
                         return trimmedCategory && 
                                !['HCBS', 'IDD', 'SERVICE CATEGORY'].includes(trimmedCategory);
                       })
-                      .map((category) => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                  </select>
+                      .map(category => ({ value: category, label: category }))}
+                    value={selectedServiceCategory ? { value: selectedServiceCategory, label: selectedServiceCategory } : null}
+                    onChange={(option) => handleServiceCategoryChange(option?.value || "")}
+                    placeholder="Select Service Line"
+                    isSearchable
+                    className="react-select-container"
+                    classNamePrefix="react-select"
+                  />
                 </div>
 
                 {/* State Selector */}
                 {selectedServiceCategory ? (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">State</label>
-                    <select
-                      value={selectedState}
-                      onChange={(e) => handleStateChange(e.target.value)}
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                      style={{ maxHeight: '200px', overflowY: 'auto' }}
-                    >
-                      <option value="" disabled hidden>Select State</option>
-                      {states.map((state) => (
-                        <option key={state} value={state}>
-                          {state}
-                        </option>
-                      ))}
-                    </select>
+                    <Select
+                      options={states.map(state => ({ value: state, label: state }))}
+                      value={selectedState ? { value: selectedState, label: selectedState } : null}
+                      onChange={(option) => handleStateChange(option?.value || "")}
+                      placeholder="Select State"
+                      isSearchable
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                    />
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -338,19 +349,15 @@ export default function HistoricalRates() {
                 {selectedServiceCategory && selectedState ? (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Service Code</label>
-                    <select
-                      value={selectedServiceCode}
-                      onChange={(e) => handleServiceCodeChange(e.target.value)}
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                      style={{ maxHeight: '200px', overflowY: 'auto' }}
-                    >
-                      <option value="" disabled hidden>Select Service Code</option>
-                      {serviceCodes.map((code) => (
-                        <option key={code} value={code}>
-                          {code}
-                        </option>
-                      ))}
-                    </select>
+                    <Select
+                      options={serviceCodes.map(code => ({ value: code, label: code }))}
+                      value={selectedServiceCode ? { value: selectedServiceCode, label: selectedServiceCode } : null}
+                      onChange={(option) => handleServiceCodeChange(option?.value || "")}
+                      placeholder="Select Service Code"
+                      isSearchable
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                    />
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -404,7 +411,7 @@ export default function HistoricalRates() {
                           : 'text-gray-500 hover:bg-gray-200'
                       }`}
                     >
-                      Rate Per Hour
+                      Hourly Equivalent Rate
                     </button>
                   </div>
                 </div>
@@ -416,6 +423,9 @@ export default function HistoricalRates() {
                         trigger: 'axis',
                         formatter: (params: any) => {
                           const data = params[0].data;
+                          if (data.displayValue) {
+                            return data.displayValue;
+                          }
                           const rate = data.value ? `$${data.value.toFixed(2)}` : '-';
                           
                           const modifiers = [
@@ -430,7 +440,7 @@ export default function HistoricalRates() {
                             <b>Service Code:</b> ${data.serviceCode || '-'}<br>
                             <b>Program:</b> ${data.program || '-'}<br>
                             <b>Location/Region:</b> ${data.locationRegion || '-'}<br>
-                            <b>${showRatePerHour ? 'Rate Per Hour' : 'Rate Per Base Unit'}:</b> ${rate}<br>
+                            <b>${showRatePerHour ? 'Hourly Equivalent Rate' : 'Rate Per Base Unit'}:</b> ${rate}<br>
                             <b>Duration Unit:</b> ${data.durationUnit || '-'}<br>
                             <b>Effective Date:</b> ${data.date || '-'}<br>
                             ${modifiers ? `<b>Modifiers:</b><br>${modifiers}` : ''}
@@ -449,7 +459,7 @@ export default function HistoricalRates() {
                       },
                       yAxis: {
                         type: 'value',
-                        name: showRatePerHour ? 'Rate Per Hour ($)' : 'Rate Per Base Unit ($)',
+                        name: showRatePerHour ? 'Hourly Equivalent Rate ($)' : 'Rate Per Base Unit ($)',
                         nameLocation: 'middle',
                         nameGap: 40,
                         scale: true,
@@ -471,6 +481,9 @@ export default function HistoricalRates() {
                             show: true,
                             position: 'top',
                             formatter: (params: any) => {
+                              if (params.data.displayValue) {
+                                return params.data.displayValue;
+                              }
                               return `$${params.value.toFixed(2)}`;
                             },
                             fontSize: 12,
@@ -478,6 +491,19 @@ export default function HistoricalRates() {
                           }
                         }
                       ],
+                      graphic: getGraphData().series.some(data => data.displayValue) ? [
+                        {
+                          type: 'text',
+                          left: 'center',
+                          top: 'middle',
+                          style: {
+                            text: `Hourly equivalent rates not available as the duration unit is "${getGraphData().series.find(data => data.displayValue)?.durationUnit || 'Unknown'}"`,
+                            fontSize: 16,
+                            fontWeight: 'bold',
+                            fill: '#666'
+                          }
+                        }
+                      ] : [],
                       grid: {
                         containLabel: true,
                         left: '10%',
@@ -518,6 +544,9 @@ export default function HistoricalRates() {
                       <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 2</th>
                       <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
                       <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Rate</th>
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Duration Unit</th>
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Hourly Equivalent Rate</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -530,6 +559,10 @@ export default function HistoricalRates() {
                         selectedEntry?.modifier_2 === item.modifier_2 &&
                         selectedEntry?.modifier_3 === item.modifier_3 &&
                         selectedEntry?.modifier_4 === item.modifier_4;
+
+                      const rateValue = parseFloat(item.rate.replace('$', '') || '0');
+                      const durationUnit = item.duration_unit?.toUpperCase();
+                      const hourlyRate = durationUnit === '15 MINUTES' ? rateValue * 4 : rateValue;
 
                       return (
                         <tr 
@@ -580,6 +613,15 @@ export default function HistoricalRates() {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {item.modifier_4 ? (item.modifier_4_details ? `${item.modifier_4} - ${item.modifier_4_details}` : item.modifier_4) : '-'}
                           </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {item.rate || '-'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {item.duration_unit || '-'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {durationUnit === '15 MINUTES' || durationUnit === 'PER HOUR' ? `$${hourlyRate.toFixed(2)}` : 'N/A'}
+                          </td>
                         </tr>
                       );
                     })}
@@ -605,6 +647,24 @@ export default function HistoricalRates() {
             </div>
         )}
       </div>
+
+      {/* Move the style tag inside the return statement */}
+      <style jsx>{`
+        .react-select-container {
+          width: 100%;
+        }
+        .react-select__control {
+          min-height: 42px;
+          border-radius: 0.5rem;
+          border-color: #d1d5db;
+          &:hover {
+            border-color: #d1d5db;
+          }
+        }
+        .react-select__menu {
+          z-index: 10;
+        }
+      `}</style>
     </AppLayout>
   );
 }

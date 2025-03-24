@@ -173,20 +173,10 @@ export default function StatePaymentComparison() {
     setFilterLoading(false);
   };
 
-  const handleStateChange = (selectedOptions: any) => {
-    let selectedStatesArray: string[];
-    
-    if (selectedOptions.find((s: any) => s.value === "all")) {
-      selectedStatesArray = [...new Set(data
-        .filter((item) => item.service_category === selectedServiceCategory)
-        .map((item) => item.state_name))];
-      setSelectedStates(selectedStatesArray);
-      setIsAllStatesSelected(true);
-    } else {
-      selectedStatesArray = selectedOptions.map((s: any) => s.value);
-      setSelectedStates(selectedStatesArray);
-      setIsAllStatesSelected(false);
-    }
+  const handleStateChange = (options: readonly { value: string; label: string }[]) => {
+    const selectedStatesArray = options.map(option => option.value);
+    setSelectedStates(selectedStatesArray);
+    setIsAllStatesSelected(false);
     
     setSelectedServiceCode("");
     setSelectedEntry(null);
@@ -196,7 +186,7 @@ export default function StatePaymentComparison() {
       setTimeout(() => {
         const filteredCodes = data
           .filter((item) => 
-            (isAllStatesSelected || selectedStatesArray.includes(item.state_name)) &&
+            selectedStatesArray.includes(item.state_name) &&
             item.service_category === selectedServiceCategory
           )
           .map((item) => item.service_code);
@@ -827,114 +817,66 @@ export default function StatePaymentComparison() {
                 {/* Service Category Selector */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Service Line</label>
-                  <select 
-                    value={selectedServiceCategory} 
-                    onChange={(e) => handleServiceCategoryChange(e.target.value)} 
-                    className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                  >
-                    <option value="" disabled hidden>Select Service Line</option>
-                    {serviceCategories
+                  <Select
+                    options={serviceCategories
                       .filter(category => {
                         const trimmedCategory = category.trim();
                         return trimmedCategory && 
-                               !['HCBS', 'IDD'].includes(trimmedCategory);
+                               !['HCBS', 'IDD', 'SERVICE CATEGORY'].includes(trimmedCategory);
                       })
-                      .map((category) => (
-                        <option key={category} value={category}>
-                          {category === 'PERSONAL CARE SERVICES (PCA)' ? 'PERSONAL CARE SERVICES (PCS)' : category}
-                        </option>
-                      ))}
-                  </select>
+                      .map(category => ({ value: category, label: category }))}
+                    value={selectedServiceCategory ? { value: selectedServiceCategory, label: selectedServiceCategory } : null}
+                    onChange={(option) => handleServiceCategoryChange(option?.value || "")}
+                    placeholder="Select Service Line"
+                    isSearchable
+                    className="react-select-container"
+                    classNamePrefix="react-select"
+                  />
                 </div>
 
                 {/* State Selector */}
-                {selectedServiceCategory && (
+                {selectedServiceCategory ? (
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">States</label>
+                    <label className="text-sm font-medium text-gray-700">State</label>
                     <Select
+                      options={states.map(state => ({ value: state, label: state }))}
+                      value={selectedStates.map(state => ({ value: state, label: state }))}
+                      onChange={(options) => handleStateChange(options || [])}
+                      placeholder="Select State"
+                      isSearchable
                       isMulti
-                      options={[
-                        { value: "all", label: "Select All States" },
-                        ...states.map((state) => ({ 
-                          value: state, 
-                          label: state 
-                        }))
-                      ]}
-                      value={isAllStatesSelected 
-                        ? [{ value: "all", label: "All States" }]
-                        : selectedStates.map(state => ({
-                            value: state,
-                            label: state
-                          }))
-                      }
-                      onChange={(selectedOptions) => {
-                        handleStateChange(selectedOptions || []);
-                      }}
                       className="react-select-container"
                       classNamePrefix="react-select"
-                      placeholder="Select States"
-                      menuPlacement="auto"
-                      menuPosition="fixed"
-                      maxMenuHeight={200}
-                      styles={{
-                        control: (base) => ({
-                          ...base,
-                          minHeight: '38px',
-                          borderRadius: '0.5rem',
-                          borderColor: '#d1d5db',
-                          '&:hover': {
-                            borderColor: '#3b82f6'
-                          }
-                        }),
-                        menu: (base) => ({
-                          ...base,
-                          position: 'absolute',
-                          zIndex: 9999
-                        })
-                      }}
                     />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">State</label>
+                    <div className="text-gray-400 text-sm">
+                      Select a service line first
+                    </div>
                   </div>
                 )}
 
                 {/* Service Code Selector */}
-                {selectedServiceCategory && (selectedStates.length > 0 || isAllStatesSelected) && serviceCodes.length > 0 ? (
+                {selectedServiceCategory && selectedStates.length > 0 ? (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Service Code</label>
                     <Select
-                      instanceId="service-code-select"
                       options={serviceCodes.map(code => ({ value: code, label: code }))}
                       value={selectedServiceCode ? { value: selectedServiceCode, label: selectedServiceCode } : null}
-                      onChange={(selectedOption) => handleServiceCodeChange(selectedOption?.value || '')}
+                      onChange={(option) => handleServiceCodeChange(option?.value || "")}
                       placeholder="Select Service Code"
                       isSearchable
                       className="react-select-container"
                       classNamePrefix="react-select"
-                      menuPlacement="auto"
-                      menuPosition="fixed"
-                      maxMenuHeight={200}
-                      styles={{
-                        control: (base) => ({
-                          ...base,
-                          minHeight: '38px',
-                          borderRadius: '0.5rem',
-                          borderColor: '#d1d5db',
-                          '&:hover': {
-                            borderColor: '#3b82f6'
-                          }
-                        }),
-                        menu: (base) => ({
-                          ...base,
-                          position: 'absolute',
-                          zIndex: 9999
-                        })
-                      }}
                     />
                   </div>
                 ) : (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Service Code</label>
                     <div className="text-gray-400 text-sm">
-                      {selectedServiceCategory ? "Select states to see available service codes" : "Select a service line first"}
+                      {selectedServiceCategory ? "Select a state to see available service codes" : "Select a service line first"}
                     </div>
                   </div>
                 )}
@@ -1012,7 +954,7 @@ export default function StatePaymentComparison() {
                             : 'text-gray-500 hover:bg-gray-200'
                         }`}
                       >
-                        Rate Per Hour
+                        Hourly Equivalent Rate
                       </button>
                     </div>
 
@@ -1098,9 +1040,8 @@ export default function StatePaymentComparison() {
                                 <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
                                 <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
                                 <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Rate</th>
-                                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Rate per Hour</th>
                                 <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Duration Unit</th>
-                                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Effective Date</th>
+                                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Hourly Equivalent Rate</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
@@ -1108,6 +1049,10 @@ export default function StatePaymentComparison() {
                                 const currentModifierKey = `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}|${item.program}|${item.location_region}`;
                                 const isSelected = selectedModifierKeys.includes(currentModifierKey);
                                 
+                                const rateValue = parseFloat(item.rate.replace('$', '') || '0');
+                                const durationUnit = item.duration_unit?.toUpperCase();
+                                const hourlyRate = durationUnit === '15 MINUTES' ? rateValue * 4 : rateValue;
+
                                 return (
                                   <tr 
                                     key={index} 
@@ -1165,12 +1110,15 @@ export default function StatePaymentComparison() {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                       {item.modifier_4 ? (item.modifier_4_details ? `${item.modifier_4} - ${item.modifier_4_details}` : item.modifier_4) : '-'}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                      {item.rate_per_hour || '-'}
+                                      {item.rate || '-'}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.duration_unit || '-'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(item.rate_effective_date).toLocaleDateString()}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                      {item.duration_unit || '-'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                      {durationUnit === '15 MINUTES' || durationUnit === 'PER HOUR' ? `$${hourlyRate.toFixed(2)}` : 'N/A'}
+                                    </td>
                                   </tr>
                                 );
                               })}
