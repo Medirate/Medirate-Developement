@@ -435,10 +435,10 @@ export default function StatePaymentComparison() {
 
             // Collect modifiers that exist
             const modifiers = [
-              item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || ''}` : null,
-              item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || ''}` : null,
-              item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || ''}` : null,
-              item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || ''}` : null
+              item.modifier_1 ? `${item.modifier_1}${item.modifier_1_details ? ` - ${item.modifier_1_details}` : ''}` : null,
+              item.modifier_2 ? `${item.modifier_2}${item.modifier_2_details ? ` - ${item.modifier_2_details}` : ''}` : null,
+              item.modifier_3 ? `${item.modifier_3}${item.modifier_3_details ? ` - ${item.modifier_3_details}` : ''}` : null,
+              item.modifier_4 ? `${item.modifier_4}${item.modifier_4_details ? ` - ${item.modifier_4_details}` : ''}` : null
             ].filter(Boolean);
 
             const additionalDetails = [
@@ -729,16 +729,16 @@ export default function StatePaymentComparison() {
                     <td className="px-4 py-2">{entry.program}</td>
                     <td className="px-4 py-2">{entry.location_region}</td>
                     <td className="px-4 py-2">
-                      {entry.modifier_1 || '-'}
+                      {entry.modifier_1 ? `${entry.modifier_1}${entry.modifier_1_details ? ` - ${entry.modifier_1_details}` : ''}` : '-'}
                     </td>
                     <td className="px-4 py-2">
-                      {entry.modifier_2 || '-'}
+                      {entry.modifier_2 ? `${entry.modifier_2}${entry.modifier_2_details ? ` - ${entry.modifier_2_details}` : ''}` : '-'}
                     </td>
                     <td className="px-4 py-2">
-                      {entry.modifier_3 || '-'}
+                      {entry.modifier_3 ? `${entry.modifier_3}${entry.modifier_3_details ? ` - ${entry.modifier_3_details}` : ''}` : '-'}
                     </td>
                     <td className="px-4 py-2">
-                      {entry.modifier_4 || '-'}
+                      {entry.modifier_4 ? `${entry.modifier_4}${entry.modifier_4_details ? ` - ${entry.modifier_4_details}` : ''}` : '-'}
                     </td>
                     <td className="px-4 py-2">
                       ${showRatePerHour 
@@ -1257,22 +1257,22 @@ export default function StatePaymentComparison() {
                                     )}
                                     {getVisibleColumns.modifier_1 && (
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {item.modifier_1 || '-'}
+                                        {item.modifier_1 ? `${item.modifier_1}${item.modifier_1_details ? ` - ${item.modifier_1_details}` : ''}` : '-'}
                                       </td>
                                     )}
                                     {getVisibleColumns.modifier_2 && (
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {item.modifier_2 || '-'}
+                                        {item.modifier_2 ? `${item.modifier_2}${item.modifier_2_details ? ` - ${item.modifier_2_details}` : ''}` : '-'}
                                       </td>
                                     )}
                                     {getVisibleColumns.modifier_3 && (
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {item.modifier_3 || '-'}
+                                        {item.modifier_3 ? `${item.modifier_3}${item.modifier_3_details ? ` - ${item.modifier_3_details}` : ''}` : '-'}
                                       </td>
                                     )}
                                     {getVisibleColumns.modifier_4 && (
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {item.modifier_4 || '-'}
+                                        {item.modifier_4 ? `${item.modifier_4}${item.modifier_4_details ? ` - ${item.modifier_4_details}` : ''}` : '-'}
                                       </td>
                                     )}
                                     {getVisibleColumns.duration_unit && (

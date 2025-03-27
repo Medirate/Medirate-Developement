@@ -391,10 +391,10 @@ export default function Dashboard() {
     setLocationRegions([...new Set(filteredData.map(item => item.location_region || ''))]);
     
     const allModifiers = filteredData.flatMap(item => [
-      item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : null,
-      item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : null,
-      item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || 'No details'}` : null,
-      item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : null
+      item.modifier_1 ? `${item.modifier_1}${item.modifier_1_details ? ` - ${item.modifier_1_details}` : ''}` : null,
+      item.modifier_2 ? `${item.modifier_2}${item.modifier_2_details ? ` - ${item.modifier_2_details}` : ''}` : null,
+      item.modifier_3 ? `${item.modifier_3}${item.modifier_3_details ? ` - ${item.modifier_3_details}` : ''}` : null,
+      item.modifier_4 ? `${item.modifier_4}${item.modifier_4_details ? ` - ${item.modifier_4_details}` : ''}` : null
     ]).filter(Boolean);
     setModifiers([...new Set(allModifiers)].map(modifier => ({
       value: modifier || '',
@@ -418,10 +418,10 @@ export default function Dashboard() {
     setLocationRegions([...new Set(filteredData.map(item => item.location_region || ''))]);
     
     const allModifiers = filteredData.flatMap(item => [
-      item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : null,
-      item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : null,
-      item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || 'No details'}` : null,
-      item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : null
+      item.modifier_1 ? `${item.modifier_1}${item.modifier_1_details ? ` - ${item.modifier_1_details}` : ''}` : null,
+      item.modifier_2 ? `${item.modifier_2}${item.modifier_2_details ? ` - ${item.modifier_2_details}` : ''}` : null,
+      item.modifier_3 ? `${item.modifier_3}${item.modifier_3_details ? ` - ${item.modifier_3_details}` : ''}` : null,
+      item.modifier_4 ? `${item.modifier_4}${item.modifier_4_details ? ` - ${item.modifier_4_details}` : ''}` : null
     ]).filter(Boolean);
     setModifiers([...new Set(allModifiers)].map(modifier => ({
       value: modifier || '',
@@ -836,125 +836,33 @@ export default function Dashboard() {
             <table className="min-w-full">
               <thead className="bg-gray-50 sticky top-[5.5rem] z-20">
                 <tr>
-                    {getVisibleColumns.state_name && (
-                  <th 
-                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable relative group"
-                    onClick={(e) => handleSort('state_name', e)}
-                  >
-                    State <SortIndicator sortKey="state_name" />
-                  </th>
-                    )}
-                    {getVisibleColumns.service_category && (
-                  <th 
-                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
-                    onClick={(e) => handleSort('service_category', e)}
-                  >
-                    Service Category <SortIndicator sortKey="service_category" />
-                  </th>
-                    )}
-                    {getVisibleColumns.service_code && (
-                  <th 
-                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
-                    onClick={(e) => handleSort('service_code', e)}
-                  >
-                    Service Code <SortIndicator sortKey="service_code" />
-                  </th>
-                    )}
-                    {getVisibleColumns.service_description && (
-                  <th 
-                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
-                    onClick={(e) => handleSort('service_description', e)}
-                  >
-                    Service Description <SortIndicator sortKey="service_description" />
-                  </th>
-                    )}
-                    {getVisibleColumns.duration_unit && (
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Duration Unit</th>
-                    )}
-                    {getVisibleColumns.rate && (
-                  <th 
-                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
-                    onClick={(e) => handleSort('rate', e)}
-                  >
-                    Rate per Base Unit <SortIndicator sortKey="rate" />
-                  </th>
-                    )}
-                    {getVisibleColumns.rate_per_hour && (
-                  <th 
-                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
-                    onClick={(e) => handleSort('rate_per_hour', e)}
-                  >
-                    Hourly Equivalent Rate <SortIndicator sortKey="rate_per_hour" />
-                  </th>
-                    )}
-                    {getVisibleColumns.rate_effective_date && (
-                  <th 
-                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
-                    onClick={(e) => handleSort('rate_effective_date', e)}
-                  >
-                    Effective Date <SortIndicator sortKey="rate_effective_date" />
-                  </th>
-                    )}
-                    {getVisibleColumns.program && (
-                  <th 
-                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
-                    onClick={(e) => handleSort('program', e)}
-                  >
-                    Program <SortIndicator sortKey="program" />
-                  </th>
-                    )}
-                    {getVisibleColumns.location_region && (
-                  <th 
-                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
-                    onClick={(e) => handleSort('location_region', e)}
-                  >
-                    Location/Region <SortIndicator sortKey="location_region" />
-                  </th>
-                    )}
-                    {getVisibleColumns.modifier_1 && (
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 1</th>
-                    )}
-                    {getVisibleColumns.modifier_2 && (
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 2</th>
-                    )}
-                    {getVisibleColumns.modifier_3 && (
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
-                    )}
-                    {getVisibleColumns.modifier_4 && (
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
-                    )}
+                  {getVisibleColumns.state_name && <th>State</th>}
+                  {getVisibleColumns.service_category && <th>Service Category</th>}
+                  {getVisibleColumns.service_code && <th>Service Code</th>}
+                  {getVisibleColumns.service_description && <th>Service Description</th>}
+                  {getVisibleColumns.duration_unit && <th>Duration Unit</th>}
+                  {getVisibleColumns.rate && <th>Rate per Base Unit</th>}
+                  {getVisibleColumns.rate_per_hour && <th>Hourly Equivalent Rate</th>}
+                  {getVisibleColumns.modifier_1 && <th>Modifier 1</th>}
+                  {getVisibleColumns.modifier_2 && <th>Modifier 2</th>}
+                  {getVisibleColumns.modifier_3 && <th>Modifier 3</th>}
+                  {getVisibleColumns.modifier_4 && <th>Modifier 4</th>}
+                  {getVisibleColumns.rate_effective_date && <th>Effective Date</th>}
+                  {getVisibleColumns.program && <th>Program</th>}
+                  {getVisibleColumns.location_region && <th>Location/Region</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {sortedData.map((item, index) => (
-                  <tr 
-                    key={index} 
-                    className={`hover:bg-gray-50 transition-colors ${
-                      sortConfig.some(sort => sort.key === 'state_name') ? 'bg-blue-50' : ''
-                    }`}
-                  >
-                      {getVisibleColumns.state_name && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.state_name)}</td>
-                      )}
-                      {getVisibleColumns.service_category && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.service_category)}</td>
-                      )}
-                      {getVisibleColumns.service_code && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.service_code)}</td>
-                      )}
-                      {getVisibleColumns.service_description && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.service_description)}</td>
-                      )}
-                      {getVisibleColumns.duration_unit && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.duration_unit || '-'}</td>
-                      )}
-                      {getVisibleColumns.rate && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.rate || '-'}
-                    </td>
-                      )}
-                      {getVisibleColumns.rate_per_hour && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <tr key={index}>
+                    {getVisibleColumns.state_name && <td>{formatText(item.state_name)}</td>}
+                    {getVisibleColumns.service_category && <td>{formatText(item.service_category)}</td>}
+                    {getVisibleColumns.service_code && <td>{formatText(item.service_code)}</td>}
+                    {getVisibleColumns.service_description && <td>{formatText(item.service_description)}</td>}
+                    {getVisibleColumns.duration_unit && <td>{item.duration_unit || '-'}</td>}
+                    {getVisibleColumns.rate && <td>{item.rate || '-'}</td>}
+                    {getVisibleColumns.rate_per_hour && (
+                      <td>
                       {(() => {
                         const rateStr = (item.rate || '').replace('$', '');
                         const rate = parseFloat(rateStr);
@@ -964,46 +872,38 @@ export default function Dashboard() {
                         
                         if (durationUnit === '15 MINUTES') {
                           return `$${(rate * 4).toFixed(2)}`;
-                        } else if (durationUnit === '30 MINUTES') {
-                          return `$${(rate * 2).toFixed(2)}`;
+                          } else if (durationUnit === '30 MINUTES') {
+                            return `$${(rate * 2).toFixed(2)}`;
                         } else if (durationUnit === 'PER HOUR') {
                           return `$${rate.toFixed(2)}`;
                         }
-                        return 'N/A';
+                          return 'N/A';
                       })()}
                     </td>
-                      )}
-                      {getVisibleColumns.rate_effective_date && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.rate_effective_date ? new Date(item.rate_effective_date).toLocaleDateString() : '-'}
+                    )}
+                    {getVisibleColumns.modifier_1 && (
+                      <td>
+                        {item.modifier_1 ? `${item.modifier_1}${item.modifier_1_details ? ` - ${item.modifier_1_details}` : ''}` : '-'}
                     </td>
-                      )}
-                      {getVisibleColumns.program && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.program)}</td>
-                      )}
-                      {getVisibleColumns.location_region && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.location_region)}</td>
-                      )}
-                      {getVisibleColumns.modifier_1 && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.modifier_1 || '-'}
+                    )}
+                    {getVisibleColumns.modifier_2 && (
+                      <td>
+                        {item.modifier_2 ? `${item.modifier_2}${item.modifier_2_details ? ` - ${item.modifier_2_details}` : ''}` : '-'}
                     </td>
-                      )}
-                      {getVisibleColumns.modifier_2 && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.modifier_2 || '-'}
+                    )}
+                    {getVisibleColumns.modifier_3 && (
+                      <td>
+                        {item.modifier_3 ? `${item.modifier_3}${item.modifier_3_details ? ` - ${item.modifier_3_details}` : ''}` : '-'}
                     </td>
-                      )}
-                      {getVisibleColumns.modifier_3 && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.modifier_3 || '-'}
+                    )}
+                    {getVisibleColumns.modifier_4 && (
+                      <td>
+                        {item.modifier_4 ? `${item.modifier_4}${item.modifier_4_details ? ` - ${item.modifier_4_details}` : ''}` : '-'}
                     </td>
-                      )}
-                      {getVisibleColumns.modifier_4 && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.modifier_4 || '-'}
-                    </td>
-                      )}
+                    )}
+                    {getVisibleColumns.rate_effective_date && <td>{item.rate_effective_date ? new Date(item.rate_effective_date).toLocaleDateString() : '-'}</td>}
+                    {getVisibleColumns.program && <td>{formatText(item.program)}</td>}
+                    {getVisibleColumns.location_region && <td>{formatText(item.location_region)}</td>}
                   </tr>
                 ))}
               </tbody>
