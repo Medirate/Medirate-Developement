@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import SideNav from "@/app/components/sidenav";
 import Footer from "@/app/components/footer";
+import CodeDefinitionsIcon from "@/app/components/CodeDefinitionsIcon";
+import TermsModal from "@/app/components/TermsModal";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -59,6 +61,12 @@ const AppLayout = ({ children, activeTab }: AppLayoutProps) => {
           </div>
         </main>
       </div>
+
+      {/* Code Definitions Icon */}
+      <CodeDefinitionsIcon />
+
+      {/* Terms and Conditions Modal */}
+      <TermsModal />
 
       {/* Footer */}
       <Footer />

@@ -6,6 +6,8 @@ import { FaSpinner, FaExclamationCircle, FaChevronDown, FaFilter } from 'react-i
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useData, ServiceData } from "@/context/DataContext";
+import CodeDefinitionsIcon from '@/app/components/CodeDefinitionsIcon';
+import Select from 'react-select';
 
 // Update the useClickOutside hook to use HTMLDivElement
 const useClickOutside = (ref: React.RefObject<HTMLDivElement | null>, callback: () => void) => {
@@ -21,6 +23,25 @@ const useClickOutside = (ref: React.RefObject<HTMLDivElement | null>, callback: 
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [ref, callback]);
+};
+
+const FilterNote = ({ step }: { step: number }) => {
+  const messages = [
+    "Please select a Service Line to begin filtering",
+    "Now select a State to continue",
+    "Select a Service Code and/or Service Description to complete filtering"
+  ];
+
+  // Don't show message if we're past step 3
+  if (step > 3) return null;
+
+  return (
+    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+      <p className="text-sm text-blue-700">
+        {messages[step - 1]}
+      </p>
+    </div>
+  );
 };
 
 export default function Dashboard() {
@@ -79,6 +100,13 @@ export default function Dashboard() {
 
   const areFiltersApplied = selectedState;
 
+  // Add new state for selected year
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+
+  // Add a state to track the current step
+  const [filterStep, setFilterStep] = useState(1);
+
+  // Update the filteredData calculation to include year filter
   const filteredData = useMemo(() => {
     if (!areFiltersApplied) return [];
     
@@ -86,6 +114,9 @@ export default function Dashboard() {
       // Date filter
       const effectiveDate = new Date(item.rate_effective_date);
       if (effectiveDate < startDate || effectiveDate > endDate) return false;
+
+      // Year filter
+      if (selectedYear && effectiveDate.getFullYear() !== selectedYear) return false;
 
       // Required filter
       if (item.state_name !== selectedState) return false;
@@ -111,6 +142,7 @@ export default function Dashboard() {
     data,
     startDate,
     endDate,
+    selectedYear,
     selectedState,
     selectedServiceCategory,
     selectedServiceCode,
@@ -246,7 +278,7 @@ export default function Dashboard() {
     if (data.length > 0) {
       extractFilters(data);
     }
-  }, [selectedServiceCategory, selectedState, selectedServiceCode, data]);
+  }, [data]);
 
   useEffect(() => {
     console.log('Total data:', data.length);
@@ -267,54 +299,17 @@ export default function Dashboard() {
   };
 
   const extractFilters = (data: ServiceData[]) => {
-    let filteredData = data;
-    
-    // Apply all active filters
-    if (selectedServiceCategory) {
-      filteredData = filteredData.filter(item => item.service_category === selectedServiceCategory);
-    }
-    if (selectedState) {
-      filteredData = filteredData.filter(item => item.state_name === selectedState);
-    }
-    if (selectedServiceCode) {
-      filteredData = filteredData.filter(item => item.service_code === selectedServiceCode);
-    }
-    
-    // Update all filter options based on the filtered data
-    setServiceCategories([...new Set(data.map(item => item.service_category))]);
-    setStates([...new Set(data.map(item => item.state_name))]);
-    
-    // Sort service codes: numbers first (ascending), then letters (alphabetical)
-    const sortedServiceCodes = [...new Set(filteredData.map(item => item.service_code))].sort((a, b) => {
-      const isANumber = !isNaN(Number(a));
-      const isBNumber = !isNaN(Number(b));
-      
-      if (isANumber && isBNumber) {
-        return Number(a) - Number(b); // Sort numbers in ascending order
-      } else if (isANumber) {
-        return -1; // Numbers come before letters
-      } else if (isBNumber) {
-        return 1; // Letters come after numbers
-      } else {
-        return a.localeCompare(b); // Sort letters alphabetically
-      }
-    });
-    setServiceCodes(sortedServiceCodes);
-    
-    setServiceDescriptions([...new Set(filteredData.map(item => item.service_description || ''))]);
-    setPrograms([...new Set(filteredData.map(item => item.program || ''))]);
-    setLocationRegions([...new Set(filteredData.map(item => item.location_region || ''))]);
-    
-    const allModifiers = filteredData.flatMap(item => [
-      item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : null,
-      item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : null,
-      item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || 'No details'}` : null,
-      item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : null
-    ]).filter(Boolean);
-    setModifiers([...new Set(allModifiers)].map(modifier => ({
-      value: modifier || '',
-      label: modifier || ''
-    })));
+    // Get service categories
+    const categories = data
+      .map((item) => item.service_category?.trim())
+      .filter((category): category is string => !!category);
+    setServiceCategories([...new Set(categories)].sort((a, b) => a.localeCompare(b)));
+
+    // Get states
+    const states = data
+      .map((item) => item.state_name?.trim().toUpperCase())
+      .filter((state): state is string => !!state);
+    setStates([...new Set(states)].sort((a, b) => a.localeCompare(b)));
   };
 
   const toggleDropdown = (dropdownSetter: React.Dispatch<React.SetStateAction<boolean>>, otherSetters: React.Dispatch<React.SetStateAction<boolean>>[]) => {
@@ -328,78 +323,100 @@ export default function Dashboard() {
     setSelectedServiceCategory(category);
     setSelectedState("");
     setSelectedServiceCode("");
+    setSelectedServiceDescription("");
     setSelectedProgram("");
     setSelectedLocationRegion("");
     setSelectedModifier("");
+    setFilterStep(2);
 
     // Filter data based on selected category
     const filteredData = data.filter(item => item.service_category === category);
     
     // Update all filter options based on filtered data
-    setStates([...new Set(filteredData.map(item => item.state_name))]);
-    setServiceCodes([...new Set(filteredData.map(item => item.service_code))]);
-    setPrograms([...new Set(filteredData.map(item => item.program || ''))]);
-    setLocationRegions([...new Set(filteredData.map(item => item.location_region || ''))]);
-    
-    // Update modifiers
-    const allModifiers = filteredData.flatMap(item => [
-      item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : null,
-      item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : null,
-      item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || 'No details'}` : null,
-      item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : null
-    ]).filter(Boolean);
-    setModifiers([...new Set(allModifiers)].map(modifier => ({
-      value: modifier || '',
-      label: modifier || ''
-    })));
+    setStates([...new Set(filteredData
+      .map(item => item.state_name?.toUpperCase())
+      .filter((state): state is string => !!state)
+    )].sort((a, b) => a.localeCompare(b)));
+    setServiceCodes([]);
+    setServiceDescriptions([]);
+    setPrograms([]);
+    setLocationRegions([]);
+    setModifiers([]);
   };
 
   const handleStateChange = (state: string) => {
-    setSelectedState(state);
+    setSelectedState(state.toUpperCase());
     setSelectedServiceCode("");
+    setSelectedServiceDescription("");
     setSelectedProgram("");
     setSelectedLocationRegion("");
     setSelectedModifier("");
+    setFilterStep(3);
 
-    // Filter data based on selected state
-    const filteredData = data.filter(item => item.state_name === state);
-    
-    // Update filter options based on the selected state
-    setServiceCodes([...new Set(filteredData.map(item => item.service_code))]);
-    setPrograms([...new Set(filteredData.map(item => item.program || ''))]);
-    setLocationRegions([...new Set(filteredData.map(item => item.location_region || ''))]);
-    
-    // Update modifiers
-    const allModifiers = filteredData.flatMap(item => [
-      item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : null,
-      item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : null,
-      item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || 'No details'}` : null,
-      item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : null
-    ]).filter(Boolean);
-    setModifiers([...new Set(allModifiers)].map(modifier => ({
-      value: modifier || '',
-      label: modifier || ''
-    })));
+    if (selectedServiceCategory) {
+      const filteredData = data.filter(item => 
+        item.state_name?.toUpperCase() === state.toUpperCase() &&
+        item.service_category === selectedServiceCategory
+      );
+      
+      setServiceCodes([...new Set(filteredData
+        .map(item => item.service_code)
+        .filter((code): code is string => !!code)
+      )].sort((a, b) => a.localeCompare(b)));
+      setServiceDescriptions([...new Set(filteredData
+        .map(item => item.service_description)
+        .filter((desc): desc is string => !!desc)
+      )].sort((a, b) => a.localeCompare(b)));
+      
+      // Don't set programs, locationRegions, or modifiers yet
+      setPrograms([]);
+      setLocationRegions([]);
+      setModifiers([]);
+    }
   };
 
   const handleServiceCodeChange = (code: string) => {
     setSelectedServiceCode(code);
-    setSelectedProgram("");
-    setSelectedLocationRegion("");
-    setSelectedModifier("");
+    // Don't clear service description anymore
+    setFilterStep(4); // Move to next step
 
-    // Filter data based on previous selections
+    // Now we can populate the additional filters
     const filteredData = data.filter(item => 
       item.service_category === selectedServiceCategory &&
       item.state_name === selectedState &&
       item.service_code === code
     );
     
-    // Update filter options
     setPrograms([...new Set(filteredData.map(item => item.program || ''))]);
     setLocationRegions([...new Set(filteredData.map(item => item.location_region || ''))]);
     
-    // Update modifiers
+    const allModifiers = filteredData.flatMap(item => [
+      item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : null,
+      item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : null,
+      item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || 'No details'}` : null,
+      item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : null
+    ]).filter(Boolean);
+    setModifiers([...new Set(allModifiers)].map(modifier => ({
+      value: modifier || '',
+      label: modifier || ''
+    })));
+  };
+
+  const handleServiceDescriptionChange = (desc: string) => {
+    setSelectedServiceDescription(desc);
+    // Don't clear service code anymore
+    setFilterStep(4); // Move to next step
+
+    // Now we can populate the additional filters
+    const filteredData = data.filter(item => 
+      item.service_category === selectedServiceCategory &&
+      item.state_name === selectedState &&
+      item.service_description === desc
+    );
+    
+    setPrograms([...new Set(filteredData.map(item => item.program || ''))]);
+    setLocationRegions([...new Set(filteredData.map(item => item.location_region || ''))]);
+    
     const allModifiers = filteredData.flatMap(item => [
       item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : null,
       item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : null,
@@ -421,7 +438,7 @@ export default function Dashboard() {
     </button>
   );
 
-  // Add a resetFilters function
+  // Update the resetFilters function to reset the filter step
   const resetFilters = () => {
     setSelectedServiceCategory("");
     setSelectedState("");
@@ -435,6 +452,7 @@ export default function Dashboard() {
     setPrograms([]);
     setLocationRegions([]);
     setModifiers([]);
+    setFilterStep(1); // Reset to the first step
   };
 
   // Update the dropdown selection logic
@@ -475,8 +493,73 @@ export default function Dashboard() {
     setShowModifierDropdown(false);
   };
 
+  // Update the handleYearSelect function
+  const handleYearSelect = (year: number) => {
+    if (selectedYear === year) {
+      // If clicking the same year, reset to default date range
+      setSelectedYear(null);
+      setStartDate(new Date(2000, 0, 1));
+      setEndDate(new Date());
+    } else {
+      // Set the selected year and update date range
+      setSelectedYear(year);
+      setStartDate(new Date(year, 0, 1)); // January 1st of selected year
+      setEndDate(new Date(year, 11, 31)); // December 31st of selected year
+    }
+  };
+
+  // Update the getVisibleColumns function
+  const getVisibleColumns = useMemo(() => {
+    const columns = {
+      state_name: false,
+      service_category: false,
+      service_code: false,
+      service_description: false,
+      program: false,
+      location_region: false,
+      modifier_1: false,
+      modifier_2: false,
+      modifier_3: false,
+      modifier_4: false,
+      duration_unit: false,
+      rate: false,
+      rate_per_hour: false,
+      rate_effective_date: false
+    };
+
+    if (filteredData.length > 0) {
+      filteredData.forEach(item => {
+        const rateStr = (item.rate || '').replace('$', '');
+        const rate = parseFloat(rateStr);
+        const durationUnit = item.duration_unit?.toUpperCase();
+        
+        if (!isNaN(rate) && 
+            (durationUnit === '15 MINUTES' || 
+             durationUnit === '30 MINUTES' || 
+             durationUnit === 'PER HOUR')) {
+          columns.rate_per_hour = true;
+        }
+        
+        Object.keys(columns).forEach((key) => {
+          const columnKey = key as keyof typeof columns;
+          if (item[columnKey] && item[columnKey] !== '-') {
+            columns[columnKey] = true;
+          }
+        });
+      });
+    }
+
+    return columns;
+  }, [filteredData]);
+
+  // Create a utility function to format text
+  const formatText = (text: string | null | undefined) => {
+    return text ? text.toUpperCase() : '-';
+  };
+
   return (
     <AppLayout activeTab="dashboard">
+      <CodeDefinitionsIcon />
       <div className="p-4 sm:p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
         {/* Error Message */}
         <ErrorMessage error={error} />
@@ -486,8 +569,9 @@ export default function Dashboard() {
           <h1 className="text-3xl sm:text-5xl md:text-6xl text-[#012C61] font-lemonMilkRegular uppercase mb-3 sm:mb-0">
             Dashboard
           </h1>
+          <div className="flex flex-col items-end">
           {/* Date Range Filter */}
-          <div className="flex space-x-4">
+            <div className="flex space-x-4 mb-4">
             <div className="relative">
               <label className="block text-sm font-medium text-[#012C61] mb-2">Start Date</label>
               <DatePicker
@@ -512,355 +596,193 @@ export default function Dashboard() {
               />
             </div>
           </div>
+            {/* Year Filter Buttons */}
+            <div className="flex space-x-4">
+              {[2022, 2023, 2024].map(year => (
+                <button
+                  key={year}
+                  onClick={() => handleYearSelect(year)}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    selectedYear === year
+                      ? 'bg-[#012C61] text-white'
+                      : 'bg-white text-[#012C61] border border-[#012C61] hover:bg-[#012C61] hover:text-white'
+                  }`}
+                >
+                  {year}
+                </button>
+              ))}
         </div>
+          </div>
+        </div>
+
+        {/* Reset Filters Button */}
         <button
-          onClick={resetFilters}
+          onClick={() => {
+            resetFilters();
+            setSelectedYear(null);
+          }}
           className="px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base bg-[#012C61] text-white rounded-lg hover:bg-blue-800 transition-colors mt-4 sm:mt-0 mb-4"
         >
           Reset All Filters
         </button>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          {/* Service Category */}
-          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow" ref={serviceCategoryRef}>
-            <input
-              type="text"
-              value={selectedServiceCategory || ''}
-              onChange={(e) => setSelectedServiceCategory(e.target.value)}
-              placeholder="Search Service Category..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
-            />
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                toggleDropdown(setShowServiceCategoryDropdown, [
-                  setShowStateDropdown,
-                  setShowServiceCodeDropdown,
-                  setShowServiceDescriptionDropdown,
-                  setShowProgramDropdown,
-                  setShowLocationRegionDropdown,
-                  setShowModifierDropdown
-                ]);
-              }}
-              className="absolute right-5 top-1/3 transform -translate-y-1/3 text-gray-500 hover:text-gray-700"
-            >
-              <FaChevronDown />
-            </button>
-            {showServiceCategoryDropdown && (
-              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {serviceCategories
-                  .filter(category => !['HCBS', 'IDD'].includes(category))
-                  .filter((category) =>
-                    (category || '').toLowerCase().includes((selectedServiceCategory || '').toLowerCase())
-                  )
-                  .map((category) => (
-                    <div
-                      key={category}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        handleDropdownSelection(setSelectedServiceCategory, category, 'serviceCategory');
-                      }}
-                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#004aad]"
-                    >
-                      {category}
-                    </div>
-                  ))}
-              </div>
-            )}
-            <ClearButton onClick={() => setSelectedServiceCategory("")} />
+        <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg relative z-40">
+          <FilterNote step={filterStep} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+            {/* Service Category Selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Service Line</label>
+              <Select
+                options={serviceCategories
+                  .filter(category => {
+                    const trimmedCategory = category.trim();
+                    return trimmedCategory && 
+                           !['HCBS', 'IDD', 'SERVICE CATEGORY'].includes(trimmedCategory);
+                  })
+                  .map(category => ({ value: category, label: category }))}
+                value={selectedServiceCategory ? { value: selectedServiceCategory, label: selectedServiceCategory } : null}
+                onChange={(option) => handleServiceCategoryChange(option?.value || "")}
+                placeholder="Select Service Line"
+                isSearchable
+                className="react-select-container"
+                classNamePrefix="react-select"
+              />
+              {selectedServiceCategory && (
+                <ClearButton onClick={() => handleServiceCategoryChange("")} />
+              )}
           </div>
 
-          {/* State */}
-          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow" ref={stateRef}>
-            <input
-              type="text"
-              value={selectedState}
-              onChange={(e) => setSelectedState(e.target.value)}
-              placeholder="Search State..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
-            />
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                toggleDropdown(setShowStateDropdown, [
-                  setShowServiceCategoryDropdown,
-                  setShowServiceCodeDropdown,
-                  setShowServiceDescriptionDropdown,
-                  setShowProgramDropdown,
-                  setShowLocationRegionDropdown,
-                  setShowModifierDropdown
-                ]);
-              }}
-              className="absolute right-5 top-1/3 transform -translate-y-1/3 text-gray-500 hover:text-gray-700"
-            >
-              <FaChevronDown />
-            </button>
-            {showStateDropdown && (
-              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {states
-                  .filter((state) =>
-                    (state || '').toLowerCase().includes((selectedState || '').toLowerCase())
-                  )
-                  .map((state) => (
-                    <div
-                      key={state}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        handleDropdownSelection(setSelectedState, state, 'state');
-                      }}
-                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                    >
-                      {state}
-                    </div>
-                  ))}
-              </div>
-            )}
-            <ClearButton onClick={() => setSelectedState("")} />
+            {/* State Selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">State</label>
+              <Select
+                options={states.map(state => ({ value: state, label: state }))}
+                value={selectedState ? { value: selectedState, label: selectedState } : null}
+                onChange={(option) => handleStateChange(option?.value || "")}
+                placeholder="Select State"
+                isSearchable
+                isDisabled={!selectedServiceCategory}
+                className={`react-select-container ${!selectedServiceCategory ? 'opacity-50' : ''}`}
+                classNamePrefix="react-select"
+              />
+              {selectedState && (
+                <ClearButton onClick={() => handleStateChange("")} />
+              )}
           </div>
 
-          {/* Service Code */}
-          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow" ref={serviceCodeRef}>
-            <input
-              type="text"
-              value={selectedServiceCode}
-              onChange={(e) => setSelectedServiceCode(e.target.value)}
-              placeholder="Search Service Code..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
-            />
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                toggleDropdown(setShowServiceCodeDropdown, [
-                  setShowServiceCategoryDropdown,
-                  setShowStateDropdown,
-                  setShowServiceDescriptionDropdown,
-                  setShowProgramDropdown,
-                  setShowLocationRegionDropdown,
-                  setShowModifierDropdown
-                ]);
-              }}
-              className="absolute right-5 top-1/3 transform -translate-y-1/3 text-gray-500 hover:text-gray-700"
-            >
-              <FaChevronDown />
-            </button>
-            {showServiceCodeDropdown && (
-              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {serviceCodes
-                  .filter((code) =>
-                    (code || '').toLowerCase().includes((selectedServiceCode || '').toLowerCase())
-                  )
-                  .map((code) => (
-                    <div
-                      key={code}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        handleDropdownSelection(setSelectedServiceCode, code, 'serviceCode');
-                      }}
-                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                    >
-                      {code}
-                    </div>
-                  ))}
-              </div>
-            )}
-            <ClearButton onClick={() => setSelectedServiceCode("")} />
+            {/* Service Code Selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Service Code</label>
+              <Select
+                options={serviceCodes.map(code => ({ value: code, label: code }))}
+                value={selectedServiceCode ? { value: selectedServiceCode, label: selectedServiceCode } : null}
+                onChange={(option) => {
+                  setSelectedServiceCode(option?.value || "");
+                  setSelectedServiceDescription("");
+                  if (option?.value) {
+                    handleServiceCodeChange(option.value);
+                  }
+                }}
+                placeholder="Select Service Code"
+                isSearchable
+                isDisabled={!selectedState}
+                className={`react-select-container ${!selectedState ? 'opacity-50' : ''}`}
+                classNamePrefix="react-select"
+              />
+              {selectedServiceCode && (
+                <ClearButton onClick={() => {
+                  setSelectedServiceCode("");
+                  handleServiceCodeChange("");
+                }} />
+              )}
           </div>
 
-          {/* Modifier */}
-          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow" ref={modifierRef}>
-            <input
-              type="text"
-              value={selectedModifier}
-              onChange={(e) => setSelectedModifier(e.target.value)}
-              placeholder="Search Modifier..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
-            />
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                toggleDropdown(setShowModifierDropdown, [
-                  setShowServiceCategoryDropdown,
-                  setShowStateDropdown,
-                  setShowServiceCodeDropdown,
-                  setShowServiceDescriptionDropdown,
-                  setShowProgramDropdown,
-                  setShowLocationRegionDropdown
-                ]);
-              }}
-              className="absolute right-5 top-1/3 transform -translate-y-1/3 text-gray-500 hover:text-gray-700"
-            >
-              <FaChevronDown />
-            </button>
-            {showModifierDropdown && (
-              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {modifiers
-                  .filter((modifier) =>
-                    (modifier.label || '').toLowerCase().includes((selectedModifier || '').toLowerCase())
-                  )
-                  .map((modifier) => (
-                    <div
-                      key={modifier.value}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        handleDropdownSelection(setSelectedModifier, modifier.value, 'modifier');
-                      }}
-                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                    >
-                      {modifier.label}
-                    </div>
-                  ))}
-              </div>
-            )}
-            <ClearButton onClick={() => setSelectedModifier("")} />
+            {/* Service Description Selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Service Description</label>
+              <Select
+                options={serviceDescriptions.map(desc => ({ value: desc, label: desc }))}
+                value={selectedServiceDescription ? { value: selectedServiceDescription, label: selectedServiceDescription } : null}
+                onChange={(option) => {
+                  setSelectedServiceDescription(option?.value || "");
+                  setSelectedServiceCode("");
+                  if (option?.value) {
+                    handleServiceDescriptionChange(option.value);
+                  }
+                }}
+                placeholder="Select Service Description"
+                isSearchable
+                isDisabled={!selectedState}
+                className={`react-select-container ${!selectedState ? 'opacity-50' : ''}`}
+                classNamePrefix="react-select"
+              />
+              {selectedServiceDescription && (
+                <ClearButton onClick={() => {
+                  setSelectedServiceDescription("");
+                  handleServiceDescriptionChange("");
+                }} />
+              )}
           </div>
 
-          {/* Service Description */}
-          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow col-span-2" ref={serviceDescriptionRef}>
-            <input
-              type="text"
-              value={selectedServiceDescription}
-              onChange={(e) => setSelectedServiceDescription(e.target.value)}
-              placeholder="Search Service Description..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
-            />
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                toggleDropdown(setShowServiceDescriptionDropdown, [
-                  setShowServiceCategoryDropdown,
-                  setShowStateDropdown,
-                  setShowServiceCodeDropdown,
-                  setShowProgramDropdown,
-                  setShowLocationRegionDropdown,
-                  setShowModifierDropdown
-                ]);
-              }}
-              className="absolute right-5 top-1/3 transform -translate-y-1/3 text-gray-500 hover:text-gray-700"
-            >
-              <FaChevronDown />
-            </button>
-            {showServiceDescriptionDropdown && (
-              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {serviceDescriptions
-                  .filter((description) =>
-                    (description || '').toLowerCase().includes((selectedServiceDescription || '').toLowerCase())
-                  )
-                  .map((description) => (
-                    <div
-                      key={description}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        handleDropdownSelection(setSelectedServiceDescription, description, 'serviceDescription');
-                      }}
-                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                    >
-                      {description}
-                    </div>
-                  ))}
-              </div>
-            )}
-            <ClearButton onClick={() => setSelectedServiceDescription("")} />
+            {/* Program Selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Program</label>
+              <Select
+                options={programs.map(program => ({ value: program, label: program }))}
+                value={selectedProgram ? { value: selectedProgram, label: selectedProgram } : null}
+                onChange={(option) => setSelectedProgram(option?.value || "")}
+                placeholder="Select Program"
+                isSearchable
+                isDisabled={!selectedServiceCode && !selectedServiceDescription}
+                className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                classNamePrefix="react-select"
+              />
+              {selectedProgram && (
+                <ClearButton onClick={() => setSelectedProgram("")} />
+              )}
           </div>
 
-          {/* Program */}
-          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow" ref={programRef}>
-            <input
-              type="text"
-              value={selectedProgram}
-              onChange={(e) => setSelectedProgram(e.target.value)}
-              placeholder="Search Program..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
-            />
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                toggleDropdown(setShowProgramDropdown, [
-                  setShowServiceCategoryDropdown,
-                  setShowStateDropdown,
-                  setShowServiceCodeDropdown,
-                  setShowServiceDescriptionDropdown,
-                  setShowLocationRegionDropdown,
-                  setShowModifierDropdown
-                ]);
-              }}
-              className="absolute right-5 top-1/3 transform -translate-y-1/3 text-gray-500 hover:text-gray-700"
-            >
-              <FaChevronDown />
-            </button>
-            {showProgramDropdown && (
-              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {programs
-                  .filter((program) =>
-                    (program || '').toLowerCase().includes((selectedProgram || '').toLowerCase())
-                  )
-                  .map((program) => (
-                    <div
-                      key={program}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        handleDropdownSelection(setSelectedProgram, program, 'program');
-                      }}
-                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                    >
-                      {program}
-                    </div>
-                  ))}
-              </div>
-            )}
-            <ClearButton onClick={() => setSelectedProgram("")} />
+            {/* Location/Region Selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Location/Region</label>
+              <Select
+                options={locationRegions.map(region => ({ value: region, label: region }))}
+                value={selectedLocationRegion ? { value: selectedLocationRegion, label: selectedLocationRegion } : null}
+                onChange={(option) => setSelectedLocationRegion(option?.value || "")}
+                placeholder="Select Location/Region"
+                isSearchable
+                isDisabled={!selectedServiceCode && !selectedServiceDescription}
+                className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                classNamePrefix="react-select"
+              />
+              {selectedLocationRegion && (
+                <ClearButton onClick={() => setSelectedLocationRegion("")} />
+              )}
           </div>
 
-          {/* Location/Region */}
-          <div className="relative p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow" ref={locationRegionRef}>
-            <input
-              type="text"
-              value={selectedLocationRegion}
-              onChange={(e) => setSelectedLocationRegion(e.target.value)}
-              placeholder="Search Location/Region..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 bg-white"
-            />
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                toggleDropdown(setShowLocationRegionDropdown, [
-                  setShowServiceCategoryDropdown,
-                  setShowStateDropdown,
-                  setShowServiceCodeDropdown,
-                  setShowServiceDescriptionDropdown,
-                  setShowProgramDropdown,
-                  setShowModifierDropdown
-                ]);
-              }}
-              className="absolute right-5 top-1/3 transform -translate-y-1/3 text-gray-500 hover:text-gray-700"
-            >
-              <FaChevronDown />
-            </button>
-            {showLocationRegionDropdown && (
-              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {locationRegions
-                  .filter((region) =>
-                    (region || '').toLowerCase().includes((selectedLocationRegion || '').toLowerCase())
-                  )
-                  .map((region) => (
-                    <div
-                      key={region}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        handleDropdownSelection(setSelectedLocationRegion, region, 'locationRegion');
-                      }}
-                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                    >
-                      {region}
-                    </div>
-                  ))}
-              </div>
-            )}
-            <ClearButton onClick={() => setSelectedLocationRegion("")} />
+            {/* Modifier Selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Modifier</label>
+              <Select
+                options={modifiers}
+                value={selectedModifier ? { value: selectedModifier, label: selectedModifier } : null}
+                onChange={(option) => setSelectedModifier(option?.value || "")}
+                placeholder="Select Modifier"
+                isSearchable
+                isDisabled={!selectedServiceCode && !selectedServiceDescription}
+                className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                classNamePrefix="react-select"
+              />
+              {selectedModifier && (
+                <ClearButton onClick={() => setSelectedModifier("")} />
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Sorting Instructions */}
+        {/* Sorting Instructions - Show above table when filters aren't applied */}
+        {!loading && !areFiltersApplied && (
         <div className="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-200">
           <div className="flex items-center space-x-2 mb-2">
             <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -876,6 +798,7 @@ export default function Dashboard() {
             <li>Sort priority is indicated by numbers next to the sort arrows (1 = primary sort, 2 = secondary sort, etc.)</li>
           </ul>
         </div>
+        )}
 
         {/* Loading State */}
         {loading && (
@@ -902,80 +825,104 @@ export default function Dashboard() {
 
         {/* Data Table */}
         {!loading && areFiltersApplied && (
+          <>
           <div 
-            className="rounded-lg shadow-lg bg-white"
+            className="rounded-lg shadow-lg bg-white relative z-30"
             style={{ 
-              maxHeight: '70vh', 
-              overflow: 'auto',
-              position: 'relative'
+              maxHeight: 'calc(100vh - 5.5rem)', 
+              overflow: 'auto'
             }}
           >
             <table className="min-w-full">
-              <thead className="bg-gray-50 sticky top-0 z-10">
+              <thead className="bg-gray-50 sticky top-[5.5rem] z-20">
                 <tr>
+                    {getVisibleColumns.state_name && (
                   <th 
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable relative group"
                     onClick={(e) => handleSort('state_name', e)}
                   >
                     State <SortIndicator sortKey="state_name" />
-                    <div className="absolute z-10 bg-gray-800 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 bottom-full left-1/2 transform -translate-x-1/2 mb-2 whitespace-nowrap">
-                      Click to sort
-                      <div className="absolute w-2 h-2 bg-gray-800 rotate-45 -bottom-1 left-1/2 -translate-x-1/2"></div>
-                    </div>
                   </th>
+                    )}
+                    {getVisibleColumns.service_category && (
                   <th 
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
                     onClick={(e) => handleSort('service_category', e)}
                   >
                     Service Category <SortIndicator sortKey="service_category" />
                   </th>
+                    )}
+                    {getVisibleColumns.service_code && (
                   <th 
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
                     onClick={(e) => handleSort('service_code', e)}
                   >
                     Service Code <SortIndicator sortKey="service_code" />
                   </th>
+                    )}
+                    {getVisibleColumns.service_description && (
                   <th 
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
                     onClick={(e) => handleSort('service_description', e)}
                   >
                     Service Description <SortIndicator sortKey="service_description" />
                   </th>
+                    )}
+                    {getVisibleColumns.duration_unit && (
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Duration Unit</th>
+                    )}
+                    {getVisibleColumns.rate && (
                   <th 
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
                     onClick={(e) => handleSort('rate', e)}
                   >
                     Rate per Base Unit <SortIndicator sortKey="rate" />
                   </th>
+                    )}
+                    {getVisibleColumns.rate_per_hour && (
                   <th 
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
                     onClick={(e) => handleSort('rate_per_hour', e)}
                   >
                     Hourly Equivalent Rate <SortIndicator sortKey="rate_per_hour" />
                   </th>
+                    )}
+                    {getVisibleColumns.rate_effective_date && (
                   <th 
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
                     onClick={(e) => handleSort('rate_effective_date', e)}
                   >
                     Effective Date <SortIndicator sortKey="rate_effective_date" />
                   </th>
+                    )}
+                    {getVisibleColumns.program && (
                   <th 
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
                     onClick={(e) => handleSort('program', e)}
                   >
                     Program <SortIndicator sortKey="program" />
                   </th>
+                    )}
+                    {getVisibleColumns.location_region && (
                   <th 
                     className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
                     onClick={(e) => handleSort('location_region', e)}
                   >
                     Location/Region <SortIndicator sortKey="location_region" />
                   </th>
+                    )}
+                    {getVisibleColumns.modifier_1 && (
                   <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 1</th>
+                    )}
+                    {getVisibleColumns.modifier_2 && (
                   <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 2</th>
+                    )}
+                    {getVisibleColumns.modifier_3 && (
                   <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
+                    )}
+                    {getVisibleColumns.modifier_4 && (
                   <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
-                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Duration Unit</th>
+                    )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -986,56 +933,100 @@ export default function Dashboard() {
                       sortConfig.some(sort => sort.key === 'state_name') ? 'bg-blue-50' : ''
                     }`}
                   >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.state_name || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_category || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_description || '-'}</td>
+                      {getVisibleColumns.state_name && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.state_name)}</td>
+                      )}
+                      {getVisibleColumns.service_category && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.service_category)}</td>
+                      )}
+                      {getVisibleColumns.service_code && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.service_code)}</td>
+                      )}
+                      {getVisibleColumns.service_description && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.service_description)}</td>
+                      )}
+                      {getVisibleColumns.duration_unit && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.duration_unit || '-'}</td>
+                      )}
+                      {getVisibleColumns.rate && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {item.rate || '-'}
                     </td>
+                      )}
+                      {getVisibleColumns.rate_per_hour && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {(() => {
-                        // Remove dollar sign and parse the rate
                         const rateStr = (item.rate || '').replace('$', '');
                         const rate = parseFloat(rateStr);
                         const durationUnit = item.duration_unit?.toUpperCase();
                         
-                        // Check if rate is a valid number
                         if (isNaN(rate)) return '-';
                         
                         if (durationUnit === '15 MINUTES') {
                           return `$${(rate * 4).toFixed(2)}`;
+                        } else if (durationUnit === '30 MINUTES') {
+                          return `$${(rate * 2).toFixed(2)}`;
                         } else if (durationUnit === 'PER HOUR') {
                           return `$${rate.toFixed(2)}`;
-                        } else if (durationUnit) {
-                          return `N/A, Base Unit is ${durationUnit}`;
                         }
-                        return '-';
+                        return 'N/A';
                       })()}
                     </td>
+                      )}
+                      {getVisibleColumns.rate_effective_date && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {item.rate_effective_date ? new Date(item.rate_effective_date).toLocaleDateString() : '-'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.program || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.location_region || '-'}</td>
+                      )}
+                      {getVisibleColumns.program && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.program)}</td>
+                      )}
+                      {getVisibleColumns.location_region && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.location_region)}</td>
+                      )}
+                      {getVisibleColumns.modifier_1 && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.modifier_1 ? `${item.modifier_1} - ${item.modifier_1_details || 'No details'}` : '-'}
+                      {item.modifier_1 || '-'}
                     </td>
+                      )}
+                      {getVisibleColumns.modifier_2 && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.modifier_2 ? `${item.modifier_2} - ${item.modifier_2_details || 'No details'}` : '-'}
+                      {item.modifier_2 || '-'}
                     </td>
+                      )}
+                      {getVisibleColumns.modifier_3 && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.modifier_3 ? `${item.modifier_3} - ${item.modifier_3_details || 'No details'}` : '-'}
+                      {item.modifier_3 || '-'}
                     </td>
+                      )}
+                      {getVisibleColumns.modifier_4 && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.modifier_4 ? `${item.modifier_4} - ${item.modifier_4_details || 'No details'}` : '-'}
+                      {item.modifier_4 || '-'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.duration_unit || '-'}</td>
+                      )}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
+            {/* Sorting Instructions - Show below table when filters are applied */}
+            <div className="bg-blue-50 p-4 rounded-lg mt-4 border border-blue-200">
+              <div className="flex items-center space-x-2 mb-2">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <h3 className="text-sm font-semibold text-blue-800">Sorting Instructions</h3>
+              </div>
+              <ul className="text-sm text-blue-700 space-y-1 pl-5 list-disc">
+                <li>Click any column header to sort the data</li>
+                <li>Click again to toggle between ascending and descending order</li>
+                <li>Click a third time to deselect the sort</li>
+                <li>Hold <kbd className="px-1.5 py-0.5 bg-white border border-gray-200 rounded text-xs">Shift</kbd> while clicking to apply multiple sort levels</li>
+                <li>Sort priority is indicated by numbers next to the sort arrows (1 = primary sort, 2 = secondary sort, etc.)</li>
+              </ul>
+            </div>
+          </>
         )}
       </div>
 
@@ -1117,6 +1108,35 @@ export default function Dashboard() {
           0% { background-color: transparent; }
           50% { background-color: #e8f0fe; }
           100% { background-color: transparent; }
+        }
+
+        @keyframes fade-in {
+          0% {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-fade-in {
+          animation: fade-in 0.3s ease-out;
+        }
+
+        .react-select__menu {
+          z-index: 1000;
+        }
+
+        .react-datepicker-popper {
+          z-index: 1000;
+        }
+
+        thead {
+          z-index: 50;
+          position: sticky;
+          top: 0;
         }
       `}</style>
     </AppLayout>

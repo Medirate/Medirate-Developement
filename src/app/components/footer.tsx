@@ -11,7 +11,7 @@ const Footer = () => {
         backgroundColor: "rgb(1, 44, 97)",
         borderColor: "#E5E7EB", // Matches navbar border
         position: "relative", // Ensures proper stacking
-        zIndex: 100, // Higher than the sidenav
+        zIndex: 100, // Keep this lower than modal and icon
       }}
     >
       {/* Wordmark on the Left */}

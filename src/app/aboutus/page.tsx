@@ -96,13 +96,7 @@ export default function AboutUs() {
 
           {/* Other Advisors */}
           <div className="flex justify-between md:justify-around gap-12">
-            <div className="text-lg text-gray-700 text-center">
-              <h4 className="text-xl font-semibold text-[#002F6C]">Gina Eckart</h4>
-            </div>
             
-            <div className="text-lg text-gray-700 text-center">
-              <h4 className="text-xl font-semibold text-[#002F6C]">Corey Waller</h4>
-            </div>
           </div>
         </div>
       </section>

@@ -85,7 +85,7 @@ const Navbar = () => {
 
   if (isLoading) {
     return (
-      <nav className="sticky inset-x-0 top-0 z-30 w-full border-b backdrop-blur-lg transition-all" style={navbarStyle}>
+      <nav className="sticky inset-x-0 top-0 z-[1000] w-full border-b backdrop-blur-lg transition-all" style={navbarStyle}>
         <div className="flex h-[5.5rem] items-center justify-center">
           <span className="text-white">Loading...</span>
         </div>
@@ -95,7 +95,7 @@ const Navbar = () => {
 
   if (isAuthenticated && authenticatedPages.includes(pathname)) {
     return (
-      <nav className="sticky inset-x-0 top-0 z-30 w-full border-b backdrop-blur-lg transition-all" style={navbarStyle}>
+      <nav className="sticky inset-x-0 top-0 z-[1000] w-full border-b backdrop-blur-lg transition-all" style={navbarStyle}>
         <div className="flex h-[5.5rem] items-center justify-between px-8">
           {/* Wordmark on the Left */}
           <div className="flex-shrink-0 transform -translate-x-4">
@@ -157,7 +157,7 @@ const Navbar = () => {
   }
 
   return (
-    <nav className="sticky inset-x-0 top-0 z-30 w-full border-b backdrop-blur-lg transition-all" style={navbarStyle}>
+    <nav className="sticky inset-x-0 top-0 z-[1000] w-full border-b backdrop-blur-lg transition-all" style={navbarStyle}>
       <div className="flex h-[5.5rem] items-center justify-between px-8">
         {/* Wordmark on the Left */}
         <div className="flex-shrink-0 transform -translate-x-4">

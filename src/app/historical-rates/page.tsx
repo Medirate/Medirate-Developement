@@ -87,9 +87,14 @@ export default function HistoricalRates() {
 
   const extractFilters = (data: ServiceData[]) => {
     const categories = data
-      .map((item) => item.service_category?.trim()) // Trim whitespace
-      .filter(category => category); // Remove empty strings
-    setServiceCategories([...new Set(categories)]);
+      .map((item) => item.service_category?.trim())
+      .filter(category => category);
+    setServiceCategories([...new Set(categories)].sort((a, b) => a.localeCompare(b)));
+
+    const states = data
+      .map((item) => item.state_name?.trim().toUpperCase())
+      .filter(state => state);
+    setStates([...new Set(states)].sort((a, b) => a.localeCompare(b)));
   };
 
   // Get filtered data based on selections
@@ -117,6 +122,48 @@ export default function HistoricalRates() {
 
     return Array.from(uniqueMap.values());
   }, [data, selectedServiceCategory, selectedState, selectedServiceCode]);
+
+  // Add a function to check which columns have data
+  const getVisibleColumns = useMemo(() => {
+    const columns = {
+      state_name: false,
+      service_category: false,
+      service_code: false,
+      service_description: false,
+      program: false,
+      location_region: false,
+      modifier_1: false,
+      modifier_2: false,
+      modifier_3: false,
+      modifier_4: false,
+      duration_unit: false,
+      rate: false,
+      rate_per_hour: false
+    };
+
+    if (filteredData.length > 0) {
+      filteredData.forEach(item => {
+        const rateStr = (item.rate || '').replace('$', '');
+        const rate = parseFloat(rateStr);
+        const durationUnit = item.duration_unit?.toUpperCase();
+        
+        if (!isNaN(rate) && 
+            (durationUnit === '15 MINUTES' || 
+             durationUnit === '30 MINUTES' || 
+             durationUnit === 'PER HOUR')) {
+          columns.rate_per_hour = true;
+        }
+        
+        Object.keys(columns).forEach(key => {
+          if (item[key as keyof ServiceData] && item[key as keyof ServiceData] !== '-') {
+            columns[key as keyof typeof columns] = true;
+          }
+        });
+      });
+    }
+
+    return columns;
+  }, [filteredData]);
 
   const ErrorMessage = ({ error }: { error: string }) => {
     if (!error) return null;
@@ -150,29 +197,28 @@ export default function HistoricalRates() {
     const filteredStates = data
       .filter((item) => item.service_category === category)
       .map((item) => item.state_name);
-    setStates([...new Set(filteredStates)]);
+    setStates([...new Set(filteredStates)].sort((a, b) => a.localeCompare(b)));
 
     const filteredCodes = data
       .filter((item) => item.service_category === category)
       .map((item) => item.service_code);
-    setServiceCodes([...new Set(filteredCodes)]);
+    setServiceCodes([...new Set(filteredCodes)].sort((a, b) => a.localeCompare(b)));
   };
 
   const handleStateChange = (state: string) => {
-    setSelectedState(state);
+    setSelectedState(state.toUpperCase()); // Convert to uppercase
     setSelectedServiceCode("");
     setSelectedEntry(null);
 
-    // Get service codes for the selected state and category
     if (selectedServiceCategory) {
       const filteredCodes = data
         .filter(
           (item) =>
-            item.service_category === selectedServiceCategory &&
-            item.state_name === state
+            item.state_name?.toUpperCase() === state.toUpperCase() && // Case insensitive comparison
+            item.service_category === selectedServiceCategory
         )
         .map((item) => item.service_code);
-      setServiceCodes([...new Set(filteredCodes)]);
+      setServiceCodes([...new Set(filteredCodes)].sort((a, b) => a.localeCompare(b)));
     }
   };
 
@@ -226,10 +272,12 @@ export default function HistoricalRates() {
         if (showRatePerHour) {
           if (durationUnit === '15 MINUTES') {
             rateValue *= 4;
+          } else if (durationUnit === '30 MINUTES') {
+            rateValue *= 2;
           } else if (durationUnit !== 'PER HOUR') {
             return {
               value: null,
-              displayValue: `Hourly equivalent rates not available as the duration unit is "${durationUnit || 'Unknown'}"`,
+              displayValue: 'N/A', // Simplified for non-convertible units
               state: entry.state_name,
               serviceCode: entry.service_code,
               program: entry.program,
@@ -267,6 +315,11 @@ export default function HistoricalRates() {
         };
       })
     };
+  };
+
+  // Create a utility function to format text
+  const formatText = (text: string | null | undefined) => {
+    return text ? text.toUpperCase() : '-';
   };
 
   return (
@@ -534,19 +587,45 @@ export default function HistoricalRates() {
                   <thead className="bg-gray-50 sticky top-0">
                     <tr>
                       <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider"></th>
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">State</th>
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Category</th>
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Code</th>
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Description</th>
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Program</th>
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Location/Region</th>
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 1</th>
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 2</th>
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Rate</th>
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Duration Unit</th>
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Hourly Equivalent Rate</th>
+                      {getVisibleColumns.state_name && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">State</th>
+                      )}
+                      {getVisibleColumns.service_category && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Category</th>
+                      )}
+                      {getVisibleColumns.service_code && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Code</th>
+                      )}
+                      {getVisibleColumns.service_description && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Description</th>
+                      )}
+                      {getVisibleColumns.program && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Program</th>
+                      )}
+                      {getVisibleColumns.location_region && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Location/Region</th>
+                      )}
+                      {getVisibleColumns.modifier_1 && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 1</th>
+                      )}
+                      {getVisibleColumns.modifier_2 && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 2</th>
+                      )}
+                      {getVisibleColumns.modifier_3 && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
+                      )}
+                      {getVisibleColumns.modifier_4 && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
+                      )}
+                      {getVisibleColumns.duration_unit && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Duration Unit</th>
+                      )}
+                      {getVisibleColumns.rate && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Rate</th>
+                      )}
+                      {getVisibleColumns.rate_per_hour && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Hourly Equivalent Rate</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -595,33 +674,74 @@ export default function HistoricalRates() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.state_name}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_category}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_description || '-'}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.program}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.location_region}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {item.modifier_1 ? (item.modifier_1_details ? `${item.modifier_1} - ${item.modifier_1_details}` : item.modifier_1) : '-'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {item.modifier_2 ? (item.modifier_2_details ? `${item.modifier_2} - ${item.modifier_2_details}` : item.modifier_2) : '-'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {item.modifier_3 ? (item.modifier_3_details ? `${item.modifier_3} - ${item.modifier_3_details}` : item.modifier_3) : '-'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {item.modifier_4 ? (item.modifier_4_details ? `${item.modifier_4} - ${item.modifier_4_details}` : item.modifier_4) : '-'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {item.rate || '-'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {item.duration_unit || '-'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {durationUnit === '15 MINUTES' || durationUnit === 'PER HOUR' ? `$${hourlyRate.toFixed(2)}` : 'N/A'}
-                          </td>
+                          {getVisibleColumns.state_name && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.state_name)}</td>
+                          )}
+                          {getVisibleColumns.service_category && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.service_category)}</td>
+                          )}
+                          {getVisibleColumns.service_code && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.service_code)}</td>
+                          )}
+                          {getVisibleColumns.service_description && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_description || '-'}</td>
+                          )}
+                          {getVisibleColumns.program && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.program}</td>
+                          )}
+                          {getVisibleColumns.location_region && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.location_region)}</td>
+                          )}
+                          {getVisibleColumns.modifier_1 && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {item.modifier_1 || '-'}
+                            </td>
+                          )}
+                          {getVisibleColumns.modifier_2 && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {item.modifier_2 || '-'}
+                            </td>
+                          )}
+                          {getVisibleColumns.modifier_3 && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {item.modifier_3 || '-'}
+                            </td>
+                          )}
+                          {getVisibleColumns.modifier_4 && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {item.modifier_4 || '-'}
+                            </td>
+                          )}
+                          {getVisibleColumns.duration_unit && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {item.duration_unit || '-'}
+                            </td>
+                          )}
+                          {getVisibleColumns.rate && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {item.rate || '-'}
+                            </td>
+                          )}
+                          {getVisibleColumns.rate_per_hour && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {(() => {
+                                const rateStr = (item.rate || '').replace('$', '');
+                                const rate = parseFloat(rateStr);
+                                const durationUnit = item.duration_unit?.toUpperCase();
+                                
+                                if (isNaN(rate)) return '-';
+                                
+                                if (durationUnit === '15 MINUTES') {
+                                  return `$${(rate * 4).toFixed(2)}`;
+                                } else if (durationUnit === '30 MINUTES') {
+                                  return `$${(rate * 2).toFixed(2)}`;
+                                } else if (durationUnit === 'PER HOUR') {
+                                  return `$${rate.toFixed(2)}`;
+                                }
+                                return 'N/A'; // Simplified for non-convertible units
+                              })()}
+                            </td>
+                          )}
                         </tr>
                       );
                     })}

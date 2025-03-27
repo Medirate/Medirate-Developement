@@ -151,9 +151,14 @@ export default function StatePaymentComparison() {
   // Extract unique filter options
   const extractFilters = (data: ServiceData[]) => {
     const categories = data
-      .map((item) => item.service_category?.trim()) // Trim whitespace
-      .filter(category => category); // Remove empty strings
-    setServiceCategories([...new Set(categories)]);
+      .map((item) => item.service_category?.trim())
+      .filter((category): category is string => !!category);
+    setServiceCategories([...new Set(categories)].sort((a, b) => a.localeCompare(b)));
+
+    const states = data
+      .map((item) => item.state_name?.trim().toUpperCase())
+      .filter((state): state is string => !!state);
+    setStates([...new Set(states)].sort((a, b) => a.localeCompare(b)));
   };
 
   // Update filter handlers to remove URL updates
@@ -168,13 +173,13 @@ export default function StatePaymentComparison() {
       .filter((item) => item.service_category === category)
       .map((item) => item.state_name);
     
-    setStates([...new Set(filteredStates)]);
+    setStates([...new Set(filteredStates)].sort((a, b) => a.localeCompare(b)));
     setServiceCodes([]);
     setFilterLoading(false);
   };
 
   const handleStateChange = (options: readonly { value: string; label: string }[]) => {
-    const selectedStatesArray = options.map(option => option.value);
+    const selectedStatesArray = options.map(option => option.value.toUpperCase()); // Convert to uppercase
     setSelectedStates(selectedStatesArray);
     setIsAllStatesSelected(false);
     
@@ -186,11 +191,11 @@ export default function StatePaymentComparison() {
       setTimeout(() => {
         const filteredCodes = data
           .filter((item) => 
-            selectedStatesArray.includes(item.state_name) &&
+            selectedStatesArray.includes(item.state_name?.toUpperCase()) && // Case insensitive comparison
             item.service_category === selectedServiceCategory
           )
           .map((item) => item.service_code);
-        setServiceCodes([...new Set(filteredCodes)]);
+        setServiceCodes([...new Set(filteredCodes)].sort((a, b) => a.localeCompare(b)));
         setFilterLoading(false);
       }, 0);
     }
@@ -724,16 +729,16 @@ export default function StatePaymentComparison() {
                     <td className="px-4 py-2">{entry.program}</td>
                     <td className="px-4 py-2">{entry.location_region}</td>
                     <td className="px-4 py-2">
-                      {entry.modifier_1 ? (entry.modifier_1_details ? `${entry.modifier_1} - ${entry.modifier_1_details}` : entry.modifier_1) : '-'}
+                      {entry.modifier_1 || '-'}
                     </td>
                     <td className="px-4 py-2">
-                      {entry.modifier_2 ? (entry.modifier_2_details ? `${entry.modifier_2} - ${entry.modifier_2_details}` : entry.modifier_2) : '-'}
+                      {entry.modifier_2 || '-'}
                     </td>
                     <td className="px-4 py-2">
-                      {entry.modifier_3 ? (entry.modifier_3_details ? `${entry.modifier_3} - ${entry.modifier_3_details}` : entry.modifier_3) : '-'}
+                      {entry.modifier_3 || '-'}
                     </td>
                     <td className="px-4 py-2">
-                      {entry.modifier_4 ? (entry.modifier_4_details ? `${entry.modifier_4} - ${entry.modifier_4_details}` : entry.modifier_4) : '-'}
+                      {entry.modifier_4 || '-'}
                     </td>
                     <td className="px-4 py-2">
                       ${showRatePerHour 
@@ -760,6 +765,92 @@ export default function StatePaymentComparison() {
           </div>
         </div>
       </div>
+    );
+  };
+
+  // Add a function to check which columns have data
+  const getVisibleColumns = useMemo(() => {
+    const columns = {
+      state_name: false,
+      service_category: false,
+      service_code: false,
+      service_description: false,
+      program: false,
+      location_region: false,
+      modifier_1: false,
+      modifier_2: false,
+      modifier_3: false,
+      modifier_4: false,
+      duration_unit: false,
+      rate: false,
+      rate_per_hour: false,
+      rate_effective_date: false
+    };
+
+    if (filteredData.length > 0) {
+      filteredData.forEach(item => {
+        const rateStr = (item.rate || '').replace('$', '');
+        const rate = parseFloat(rateStr);
+        const durationUnit = item.duration_unit?.toUpperCase();
+        
+        if (!isNaN(rate) && 
+            (durationUnit === '15 MINUTES' || 
+             durationUnit === '30 MINUTES' || 
+             durationUnit === 'PER HOUR')) {
+          columns.rate_per_hour = true;
+        }
+        
+        Object.keys(columns).forEach(key => {
+          if (item[key as keyof ServiceData] && item[key as keyof ServiceData] !== '-') {
+            columns[key as keyof typeof columns] = true;
+          }
+        });
+      });
+    }
+
+    return columns;
+  }, [filteredData]);
+
+  // Create a utility function to format text
+  const formatText = (text: string | null | undefined) => {
+    return text ? text.toUpperCase() : '-';
+  };
+
+  // Add this function to your component
+  const handleSort = (key: string, event: React.MouseEvent) => {
+    event.preventDefault();
+    setSortConfig(prev => {
+      const existingSort = prev.find(sort => sort.key === key);
+      if (existingSort) {
+        return prev.filter(sort => sort.key !== key);
+      }
+      return [...prev, { key, direction: 'asc' }];
+    });
+  };
+
+  // Also add this state near your other state declarations
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }[]>([]);
+
+  // Add this component to your file
+  const SortIndicator = ({ sortKey }: { sortKey: string }) => {
+    const sort = sortConfig.find(sort => sort.key === sortKey);
+    if (!sort) return null;
+    
+    return (
+      <span className="ml-1 sort-indicator">
+        <span className="arrow" style={{ 
+          display: 'inline-block',
+          transition: 'transform 0.2s ease',
+          transform: sort.direction === 'asc' ? 'rotate(0deg)' : 'rotate(180deg)'
+        }}>
+          ▲
+        </span>
+        {sortConfig.length > 1 && (
+          <sup className="sort-priority">
+            {sortConfig.findIndex(s => s.key === sortKey) + 1}
+          </sup>
+        )}
+      </span>
     );
   };
 
@@ -1025,23 +1116,71 @@ export default function StatePaymentComparison() {
                         <div className="overflow-x-auto rounded-lg" style={{ maxHeight: '400px', overflowY: 'auto' }}>
                           <table className="min-w-full bg-white" style={{ tableLayout: 'fixed' }}>
                             <colgroup>
-                              <col style={{ width: '50px' }} /><col style={{ width: '150px' }} /><col style={{ width: '100px' }} /><col style={{ width: '200px' }} /><col style={{ width: '120px' }} /><col style={{ width: '150px' }} /><col style={{ width: '150px' }} /><col style={{ width: '150px' }} /><col style={{ width: '100px' }} /><col style={{ width: '100px' }} /><col style={{ width: '100px' }} /><col style={{ width: '120px' }} />
+                              <col style={{ width: '50px' }} />
+                              {getVisibleColumns.service_category && <col style={{ width: '150px' }} />}
+                              {getVisibleColumns.service_code && <col style={{ width: '100px' }} />}
+                              {getVisibleColumns.service_description && <col style={{ width: '200px' }} />}
+                              {getVisibleColumns.program && <col style={{ width: '120px' }} />}
+                              {getVisibleColumns.location_region && <col style={{ width: '150px' }} />}
+                              {getVisibleColumns.modifier_1 && <col style={{ width: '150px' }} />}
+                              {getVisibleColumns.modifier_2 && <col style={{ width: '150px' }} />}
+                              {getVisibleColumns.modifier_3 && <col style={{ width: '150px' }} />}
+                              {getVisibleColumns.modifier_4 && <col style={{ width: '100px' }} />}
+                              {getVisibleColumns.duration_unit && <col style={{ width: '100px' }} />}
+                              {getVisibleColumns.rate && (
+                                <col style={{ width: '100px' }} />
+                              )}
+                              {getVisibleColumns.rate_per_hour && <col style={{ width: '120px' }} />}
                             </colgroup>
                             <thead className="bg-gray-50 sticky top-0">
                               <tr>
                                 <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Select</th>
-                                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Category</th>
-                                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Code</th>
-                                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Description</th>
-                                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Program</th>
-                                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Location Region</th>
-                                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 1</th>
-                                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 2</th>
-                                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
-                                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
-                                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Rate</th>
-                                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Duration Unit</th>
-                                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Hourly Equivalent Rate</th>
+                                {getVisibleColumns.service_category && (
+                                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Category</th>
+                                )}
+                                {getVisibleColumns.service_code && (
+                                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Code</th>
+                                )}
+                                {getVisibleColumns.service_description && (
+                                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Description</th>
+                                )}
+                                {getVisibleColumns.program && (
+                                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Program</th>
+                                )}
+                                {getVisibleColumns.location_region && (
+                                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Location Region</th>
+                                )}
+                                {getVisibleColumns.modifier_1 && (
+                                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 1</th>
+                                )}
+                                {getVisibleColumns.modifier_2 && (
+                                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 2</th>
+                                )}
+                                {getVisibleColumns.modifier_3 && (
+                                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
+                                )}
+                                {getVisibleColumns.modifier_4 && (
+                                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
+                                )}
+                                {getVisibleColumns.duration_unit && (
+                                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Duration Unit</th>
+                                )}
+                                {getVisibleColumns.rate && (
+                                  <th 
+                                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
+                                    onClick={(e) => handleSort('rate', e)}
+                                  >
+                                    Rate per Base Unit <SortIndicator sortKey="rate" />
+                                  </th>
+                                )}
+                                {getVisibleColumns.rate_per_hour && (
+                                  <th 
+                                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
+                                    onClick={(e) => handleSort('rate_per_hour', e)}
+                                  >
+                                    Hourly Equivalent Rate <SortIndicator sortKey="rate_per_hour" />
+                                  </th>
+                                )}
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
@@ -1088,37 +1227,84 @@ export default function StatePaymentComparison() {
                                         </div>
                                       </div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_category}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code}</td>
-                                    <td 
-                                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate"
-                                      title={item.service_description || ''}
-                                    >
-                                      {item.service_description || '-'}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.program || '-'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.location_region || '-'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                      {item.modifier_1 ? (item.modifier_1_details ? `${item.modifier_1} - ${item.modifier_1_details}` : item.modifier_1) : '-'}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                      {item.modifier_2 ? (item.modifier_2_details ? `${item.modifier_2} - ${item.modifier_2_details}` : item.modifier_2) : '-'}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                      {item.modifier_3 ? (item.modifier_3_details ? `${item.modifier_3} - ${item.modifier_3_details}` : item.modifier_3) : '-'}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                      {item.modifier_4 ? (item.modifier_4_details ? `${item.modifier_4} - ${item.modifier_4_details}` : item.modifier_4) : '-'}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                      {item.rate || '-'}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                      {item.duration_unit || '-'}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                      {durationUnit === '15 MINUTES' || durationUnit === 'PER HOUR' ? `$${hourlyRate.toFixed(2)}` : 'N/A'}
-                                    </td>
+                                    {getVisibleColumns.service_category && (
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {formatText(item.service_category)}
+                                      </td>
+                                    )}
+                                    {getVisibleColumns.service_code && (
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {formatText(item.service_code)}
+                                      </td>
+                                    )}
+                                    {getVisibleColumns.service_description && (
+                                      <td 
+                                        className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate"
+                                        title={item.service_description || ''}
+                                      >
+                                        {formatText(item.service_description)}
+                                      </td>
+                                    )}
+                                    {getVisibleColumns.program && (
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {formatText(item.program)}
+                                      </td>
+                                    )}
+                                    {getVisibleColumns.location_region && (
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {formatText(item.location_region)}
+                                      </td>
+                                    )}
+                                    {getVisibleColumns.modifier_1 && (
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {item.modifier_1 || '-'}
+                                      </td>
+                                    )}
+                                    {getVisibleColumns.modifier_2 && (
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {item.modifier_2 || '-'}
+                                      </td>
+                                    )}
+                                    {getVisibleColumns.modifier_3 && (
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {item.modifier_3 || '-'}
+                                      </td>
+                                    )}
+                                    {getVisibleColumns.modifier_4 && (
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {item.modifier_4 || '-'}
+                                      </td>
+                                    )}
+                                    {getVisibleColumns.duration_unit && (
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {formatText(item.duration_unit)}
+                                      </td>
+                                    )}
+                                    {getVisibleColumns.rate && (
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {formatText(item.rate)}
+                                      </td>
+                                    )}
+                                    {getVisibleColumns.rate_per_hour && (
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {(() => {
+                                          const rateStr = (item.rate || '').replace('$', '');
+                                          const rate = parseFloat(rateStr);
+                                          const durationUnit = item.duration_unit?.toUpperCase();
+                                          
+                                          if (isNaN(rate)) return '-';
+                                          
+                                          if (durationUnit === '15 MINUTES') {
+                                            return `$${(rate * 4).toFixed(2)}`;
+                                          } else if (durationUnit === '30 MINUTES') {
+                                            return `$${(rate * 2).toFixed(2)}`;
+                                          } else if (durationUnit === 'PER HOUR') {
+                                            return `$${rate.toFixed(2)}`;
+                                          }
+                                          return 'N/A'; // Simplified for non-convertible units
+                                        })()}
+                                      </td>
+                                    )}
                                   </tr>
                                 );
                               })}
