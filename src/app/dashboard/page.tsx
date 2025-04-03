@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useId } from "react";
 import AppLayout from "@/app/components/applayout";
 import { FaSpinner, FaExclamationCircle, FaChevronDown, FaFilter } from 'react-icons/fa';
 import DatePicker from "react-datepicker";
@@ -29,7 +29,7 @@ const FilterNote = ({ step }: { step: number }) => {
   const messages = [
     "Please select a Service Line to begin filtering",
     "Now select a State to continue",
-    "Select a Service Code and/or Service Description to complete filtering"
+    "Select a Service Code, Service Description, or Fee Schedule Date to complete filtering"
   ];
 
   // Don't show message if we're past step 3
@@ -557,6 +557,46 @@ export default function Dashboard() {
     return text ? text.toUpperCase() : '-';
   };
 
+  // Inside your Dashboard component, add this before the return statement
+  const serviceCategoryId = useId();
+  const stateId = useId();
+  const serviceCodeId = useId();
+  const serviceDescriptionId = useId();
+  const programId = useId();
+  const locationRegionId = useId();
+  const modifierId = useId();
+
+  // Add Fee Schedule Dates Dropdown
+  const [selectedFeeScheduleDate, setSelectedFeeScheduleDate] = useState("");
+  const [feeScheduleDates, setFeeScheduleDates] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (data.length > 0) {
+      extractFeeScheduleDates(data);
+    }
+  }, [data]);
+
+  const extractFeeScheduleDates = (data: ServiceData[]) => {
+    const filteredDates = data
+      .filter(item => 
+        (!selectedServiceCategory || item.service_category === selectedServiceCategory) &&
+        (!selectedState || item.state_name.toUpperCase() === selectedState.toUpperCase()) &&
+        (!selectedServiceCode || item.service_code === selectedServiceCode) &&
+        (!selectedServiceDescription || item.service_description === selectedServiceDescription)
+      )
+      .map(item => item.rate_effective_date)
+      .filter((date): date is string => !!date)
+      .map(date => new Date(date).toISOString().split('T')[0]);
+
+    setFeeScheduleDates([...new Set(filteredDates)].sort((a, b) => a.localeCompare(b)));
+  };
+
+  useEffect(() => {
+    if (data.length > 0) {
+      extractFeeScheduleDates(data);
+    }
+  }, [data, selectedServiceCategory, selectedState, selectedServiceCode, selectedServiceDescription]);
+
   return (
     <AppLayout activeTab="dashboard">
       <CodeDefinitionsIcon />
@@ -570,48 +610,50 @@ export default function Dashboard() {
             Dashboard
           </h1>
           <div className="flex flex-col items-end">
-          {/* Date Range Filter */}
+            {/* Date Range Filter */}
             <div className="flex space-x-4 mb-4">
-            <div className="relative">
-              <label className="block text-sm font-medium text-[#012C61] mb-2">Start Date</label>
-              <DatePicker
-                selected={startDate}
-                onChange={(date: Date | null) => date && setStartDate(date)}
-                selectsStart
-                startDate={startDate}
-                endDate={endDate}
-                className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400"
-              />
+              <div className="relative">
+                <label className="block text-sm font-medium text-[#012C61] mb-2">Start Date</label>
+                <DatePicker
+                  selected={startDate}
+                  onChange={(date: Date | null) => date && setStartDate(date)}
+                  selectsStart
+                  startDate={startDate}
+                  endDate={endDate}
+                  className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400"
+                />
+              </div>
+              <div className="relative">
+                <label className="block text-sm font-medium text-[#012C61] mb-2">End Date</label>
+                <DatePicker
+                  selected={endDate}
+                  onChange={(date: Date | null) => date && setEndDate(date)}
+                  selectsEnd
+                  startDate={startDate}
+                  endDate={endDate}
+                  minDate={startDate}
+                  className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400"
+                />
+              </div>
             </div>
-            <div className="relative">
-              <label className="block text-sm font-medium text-[#012C61] mb-2">End Date</label>
-              <DatePicker
-                selected={endDate}
-                onChange={(date: Date | null) => date && setEndDate(date)}
-                selectsEnd
-                startDate={startDate}
-                endDate={endDate}
-                minDate={startDate}
-                className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400"
+            {/* Fee Schedule Dates Dropdown */}
+            <div className="relative z-50">
+              <label className="block text-sm font-medium text-[#012C61] mb-2">Fee Schedule Date</label>
+              <Select
+                instanceId="feeScheduleDatesId"
+                options={feeScheduleDates.map(date => ({ value: date, label: new Date(date).toLocaleDateString() }))}
+                value={selectedFeeScheduleDate ? { value: selectedFeeScheduleDate, label: new Date(selectedFeeScheduleDate).toLocaleDateString() } : null}
+                onChange={(option) => setSelectedFeeScheduleDate(option?.value || "")}
+                placeholder="Select Fee Schedule Date"
+                isSearchable
+                isDisabled={!selectedState || !selectedServiceCategory}
+                className={`react-select-container ${!selectedState || !selectedServiceCategory ? 'opacity-50' : ''}`}
+                classNamePrefix="react-select"
               />
+              {selectedFeeScheduleDate && (
+                <ClearButton onClick={() => setSelectedFeeScheduleDate("")} />
+              )}
             </div>
-          </div>
-            {/* Year Filter Buttons */}
-            <div className="flex space-x-4">
-              {[2022, 2023, 2024].map(year => (
-                <button
-                  key={year}
-                  onClick={() => handleYearSelect(year)}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    selectedYear === year
-                      ? 'bg-[#012C61] text-white'
-                      : 'bg-white text-[#012C61] border border-[#012C61] hover:bg-[#012C61] hover:text-white'
-                  }`}
-                >
-                  {year}
-                </button>
-              ))}
-        </div>
           </div>
         </div>
 
@@ -634,6 +676,7 @@ export default function Dashboard() {
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Service Line</label>
               <Select
+                instanceId={serviceCategoryId}
                 options={serviceCategories
                   .filter(category => {
                     const trimmedCategory = category.trim();
@@ -651,12 +694,13 @@ export default function Dashboard() {
               {selectedServiceCategory && (
                 <ClearButton onClick={() => handleServiceCategoryChange("")} />
               )}
-          </div>
+            </div>
 
             {/* State Selector */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">State</label>
               <Select
+                instanceId={stateId}
                 options={states.map(state => ({ value: state, label: state }))}
                 value={selectedState ? { value: selectedState, label: selectedState } : null}
                 onChange={(option) => handleStateChange(option?.value || "")}
@@ -669,12 +713,13 @@ export default function Dashboard() {
               {selectedState && (
                 <ClearButton onClick={() => handleStateChange("")} />
               )}
-          </div>
+            </div>
 
             {/* Service Code Selector */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Service Code</label>
               <Select
+                instanceId={serviceCodeId}
                 options={serviceCodes.map(code => ({ value: code, label: code }))}
                 value={selectedServiceCode ? { value: selectedServiceCode, label: selectedServiceCode } : null}
                 onChange={(option) => {
@@ -696,12 +741,13 @@ export default function Dashboard() {
                   handleServiceCodeChange("");
                 }} />
               )}
-          </div>
+            </div>
 
             {/* Service Description Selector */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Service Description</label>
               <Select
+                instanceId={serviceDescriptionId}
                 options={serviceDescriptions.map(desc => ({ value: desc, label: desc }))}
                 value={selectedServiceDescription ? { value: selectedServiceDescription, label: selectedServiceDescription } : null}
                 onChange={(option) => {
@@ -723,12 +769,13 @@ export default function Dashboard() {
                   handleServiceDescriptionChange("");
                 }} />
               )}
-          </div>
+            </div>
 
             {/* Program Selector */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Program</label>
               <Select
+                instanceId={programId}
                 options={programs.map(program => ({ value: program, label: program }))}
                 value={selectedProgram ? { value: selectedProgram, label: selectedProgram } : null}
                 onChange={(option) => setSelectedProgram(option?.value || "")}
@@ -741,12 +788,13 @@ export default function Dashboard() {
               {selectedProgram && (
                 <ClearButton onClick={() => setSelectedProgram("")} />
               )}
-          </div>
+            </div>
 
             {/* Location/Region Selector */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Location/Region</label>
               <Select
+                instanceId={locationRegionId}
                 options={locationRegions.map(region => ({ value: region, label: region }))}
                 value={selectedLocationRegion ? { value: selectedLocationRegion, label: selectedLocationRegion } : null}
                 onChange={(option) => setSelectedLocationRegion(option?.value || "")}
@@ -759,12 +807,13 @@ export default function Dashboard() {
               {selectedLocationRegion && (
                 <ClearButton onClick={() => setSelectedLocationRegion("")} />
               )}
-          </div>
+            </div>
 
             {/* Modifier Selector */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Modifier</label>
               <Select
+                instanceId={modifierId}
                 options={modifiers}
                 value={selectedModifier ? { value: selectedModifier, label: selectedModifier } : null}
                 onChange={(option) => setSelectedModifier(option?.value || "")}
@@ -827,7 +876,7 @@ export default function Dashboard() {
         {!loading && areFiltersApplied && (
           <>
           <div 
-            className="rounded-lg shadow-lg bg-white relative z-30"
+            className="rounded-lg shadow-lg bg-white relative z-30 overflow-x-auto"
             style={{ 
               maxHeight: 'calc(100vh - 5.5rem)', 
               overflow: 'auto'
@@ -836,74 +885,122 @@ export default function Dashboard() {
             <table className="min-w-full">
               <thead className="bg-gray-50 sticky top-[5.5rem] z-20">
                 <tr>
-                  {getVisibleColumns.state_name && <th>State</th>}
-                  {getVisibleColumns.service_category && <th>Service Category</th>}
-                  {getVisibleColumns.service_code && <th>Service Code</th>}
-                  {getVisibleColumns.service_description && <th>Service Description</th>}
-                  {getVisibleColumns.duration_unit && <th>Duration Unit</th>}
-                  {getVisibleColumns.rate && <th>Rate per Base Unit</th>}
-                  {getVisibleColumns.rate_per_hour && <th>Hourly Equivalent Rate</th>}
-                  {getVisibleColumns.modifier_1 && <th>Modifier 1</th>}
-                  {getVisibleColumns.modifier_2 && <th>Modifier 2</th>}
-                  {getVisibleColumns.modifier_3 && <th>Modifier 3</th>}
-                  {getVisibleColumns.modifier_4 && <th>Modifier 4</th>}
-                  {getVisibleColumns.rate_effective_date && <th>Effective Date</th>}
-                  {getVisibleColumns.program && <th>Program</th>}
-                  {getVisibleColumns.location_region && <th>Location/Region</th>}
+                  {getVisibleColumns.state_name && (
+                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">State</th>
+                  )}
+                  {getVisibleColumns.service_category && (
+                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Category</th>
+                  )}
+                  {getVisibleColumns.service_code && (
+                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Code</th>
+                  )}
+                  {getVisibleColumns.service_description && (
+                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Description</th>
+                  )}
+                  {getVisibleColumns.duration_unit && (
+                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Duration Unit</th>
+                  )}
+                  {getVisibleColumns.rate && (
+                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Rate per Base Unit</th>
+                  )}
+                  {getVisibleColumns.rate_per_hour && (
+                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Hourly Equivalent Rate</th>
+                  )}
+                  {getVisibleColumns.rate_effective_date && (
+                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Effective Date</th>
+                  )}
+                  {getVisibleColumns.modifier_1 && (
+                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 1</th>
+                  )}
+                  {getVisibleColumns.modifier_2 && (
+                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 2</th>
+                  )}
+                  {getVisibleColumns.modifier_3 && (
+                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
+                  )}
+                  {getVisibleColumns.modifier_4 && (
+                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
+                  )}
+                  {getVisibleColumns.program && (
+                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Program</th>
+                  )}
+                  {getVisibleColumns.location_region && (
+                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Location/Region</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {sortedData.map((item, index) => (
-                  <tr key={index}>
-                    {getVisibleColumns.state_name && <td>{formatText(item.state_name)}</td>}
-                    {getVisibleColumns.service_category && <td>{formatText(item.service_category)}</td>}
-                    {getVisibleColumns.service_code && <td>{formatText(item.service_code)}</td>}
-                    {getVisibleColumns.service_description && <td>{formatText(item.service_description)}</td>}
-                    {getVisibleColumns.duration_unit && <td>{item.duration_unit || '-'}</td>}
-                    {getVisibleColumns.rate && <td>{item.rate || '-'}</td>}
+                  <tr key={index} className="hover:bg-gray-50 transition-colors">
+                    {getVisibleColumns.state_name && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.state_name)}</td>
+                    )}
+                    {getVisibleColumns.service_category && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.service_category)}</td>
+                    )}
+                    {getVisibleColumns.service_code && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.service_code)}</td>
+                    )}
+                    {getVisibleColumns.service_description && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_description || '-'}</td>
+                    )}
+                    {getVisibleColumns.duration_unit && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.duration_unit || '-'}</td>
+                    )}
+                    {getVisibleColumns.rate && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate || '-'}</td>
+                    )}
                     {getVisibleColumns.rate_per_hour && (
-                      <td>
-                      {(() => {
-                        const rateStr = (item.rate || '').replace('$', '');
-                        const rate = parseFloat(rateStr);
-                        const durationUnit = item.duration_unit?.toUpperCase();
-                        
-                        if (isNaN(rate)) return '-';
-                        
-                        if (durationUnit === '15 MINUTES') {
-                          return `$${(rate * 4).toFixed(2)}`;
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {(() => {
+                          const rateStr = (item.rate || '').replace('$', '');
+                          const rate = parseFloat(rateStr);
+                          const durationUnit = item.duration_unit?.toUpperCase();
+                          
+                          if (isNaN(rate)) return '-';
+                          
+                          if (durationUnit === '15 MINUTES') {
+                            return `$${(rate * 4).toFixed(2)}`;
                           } else if (durationUnit === '30 MINUTES') {
                             return `$${(rate * 2).toFixed(2)}`;
-                        } else if (durationUnit === 'PER HOUR') {
-                          return `$${rate.toFixed(2)}`;
-                        }
+                          } else if (durationUnit === 'PER HOUR') {
+                            return `$${rate.toFixed(2)}`;
+                          }
                           return 'N/A';
-                      })()}
-                    </td>
+                        })()}
+                      </td>
+                    )}
+                    {getVisibleColumns.rate_effective_date && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {item.rate_effective_date ? new Date(item.rate_effective_date).toLocaleDateString() : '-'}
+                      </td>
                     )}
                     {getVisibleColumns.modifier_1 && (
-                      <td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {item.modifier_1 ? `${item.modifier_1}${item.modifier_1_details ? ` - ${item.modifier_1_details}` : ''}` : '-'}
-                    </td>
+                      </td>
                     )}
                     {getVisibleColumns.modifier_2 && (
-                      <td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {item.modifier_2 ? `${item.modifier_2}${item.modifier_2_details ? ` - ${item.modifier_2_details}` : ''}` : '-'}
-                    </td>
+                      </td>
                     )}
                     {getVisibleColumns.modifier_3 && (
-                      <td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {item.modifier_3 ? `${item.modifier_3}${item.modifier_3_details ? ` - ${item.modifier_3_details}` : ''}` : '-'}
-                    </td>
+                      </td>
                     )}
                     {getVisibleColumns.modifier_4 && (
-                      <td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {item.modifier_4 ? `${item.modifier_4}${item.modifier_4_details ? ` - ${item.modifier_4_details}` : ''}` : '-'}
-                    </td>
+                      </td>
                     )}
-                    {getVisibleColumns.rate_effective_date && <td>{item.rate_effective_date ? new Date(item.rate_effective_date).toLocaleDateString() : '-'}</td>}
-                    {getVisibleColumns.program && <td>{formatText(item.program)}</td>}
-                    {getVisibleColumns.location_region && <td>{formatText(item.location_region)}</td>}
+                    {getVisibleColumns.program && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.program}</td>
+                    )}
+                    {getVisibleColumns.location_region && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.location_region)}</td>
+                    )}
                   </tr>
                 ))}
               </tbody>

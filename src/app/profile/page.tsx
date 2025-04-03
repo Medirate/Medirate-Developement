@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import AppLayout from "@/app/components/applayout";
 import { Camera, Mail, User } from "lucide-react";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import { createClient } from "@supabase/supabase-js";
+import SubscriptionTermsModal from '@/app/components/SubscriptionTermsModal';
 
 // ✅ Initialize Supabase
 const supabase = createClient(
@@ -19,6 +19,12 @@ export default function Profile() {
   const [email, setEmail] = useState("");
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+
+  // Debugging: Log when the modal state changes
+  useEffect(() => {
+    console.log("Terms Modal State:", isTermsModalOpen);
+  }, [isTermsModalOpen]);
 
   // ✅ Fetch user profile when the page loads
   useEffect(() => {
@@ -143,7 +149,7 @@ export default function Profile() {
   };
 
   return (
-    <AppLayout activeTab="profile">
+    <>
       <h1 className="text-5xl md:text-6xl text-[#012C61] font-lemonMilkRegular uppercase mb-8 text-center">
         Profile
       </h1>
@@ -204,6 +210,28 @@ export default function Profile() {
           )}
         </div>
       </div>
-    </AppLayout>
+
+      {/* Terms and Conditions Link */}
+      <div className="mt-6 text-center">
+        <button 
+          onClick={() => {
+            console.log("Terms and Conditions button clicked"); // Debugging: Log button click
+            setIsTermsModalOpen(true);
+          }} 
+          className="text-blue-600 underline"
+        >
+          View Terms and Conditions
+        </button>
+      </div>
+
+      {/* Subscription Terms Modal */}
+      <SubscriptionTermsModal 
+        isOpen={isTermsModalOpen} 
+        onClose={() => {
+          console.log("Closing Terms Modal"); // Debugging: Log modal close
+          setIsTermsModalOpen(false);
+        }} 
+      />
+    </>
   );
 }

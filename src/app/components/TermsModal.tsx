@@ -2,20 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import Modal from './modal';
+import { useKindeBrowserClient } from '@kinde-oss/kinde-auth-nextjs';
 
 export default function TermsModal() {
+  const { isAuthenticated, isLoading } = useKindeBrowserClient();
   const [isOpen, setIsOpen] = useState(false);
 
-  // Check if terms have been accepted
+  // Show the modal once per session when the user logs in
   useEffect(() => {
-    const accepted = localStorage.getItem('termsAccepted');
-    if (!accepted) {
-      setIsOpen(true);
+    if (isAuthenticated && !isLoading) {
+      const accepted = sessionStorage.getItem('termsAccepted');
+      if (!accepted) {
+        setIsOpen(true);
+      }
     }
-  }, []);
+  }, [isAuthenticated, isLoading]);
 
   const handleAccept = () => {
-    localStorage.setItem('termsAccepted', 'true');
+    sessionStorage.setItem('termsAccepted', 'true');
     setIsOpen(false);
   };
 
@@ -28,15 +32,33 @@ export default function TermsModal() {
     >
       <div className="p-6 flex flex-col h-[80vh]">
         <h2 className="text-xl font-bold text-[#012C61] uppercase font-lemonMilkRegular text-center mb-4">
-          Terms and Conditions
+          Additional Terms
         </h2>
         
-        <div className="flex-1 overflow-y-auto pr-4">
-          <p className="text-sm text-gray-700 mb-4">
-            USE OF THE MEDIRATE SOLUTION IS SUBJECT TO THE FOLLOWING TERMS AND CONDITIONS
+        <div className="flex-1 overflow-y-auto pr-4 text-sm text-gray-700">
+          <p className="mb-4">
+            MediRate's Product includes data that is collected from fee schedules established and made publicly available by state governmental agencies including those responsible for individuals enrolled in Medicaid. MediRate endeavors to update data based on the most recently available information, but given the complexity of Medicaid rate setting policies, it is possible that errors exist. We do not guarantee accuracy of the data, as reflected in MediRate's Terms.
           </p>
           
-          <ol className="list-decimal list-inside space-y-3 text-sm text-gray-700">
+          <p className="mb-4">
+            In addition, the following terms apply to your use of the data in the Product:
+          </p>
+
+          <ul className="list-disc list-inside space-y-3 mb-4">
+            <li>The fee schedules do not address the various coverage limitations routinely applied by state agencies before final payment is determined (e.g., beneficiary and provider eligibility, benefit limits, billing instructions, frequency of services, third party liability, age restrictions, prior authorization, co-payments/coinsurance where applicable).</li>
+            <li>Procedure codes and/or fee schedule amounts listed do not guarantee payment, coverage or amount allowed.</li>
+            <li>Although every effort is made to ensure the accuracy of this information, discrepancies may occur. MediRate's data may be changed or updated at any time to correct such discrepancies.</li>
+            <li>Payment rate information reflects amounts paid to providers under fee for service arrangements with state agencies. Payment rates between providers and managed care organization are privately negotiated and are not presented here, except in certain circumstances. MediRate's data should not be relied upon as the basis for reimbursement in circumstances where managed care organizations are responsible for payment.</li>
+            <li>In general, state policies dictate that provider reimbursement is based on the lesser of the amount billed or the Medicaid maximum amount which is listed in the fee schedule.</li>
+            <li>MediRate data is limited to certain services lines and procedure codes. While MediRate is actively adding new service lines to its database, MediRate's database may not include the the service lines you are looking for. For a list of service lines currently included in MediRate's database and those in development see <a href="https://www.medirate.net" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">www.medirate.net</a> or contact us at contact@medirate.net.</li>
+            <li>MediRate's database is organized by Current Procedural Terminology (CPT), and Healthcare Common Procedure Coding System (HCPCS) billing codes. Use of CPT codes, descriptors, and other data are subject to the copyright terms of the American Medical Association.</li>
+          </ul>
+
+          <p className="font-semibold mb-4">
+            USE OF THE MEDIRATE PRODUCT IS SUBJECT TO THE FOLLOWING TERMS AND CONDITIONS
+          </p>
+
+          <ol className="list-decimal list-inside space-y-3">
             <li>CPT® Content is copyrighted by the American Medical Association and CPT is a registered trademark of the AMA.</li>
             <li>MediRate, as a party to a license agreement with the AMA, is authorized to grant End User a limited, non-exclusive, non-transferable, non-sublicensable license for End User to use CPT Content in MediRate's Licensed Product(s), for the sole purpose of internal use by End User within the Territory. Upon termination or expiration of the Agreement between MediRate and AMA, MediRate shall notify End User. End User shall continue to have the right to use CPT Content in MediRate's Licensed Product(s) for the remainder of year of the then-current annual release (e.g., through the end of the applicable calendar year)(“End User Tail Period”). End User's continued use of CPT Content during the End User Tail Period is subject to End User's continued compliance with all its obligations under these terms. Upon the expiration of the End User Tail Period, the sublicense granted under these terms shall automatically terminate.</li>
             <li>The provision of updated CPT Content in the MediRate Product(s) is dependent on a continuing contractual relationship between MediRate and the AMA.</li>

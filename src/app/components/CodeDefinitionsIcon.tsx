@@ -5,13 +5,12 @@ import Modal from './modal';
 import { FaInfoCircle, FaSearch, FaTimes } from 'react-icons/fa';
 
 interface CodeDefinition {
-  category: string;
   state_name_cpt_codes: string;
   service_code: string;
   service_description: string;
 }
 
-export default function CodeDefinitionsIcon() {
+const CodeDefinitionsIcon = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [topPosition, setTopPosition] = useState('4rem');
   const [showTooltip, setShowTooltip] = useState(true);
@@ -34,13 +33,11 @@ export default function CodeDefinitionsIcon() {
   }, [data, searchTerm]);
 
   useEffect(() => {
-    // Find the navbar element
-    navbarRef.current = document.querySelector('nav');
-    
     const updatePosition = () => {
-      if (navbarRef.current) {
-        const navbarHeight = navbarRef.current.offsetHeight;
-        setTopPosition(`${navbarHeight + 16}px`);
+      const navbar = document.querySelector('nav');
+      if (navbar) {
+        const navbarHeight = navbar.offsetHeight;
+        setTopPosition(`${navbarHeight + 16}px`); // 16px below the navbar
       }
     };
 
@@ -92,45 +89,23 @@ export default function CodeDefinitionsIcon() {
 
   return (
     <>
-      <div 
-        className="fixed right-4"
-        style={{ 
-          top: topPosition,
-          zIndex: 1000 // Higher than footer
+      <button
+        onClick={() => {
+          handleIconInteraction();
+          setIsOpen(true);
         }}
+        style={{ top: topPosition }}
+        className="fixed right-4 z-50 px-4 py-2 bg-[#012C61] text-white rounded-lg shadow-lg hover:bg-[#001a3d] transition-colors flex items-center space-x-2"
       >
-        {/* Tooltip */}
-        {showTooltip && (
-          <div className="relative mb-2">
-            <div className="absolute right-16 bg-white p-3 rounded-lg shadow-lg border border-gray-200 animate-fade-in">
-              <div className="text-sm text-gray-700">
-                Click here to view code definitions
-              </div>
-              {/* Arrow pointing right */}
-              <div className="absolute -right-2 top-1/2 transform -translate-y-1/2 w-3 h-3 bg-white transform rotate-45 border-t border-r border-gray-200" />
-            </div>
-          </div>
-        )}
-        
-        {/* Icon Button */}
-        <button
-          onClick={() => {
-            setIsOpen(true);
-            handleIconInteraction();
-          }}
-          onMouseEnter={handleIconInteraction}
-          className="p-3 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition-colors"
-          aria-label="Open code definitions"
-        >
-          <FaInfoCircle className="h-8 w-8" />
-        </button>
-      </div>
+        <FaInfoCircle className="h-5 w-5" />
+        <span>Code Definitions</span>
+      </button>
 
       <Modal 
         isOpen={isOpen} 
         onClose={() => setIsOpen(false)} 
         width="max-w-4xl"
-        className="z-[1001]" // Higher than the icon
+        className="z-[1001]"
       >
         <div className="p-6 flex flex-col h-[80vh]">
           {/* Centered Heading */}
@@ -180,9 +155,6 @@ export default function CodeDefinitionsIcon() {
                 <thead className="bg-gray-50 sticky top-0">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Category
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       State Name (CPT Codes)
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -196,9 +168,6 @@ export default function CodeDefinitionsIcon() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredData.map((item, index) => (
                     <tr key={index}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.category}
-                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {item.state_name_cpt_codes}
                       </td>
@@ -218,4 +187,6 @@ export default function CodeDefinitionsIcon() {
       </Modal>
     </>
   );
-} 
+};
+
+export default CodeDefinitionsIcon; 

@@ -24,12 +24,11 @@ export async function GET() {
     // If table exists, fetch the data
     const query = `
       SELECT 
-        category, 
         state_name_cpt_codes, 
         service_code, 
         service_description 
       FROM code_definitions
-      ORDER BY category, state_name_cpt_codes, service_code
+      ORDER BY state_name_cpt_codes, service_code
     `;
 
     const { rows } = await pool.query(query);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   Menu,
@@ -31,6 +31,7 @@ const SideNav = ({
   toggleSidebar,
 }: SideNavProps) => {
   const pathname = usePathname();
+  const [isClientSide, setIsClientSide] = useState(false); // Track client-side rendering
 
   // Update the tab mapping
   useEffect(() => {
@@ -38,11 +39,8 @@ const SideNav = ({
       "/dashboard": "dashboard",
       "/rate-developments": "rateDevelopments",
       "/state-rate-comparison": "stateRateComparison",
-      "/profile": "profile",
-      "/subscription": "subscription",
       "/settings": "settings",
       "/historical-rates": "historicalRates",
-      "/email-preferences": "emailPreferences"
     };
 
     // Match the exact path or paths that start with the base path
@@ -54,6 +52,11 @@ const SideNav = ({
       setActiveTab(tabMapping[activeTab]);
     }
   }, [pathname, setActiveTab]);
+
+  // Set isClientSide to true after the component mounts
+  useEffect(() => {
+    setIsClientSide(true);
+  }, []);
 
   return (
     <aside
@@ -77,7 +80,7 @@ const SideNav = ({
           onClick={toggleSidebar}
           className="p-2 text-white hover:bg-gray-800 rounded-md"
         >
-          {isSidebarCollapsed ? <Menu size={20} /> : <X size={20} />}
+          {isClientSide ? (isSidebarCollapsed ? <Menu size={20} /> : <X size={20} />) : <Menu size={20} />}
         </button>
       </div>
 
@@ -153,24 +156,6 @@ const SideNav = ({
               icon: <Megaphone size={20} />,
               label: "Rate Developments",
               href: "/rate-developments",
-            },
-            {
-              tab: "profile",
-              icon: <User size={20} />,
-              label: "Profile",
-              href: "/profile",
-            },
-            {
-              tab: "emailPreferences",
-              icon: <Mail size={20} />,
-              label: "Email Preferences",
-              href: "/email-preferences",
-            },
-            {
-              tab: "subscription",
-              icon: <CircleDollarSign size={20} />,
-              label: "Subscription",
-              href: "/subscription",
             },
             {
               tab: "settings",

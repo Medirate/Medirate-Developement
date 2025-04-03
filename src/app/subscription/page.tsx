@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import AppLayout from "@/app/components/applayout";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 
 interface Subscription {
@@ -140,16 +139,19 @@ export default function SubscriptionPage() {
 
   if (!isAuthenticated) {
     return (
-      <AppLayout activeTab="subscription">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-5xl md:text-6xl text-[#012C61] font-lemonMilkRegular uppercase mb-8 text-center">
+          Subscription
+        </h1>
         <p className="text-red-500 text-center text-lg">
           Please log in to view your subscription.
         </p>
-      </AppLayout>
+      </div>
     );
   }
 
   return (
-    <AppLayout activeTab="subscription">
+    <div className="max-w-7xl mx-auto">
       <h1 className="text-5xl md:text-6xl text-[#012C61] font-lemonMilkRegular uppercase mb-8 text-center">
         Subscription
       </h1>
@@ -247,6 +249,6 @@ export default function SubscriptionPage() {
           </div>
         )}
       </div>
-    </AppLayout>
+    </div>
   );
 }

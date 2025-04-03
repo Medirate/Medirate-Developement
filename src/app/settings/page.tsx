@@ -2,15 +2,24 @@
 
 import { useState } from "react";
 import AppLayout from "@/app/components/applayout";
+import EmailPreferences from "@/app/email-preferences/page";
+import Profile from "@/app/profile/page";
+import Subscription from "@/app/subscription/page";
 
 export default function Settings() {
-  const [subscribeToNewsletter, setSubscribeToNewsletter] = useState(false);
+  const [activeTab, setActiveTab] = useState("profile");
 
-  const handleSave = () => {
-    const message = subscribeToNewsletter
-      ? "You are now subscribed to the weekly newsletter!"
-      : "You have unsubscribed from the weekly newsletter!";
-    alert(message + " (This is just a placeholder)");
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "profile":
+        return <Profile />;
+      case "email-preferences":
+        return <EmailPreferences />;
+      case "subscription":
+        return <Subscription />;
+      default:
+        return <Profile />;
+    }
   };
 
   return (
@@ -19,31 +28,44 @@ export default function Settings() {
         Settings
       </h1>
 
-      <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-6">
-        <h2 className="text-xl font-semibold text-[#012C61] mb-4">
-          Newsletter Subscription
-        </h2>
-        <div className="flex items-center space-x-4 mb-6">
-          <input
-            type="checkbox"
-            id="subscribe"
-            checked={subscribeToNewsletter}
-            onChange={() => setSubscribeToNewsletter(!subscribeToNewsletter)}
-            className="w-5 h-5 text-[#012C61] border-gray-300 rounded focus:ring-[#012C61]"
-          />
-          <label htmlFor="subscribe" className="text-gray-700">
-            Subscribe to the weekly newsletter
-          </label>
+      <div className="max-w-7xl mx-auto">
+        {/* Tab Navigation */}
+        <div className="flex space-x-4 border-b border-gray-200 mb-8">
+          <button
+            onClick={() => setActiveTab("profile")}
+            className={`px-4 py-2 text-sm font-medium ${
+              activeTab === "profile"
+                ? "border-b-2 border-[#012C61] text-[#012C61]"
+                : "text-gray-500 hover:text-[#012C61]"
+            }`}
+          >
+            Profile
+          </button>
+          <button
+            onClick={() => setActiveTab("email-preferences")}
+            className={`px-4 py-2 text-sm font-medium ${
+              activeTab === "email-preferences"
+                ? "border-b-2 border-[#012C61] text-[#012C61]"
+                : "text-gray-500 hover:text-[#012C61]"
+            }`}
+          >
+            Email Preferences
+          </button>
+          <button
+            onClick={() => setActiveTab("subscription")}
+            className={`px-4 py-2 text-sm font-medium ${
+              activeTab === "subscription"
+                ? "border-b-2 border-[#012C61] text-[#012C61]"
+                : "text-gray-500 hover:text-[#012C61]"
+            }`}
+          >
+            Subscription
+          </button>
         </div>
 
-        <div className="flex justify-end space-x-4">
-          <button
-            type="button"
-            onClick={handleSave}
-            className="px-4 py-2 bg-[#012C61] text-white rounded-lg hover:bg-blue-800"
-          >
-            Save Changes
-          </button>
+        {/* Tab Content */}
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          {renderTabContent()}
         </div>
       </div>
     </AppLayout>

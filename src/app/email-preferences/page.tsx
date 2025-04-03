@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import AppLayout from "@/app/components/applayout";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import { createClient } from "@supabase/supabase-js";
 import { motion } from "framer-motion";
@@ -129,16 +128,11 @@ export default function EmailPreferences() {
   };
 
   return (
-    <AppLayout activeTab="emailPreferences">
-      <motion.div
-        className="max-w-[1400px] mx-auto p-8"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <h1 className="text-5xl md:text-6xl font-lemonMilkRegular text-[#012C61] mb-6 text-center uppercase tracking-widest">
-          EMAIL PREFERENCES
-        </h1>
+    <>
+      <h1 className="text-5xl md:text-6xl text-[#012C61] font-lemonMilkRegular uppercase mb-8 text-center">
+        Email Preferences
+      </h1>
+      <div className="max-w-7xl mx-auto">
         <p className="text-gray-600 mb-6 text-center text-lg">
           Stay informed of Medicaid provider rate developments by selecting States and Categories for regular email updates.
         </p>
@@ -225,7 +219,7 @@ export default function EmailPreferences() {
             {loading ? "Saving..." : "Save Preferences"}
           </motion.button>
         </div>
-      </motion.div>
-    </AppLayout>
+      </div>
+    </>
   );
 }

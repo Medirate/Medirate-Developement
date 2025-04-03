@@ -48,6 +48,12 @@ interface ServiceData {
   service_description?: string;
 }
 
+interface FilterSet {
+  serviceCategory: string;
+  states: string[];
+  serviceCode: string;
+}
+
 const darkenColor = (color: string, amount: number): string => {
   // Convert hex to RGB
   let r = parseInt(color.slice(1, 3), 16);
@@ -96,7 +102,7 @@ export default function StatePaymentComparison() {
   // Unique filter options
   const [serviceCategories, setServiceCategories] = useState<string[]>([]);
   const [states, setStates] = useState<string[]>([]);
-  const [serviceCodes, setServiceCodes] = useState<string[]>([]);
+  const [serviceCodes, setServiceCodes] = useState<{ code: string; description: string }[]>([]);
 
   // Add state for selected modifiers
   const [selectedModifiers, setSelectedModifiers] = useState<{[key: string]: string}>({});
@@ -104,8 +110,19 @@ export default function StatePaymentComparison() {
   // Check if we should show checkboxes
   const showCheckboxes = selectedServiceCategory && selectedServiceCode && selectedStates.length > 0;
 
-  // Update the areFiltersActive check
-  const areAllFiltersApplied = selectedServiceCategory && selectedStates.length > 0 && selectedServiceCode;
+  // Add this near other state declarations
+  const [filterSets, setFilterSets] = useState<FilterSet[]>([
+    { serviceCategory: "", states: [], serviceCode: "" }
+  ]);
+
+  // Then use it in the useMemo block
+  const areAllFiltersApplied = useMemo(() => {
+    return filterSets.every(filterSet => 
+      filterSet.serviceCategory && 
+      filterSet.states.length > 0 && 
+      filterSet.serviceCode
+    );
+  }, [filterSets]);
 
   const selectId = useId();
 
@@ -162,11 +179,13 @@ export default function StatePaymentComparison() {
   };
 
   // Update filter handlers to remove URL updates
-  const handleServiceCategoryChange = (category: string) => {
-    setSelectedServiceCategory(category);
-    setSelectedStates([]);
-    setSelectedServiceCode("");
-    setSelectedEntry(null);
+  const handleServiceCategoryChange = (index: number, category: string) => {
+    const newFilterSets = [...filterSets];
+    newFilterSets[index].serviceCategory = category;
+    newFilterSets[index].states = [];
+    newFilterSets[index].serviceCode = "";
+    setFilterSets(newFilterSets);
+
     setFilterLoading(true);
 
     const filteredStates = data
@@ -178,33 +197,36 @@ export default function StatePaymentComparison() {
     setFilterLoading(false);
   };
 
-  const handleStateChange = (options: readonly { value: string; label: string }[]) => {
-    const selectedStatesArray = options.map(option => option.value.toUpperCase()); // Convert to uppercase
-    setSelectedStates(selectedStatesArray);
-    setIsAllStatesSelected(false);
-    
-    setSelectedServiceCode("");
-    setSelectedEntry(null);
+  const handleStateChange = (index: number, options: readonly { value: string; label: string }[]) => {
+    const newFilterSets = [...filterSets];
+    newFilterSets[index].states = options.map(option => option.value.toUpperCase());
+    newFilterSets[index].serviceCode = "";
+    setFilterSets(newFilterSets);
+
     setFilterLoading(true);
 
-    if (selectedServiceCategory) {
+    if (newFilterSets[index].serviceCategory) {
       setTimeout(() => {
         const filteredCodes = data
           .filter((item) => 
-            selectedStatesArray.includes(item.state_name?.toUpperCase()) && // Case insensitive comparison
-            item.service_category === selectedServiceCategory
+            newFilterSets[index].states.includes(item.state_name?.toUpperCase()) &&
+            item.service_category === newFilterSets[index].serviceCategory
           )
-          .map((item) => item.service_code);
-        setServiceCodes([...new Set(filteredCodes)].sort((a, b) => a.localeCompare(b)));
+          .map((item) => ({ code: item.service_code, description: item.service_description || '' }));
+        setServiceCodes([...new Set(filteredCodes.map(item => item.code))].map(code => {
+          const item = filteredCodes.find(item => item.code === code);
+          return { code, description: item?.description || '' };
+        }).sort((a, b) => a.code.localeCompare(b.code)));
         setFilterLoading(false);
       }, 0);
     }
   };
 
-  const handleServiceCodeChange = (code: string) => {
-    setSelectedServiceCode(code);
-    setSelectedEntry(null);
-    setSelectedTableRows({});
+  const handleServiceCodeChange = (index: number, code: string) => {
+    const newFilterSets = [...filterSets];
+    newFilterSets[index].serviceCode = code;
+    setFilterSets(newFilterSets);
+
     setFilterLoading(true);
     setFilterLoading(false);
   };
@@ -226,13 +248,15 @@ export default function StatePaymentComparison() {
   const latestRates = Array.from(latestRatesMap.values());
 
   // Then filter based on selections
-  const filteredData = latestRates.filter((item) => {
-    return (
-      (!selectedServiceCategory || item.service_category === selectedServiceCategory) &&
-      (!selectedStates.length || selectedStates.includes(item.state_name)) &&
-      (!selectedServiceCode || item.service_code === selectedServiceCode)
-    );
-  });
+  const filteredData = useMemo(() => {
+    return latestRates.filter((item) => {
+      return filterSets.some(filterSet => (
+        (!filterSet.serviceCategory || item.service_category === filterSet.serviceCategory) &&
+        (!filterSet.states.length || filterSet.states.includes(item.state_name)) &&
+        (!filterSet.serviceCode || item.service_code === filterSet.serviceCode)
+      ));
+    });
+  }, [latestRates, filterSets]);
 
   // Group filtered data by state
   const groupedByState = useMemo(() => {
@@ -249,12 +273,14 @@ export default function StatePaymentComparison() {
   // Update the processedData calculation to include program and location_region
   const processedData: { [state: string]: { [modifierKey: string]: number } } = {};
 
-  if (isAllStatesSelected && selectedServiceCode) {
-    // Calculate average rates for each state when "Select All States" is chosen
-    const stateAverages = new Map<string, number>();
-    const stateCounts = new Map<string, number>();
+  filterSets.forEach(filterSet => {
+    const filteredDataForSet = latestRates.filter((item) => (
+      item.service_category === filterSet.serviceCategory &&
+      filterSet.states.includes(item.state_name) &&
+      item.service_code === filterSet.serviceCode
+    ));
 
-    filteredData.forEach(item => {
+    filteredDataForSet.forEach(item => {
       const rate = showRatePerHour 
         ? (() => {
             let rateValue = parseFloat(item.rate?.replace('$', '') || '0');
@@ -268,47 +294,10 @@ export default function StatePaymentComparison() {
             return Math.round(rateValue * 100) / 100;
           })()
         : Math.round(parseFloat(item.rate?.replace("$", "") || "0") * 100) / 100;
-      
-      console.log(`State: ${item.state_name}, Rate: ${rate}, Program: ${item.program}, Region: ${item.location_region}`);
 
-      if (!stateAverages.has(item.state_name)) {
-        stateAverages.set(item.state_name, 0);
-        stateCounts.set(item.state_name, 0);
-      }
-      stateAverages.set(item.state_name, stateAverages.get(item.state_name)! + rate);
-      stateCounts.set(item.state_name, stateCounts.get(item.state_name)! + 1);
-    });
-
-    // Calculate the average for each state
-    stateAverages.forEach((sum, state) => {
-      const count = stateCounts.get(state)!;
-      const average = sum / count;
-      console.log(`State: ${state}, Sum: ${sum}, Count: ${count}, Average: ${average}`);
-      processedData[state] = {
-        'average': average
-      };
-    });
-  } else {
-    // Original logic for individual state selection
-    filteredData.forEach(item => {
-      const rate = showRatePerHour 
-        ? (() => {
-            let rateValue = parseFloat(item.rate?.replace('$', '') || '0');
-            const durationUnit = item.duration_unit?.toUpperCase();
-            
-            if (durationUnit === '15 MINUTES') {
-              rateValue *= 4;
-            } else if (durationUnit !== 'PER HOUR') {
-              rateValue = 0; // Or handle differently if needed
-            }
-            return Math.round(rateValue * 100) / 100;
-          })()
-        : Math.round(parseFloat(item.rate?.replace("$", "") || "0") * 100) / 100;
-      
-      // Include program and location_region in the modifier key
       const currentModifier = `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}|${item.program}|${item.location_region}`;
       const stateSelections = selectedTableRows[item.state_name] || [];
-      
+
       if (stateSelections.includes(currentModifier)) {
         if (!processedData[item.state_name]) {
           processedData[item.state_name] = {};
@@ -316,7 +305,7 @@ export default function StatePaymentComparison() {
         processedData[item.state_name][currentModifier] = rate;
       }
     });
-  }
+  });
 
   // ✅ Prepare ECharts Data
   const echartOptions = useMemo(() => {
@@ -611,11 +600,19 @@ export default function StatePaymentComparison() {
   };
 
   const resetFilters = () => {
+    // Reset filter sets to one empty filter set
+    setFilterSets([{ serviceCategory: "", states: [], serviceCode: "" }]);
+
+    // Reset other filter-related states
     setSelectedServiceCategory("");
     setSelectedStates([]);
     setSelectedServiceCode("");
     setSelectedEntry(null);
     setServiceCodes([]);
+    setSelectedTableRows({});
+    setIsAllStatesSelected(false);
+    setSortOrder('default');
+    setSelectedStateDetails(null);
   };
 
   // Calculate comparison metrics
@@ -904,94 +901,109 @@ export default function StatePaymentComparison() {
           <>
             {/* Filters */}
             <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-                {/* Service Category Selector */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Service Line</label>
-                  <Select
-                    options={serviceCategories
-                      .filter(category => {
-                        const trimmedCategory = category.trim();
-                        return trimmedCategory && 
-                               !['HCBS', 'IDD', 'SERVICE CATEGORY'].includes(trimmedCategory);
-                      })
-                      .map(category => ({ value: category, label: category }))}
-                    value={selectedServiceCategory ? { value: selectedServiceCategory, label: selectedServiceCategory } : null}
-                    onChange={(option) => handleServiceCategoryChange(option?.value || "")}
-                    placeholder="Select Service Line"
-                    isSearchable
-                    className="react-select-container"
-                    classNamePrefix="react-select"
-                  />
+              {filterSets.map((filterSet, index) => (
+                <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-4">
+                  {/* Service Category Selector */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Service Line</label>
+                    <Select
+                      instanceId={`service-category-select-${index}`}
+                      options={serviceCategories
+                        .filter(category => {
+                          const trimmedCategory = category.trim();
+                          return trimmedCategory && 
+                                 !['HCBS', 'IDD', 'SERVICE CATEGORY'].includes(trimmedCategory);
+                        })
+                        .map(category => ({ value: category, label: category }))}
+                      value={filterSet.serviceCategory ? { value: filterSet.serviceCategory, label: filterSet.serviceCategory } : null}
+                      onChange={(option) => handleServiceCategoryChange(index, option?.value || "")}
+                      placeholder="Select Service Line"
+                      isSearchable
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                    />
+                  </div>
+
+                  {/* State Selector */}
+                  {filterSet.serviceCategory ? (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">State</label>
+                      <Select
+                        instanceId={`state-select-${index}`}
+                        options={states.map(state => ({ value: state, label: state }))}
+                        value={filterSet.states.map(state => ({ value: state, label: state }))}
+                        onChange={(options) => handleStateChange(index, options || [])}
+                        placeholder="Select State"
+                        isSearchable
+                        isMulti
+                        className="react-select-container"
+                        classNamePrefix="react-select"
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">State</label>
+                      <div className="text-gray-400 text-sm">
+                        Select a service line first
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Service Code Selector */}
+                  {filterSet.serviceCategory && filterSet.states.length > 0 ? (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Service Code</label>
+                      <Select
+                        instanceId={`service-code-select-${index}`}
+                        options={serviceCodes.map(({ code, description }) => ({ 
+                          value: code, 
+                          label: `${code} - ${description}` 
+                        }))}
+                        value={filterSet.serviceCode ? { 
+                          value: filterSet.serviceCode, 
+                          label: `${filterSet.serviceCode} - ${serviceCodes.find(item => item.code === filterSet.serviceCode)?.description || ''}` 
+                        } : null}
+                        onChange={(option) => handleServiceCodeChange(index, option?.value || "")}
+                        placeholder="Select Service Code"
+                        isSearchable
+                        className="react-select-container"
+                        classNamePrefix="react-select"
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Service Code</label>
+                      <div className="text-gray-400 text-sm">
+                        {filterSet.serviceCategory ? "Select a state to see available service codes" : "Select a service line first"}
+                      </div>
+                    </div>
+                  )}
                 </div>
+              ))}
 
-                {/* State Selector */}
-                {selectedServiceCategory ? (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">State</label>
-                    <Select
-                      options={states.map(state => ({ value: state, label: state }))}
-                      value={selectedStates.map(state => ({ value: state, label: state }))}
-                      onChange={(options) => handleStateChange(options || [])}
-                      placeholder="Select State"
-                      isSearchable
-                      isMulti
-                      className="react-select-container"
-                      classNamePrefix="react-select"
-                    />
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">State</label>
-                    <div className="text-gray-400 text-sm">
-                      Select a service line first
-                    </div>
-                  </div>
-                )}
-
-                {/* Service Code Selector */}
-                {selectedServiceCategory && selectedStates.length > 0 ? (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Service Code</label>
-                    <Select
-                      options={serviceCodes.map(code => ({ value: code, label: code }))}
-                      value={selectedServiceCode ? { value: selectedServiceCode, label: selectedServiceCode } : null}
-                      onChange={(option) => handleServiceCodeChange(option?.value || "")}
-                      placeholder="Select Service Code"
-                      isSearchable
-                      className="react-select-container"
-                      classNamePrefix="react-select"
-                    />
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Service Code</label>
-                    <div className="text-gray-400 text-sm">
-                      {selectedServiceCategory ? "Select a state to see available service codes" : "Select a service line first"}
-                    </div>
-                  </div>
-                )}
-              </div>
+              {/* Add Filter Set Button */}
+              <button
+                onClick={() => setFilterSets([...filterSets, { serviceCategory: "", states: [], serviceCode: "" }])}
+                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                Add Filter Set
+              </button>
             </div>
 
             {/* Comparison Metrics */}
             {areAllFiltersApplied && (
               <div className="mb-8 p-6 bg-white rounded-xl shadow-lg">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="flex items-center space-x-4 p-4 bg-blue-50 rounded-lg">
-                    <FaChartLine className="h-8 w-8 text-blue-500" />
-                    <div>
-                      <p className="text-sm text-gray-500">National Average Rate</p>
-                      <p className="text-xl font-semibold text-gray-800">${nationalAverage}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-4 p-4 bg-green-50 rounded-lg">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Highest Rate */}
+                  <div className="flex items-center space-x-4 p-4 bg-green-100 rounded-lg">
                     <FaArrowUp className="h-8 w-8 text-green-500" />
                     <div>
                       <p className="text-sm text-gray-500">Highest Rate of Selected States</p>
                       <p className="text-xl font-semibold text-gray-800">${rates.length > 0 ? Math.max(...rates).toFixed(2) : '0.00'}</p>
                     </div>
                   </div>
+
+                  {/* Lowest Rate */}
                   <div className="flex items-center space-x-4 p-4 bg-red-50 rounded-lg">
                     <FaArrowDown className="h-8 w-8 text-red-500" />
                     <div>
