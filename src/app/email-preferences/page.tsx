@@ -130,11 +130,11 @@ export default function EmailPreferences() {
   return (
     <>
       <h1 className="text-5xl md:text-6xl text-[#012C61] font-lemonMilkRegular uppercase mb-8 text-center">
-        Email Preferences
+        Email Alerts
       </h1>
       <div className="max-w-7xl mx-auto">
         <p className="text-gray-600 mb-6 text-center text-lg">
-          Stay informed of Medicaid provider rate developments by selecting States and Categories for regular email updates.
+          Stay informed of Medicaid provider rate developments by selecting States and Categories for regular email alerts.
         </p>
 
         {user?.email && (
@@ -216,7 +216,7 @@ export default function EmailPreferences() {
             className="bg-[#012C61] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#023d85] transition-transform transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed"
             disabled={loading}
           >
-            {loading ? "Saving..." : "Save Preferences"}
+            {loading ? "Saving..." : "Save Alerts"}
           </motion.button>
         </div>
       </div>

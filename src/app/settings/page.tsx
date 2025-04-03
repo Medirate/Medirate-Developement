@@ -49,7 +49,7 @@ export default function Settings() {
                 : "text-gray-500 hover:text-[#012C61]"
             }`}
           >
-            Email Preferences
+            Email Alerts
           </button>
           <button
             onClick={() => setActiveTab("subscription")}
