@@ -199,7 +199,16 @@ export default function StatePaymentComparison() {
 
   const handleStateChange = (index: number, options: readonly { value: string; label: string }[]) => {
     const newFilterSets = [...filterSets];
-    newFilterSets[index].states = options.map(option => option.value.toUpperCase());
+    
+    // If "All States" is selected, set the states to all available states but only display "All States"
+    if (index === 0 && options.some(option => option.value === "ALL_STATES")) {
+      newFilterSets[index].states = states;
+      setIsAllStatesSelected(true);
+    } else {
+      newFilterSets[index].states = options.map(option => option.value.toUpperCase());
+      setIsAllStatesSelected(false);
+    }
+    
     newFilterSets[index].serviceCode = "";
     setFilterSets(newFilterSets);
 
@@ -270,64 +279,112 @@ export default function StatePaymentComparison() {
     return groups;
   }, [filteredData]);
 
-  // Update the processedData calculation to include program and location_region
-  const processedData: { [state: string]: { [modifierKey: string]: number } } = {};
+  // Move this function above the useMemo for processedData
+  const calculateProcessedData = () => {
+    const newProcessedData: { [state: string]: { [modifierKey: string]: number } } = {};
 
-  filterSets.forEach(filterSet => {
-    const filteredDataForSet = latestRates.filter((item) => (
-      item.service_category === filterSet.serviceCategory &&
-      filterSet.states.includes(item.state_name) &&
-      item.service_code === filterSet.serviceCode
-    ));
+    filterSets.forEach(filterSet => {
+      const filteredDataForSet = latestRates.filter((item) => (
+        item.service_category === filterSet.serviceCategory &&
+        filterSet.states.includes(item.state_name?.toUpperCase()) &&
+        item.service_code === filterSet.serviceCode
+      ));
 
-    filteredDataForSet.forEach(item => {
-      const rate = showRatePerHour 
-        ? (() => {
-            let rateValue = parseFloat(item.rate?.replace('$', '') || '0');
-            const durationUnit = item.duration_unit?.toUpperCase();
-            
+      // If "All States" is selected, calculate the average rate for each state
+      if (filterSet.states.length === states.length && filterSets[0].states.length === states.length) {
+        const stateRates: { [state: string]: number[] } = {};
+
+        // Group rates by state
+        filteredDataForSet.forEach(item => {
+          const state = item.state_name;
+          let rateValue = parseFloat(item.rate?.replace('$', '') || '0');
+          const durationUnit = item.duration_unit?.toUpperCase();
+          
+          if (showRatePerHour) {
             if (durationUnit === '15 MINUTES') {
               rateValue *= 4;
             } else if (durationUnit !== 'PER HOUR') {
               rateValue = 0; // Or handle differently if needed
             }
-            return Math.round(rateValue * 100) / 100;
-          })()
-        : Math.round(parseFloat(item.rate?.replace("$", "") || "0") * 100) / 100;
+          }
 
-      const currentModifier = `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}|${item.program}|${item.location_region}`;
-      const stateSelections = selectedTableRows[item.state_name] || [];
+          if (!stateRates[state]) {
+            stateRates[state] = [];
+          }
+          stateRates[state].push(rateValue);
+        });
 
-      if (stateSelections.includes(currentModifier)) {
-        if (!processedData[item.state_name]) {
-          processedData[item.state_name] = {};
-        }
-        processedData[item.state_name][currentModifier] = rate;
+        // Calculate the average rate for each state
+        Object.entries(stateRates).forEach(([state, rates]) => {
+          const averageRate = rates.reduce((sum, rate) => sum + rate, 0) / rates.length;
+          newProcessedData[state] = {
+            'average': averageRate
+          };
+        });
+      } else {
+        // Otherwise, process data as usual
+        filteredDataForSet.forEach(item => {
+          const rate = showRatePerHour 
+            ? (() => {
+                let rateValue = parseFloat(item.rate?.replace('$', '') || '0');
+                const durationUnit = item.duration_unit?.toUpperCase();
+                
+                if (durationUnit === '15 MINUTES') {
+                  rateValue *= 4;
+                } else if (durationUnit !== 'PER HOUR') {
+                  rateValue = 0; // Or handle differently if needed
+                }
+                return Math.round(rateValue * 100) / 100;
+              })()
+            : Math.round(parseFloat(item.rate?.replace("$", "") || "0") * 100) / 100;
+
+          const currentModifier = `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}|${item.program}|${item.location_region}`;
+          const stateSelections = selectedTableRows[item.state_name] || [];
+
+          if (stateSelections.includes(currentModifier)) {
+            if (!newProcessedData[item.state_name]) {
+              newProcessedData[item.state_name] = {};
+            }
+            newProcessedData[item.state_name][currentModifier] = rate;
+          }
+        });
       }
     });
-  });
+
+    return newProcessedData;
+  };
+
+  // Then use it in the useMemo
+  const processedData = useMemo(() => calculateProcessedData(), [
+    filterSets,
+    latestRates,
+    selectedTableRows,
+    showRatePerHour,
+    states.length,
+  ]);
 
   // ✅ Prepare ECharts Data
-  const echartOptions = useMemo(() => {
-    let states = Object.keys(processedData);
-    let series: echarts.SeriesOption[] = [];
+  const echartOptions = useMemo<echarts.EChartsOption>(() => {
+    const statesList = Object.keys(processedData);
+    const series: echarts.SeriesOption[] = [];
 
     if (isAllStatesSelected) {
-      // Existing logic for "All States" selection
+      // Sort states if needed
       if (sortOrder !== 'default') {
-        states = states.sort((a, b) => {
+        statesList.sort((a, b) => {
           const rateA = processedData[a]['average'] || 0;
           const rateB = processedData[b]['average'] || 0;
           return sortOrder === 'asc' ? rateA - rateB : rateB - rateA;
         });
       }
 
+      // Create a bar for each state's average rate
       series.push({
         name: 'Average Rate',
         type: 'bar',
         barGap: '20%',
         barCategoryGap: '20%',
-        data: states.map(state => processedData[state]['average'] || null),
+        data: statesList.map(state => processedData[state]['average'] || null),
         label: {
           show: true,
           position: 'insideTop',
@@ -347,10 +404,9 @@ export default function StatePaymentComparison() {
         }
       });
     } else {
-      // New logic for manual state selection with sorting
+      // Existing logic for manual state selection
       const allSelections: { state: string, modifierKey: string, rate: number }[] = [];
       
-      // Collect all selected modifier combinations with their rates
       Object.entries(selectedTableRows).forEach(([state, selections]) => {
         selections.forEach(modifierKey => {
           const rate = processedData[state][modifierKey] || 0;
@@ -358,21 +414,19 @@ export default function StatePaymentComparison() {
         });
       });
 
-      // Sort the selections based on the selected order
       if (sortOrder !== 'default') {
         allSelections.sort((a, b) => 
           sortOrder === 'asc' ? a.rate - b.rate : b.rate - a.rate
         );
       }
 
-      // Create a series for each selection
       allSelections.forEach(({ state, modifierKey, rate }, index) => {
         series.push({
           name: `${state} - ${modifierKey}`,
           type: 'bar',
           barGap: '0%',
           barCategoryGap: '20%',
-          data: states.map(s => s === state ? rate : null),
+          data: statesList.map(s => s === state ? rate : null),
           label: {
             show: true,
             position: 'top',
@@ -391,9 +445,6 @@ export default function StatePaymentComparison() {
           }
         });
       });
-
-      // Update the states array to reflect the sorted order
-      states = [...new Set(allSelections.map(s => s.state))];
     }
 
     const option: echarts.EChartsOption = {
@@ -450,7 +501,7 @@ export default function StatePaymentComparison() {
       },
       xAxis: {
         type: 'category',
-        data: states,
+        data: statesList,
         axisLabel: {
           rotate: 45,
           fontSize: 10
@@ -930,8 +981,15 @@ export default function StatePaymentComparison() {
                       <label className="text-sm font-medium text-gray-700">State</label>
                       <Select
                         instanceId={`state-select-${index}`}
-                        options={states.map(state => ({ value: state, label: state }))}
-                        value={filterSet.states.map(state => ({ value: state, label: state }))}
+                        options={[
+                          ...(index === 0 ? [{ value: "ALL_STATES", label: "All States" }] : []),
+                          ...states.map(state => ({ value: state, label: state }))
+                        ]}
+                        value={
+                          filterSet.states.length === states.length && index === 0
+                            ? [{ value: "ALL_STATES", label: "All States" }]
+                            : filterSet.states.map(state => ({ value: state, label: state }))
+                        }
                         onChange={(options) => handleStateChange(index, options || [])}
                         placeholder="Select State"
                         isSearchable
@@ -1107,7 +1165,7 @@ export default function StatePaymentComparison() {
               </div>
             )}
 
-            {/* Data Table - Show when filters are active */}
+            {/* Data Table - Show when filters are active and "All States" is not selected */}
             {areAllFiltersApplied && !isAllStatesSelected && (
               <>
                 {Object.entries(groupedByState).map(([state, stateData]) => {
@@ -1200,7 +1258,8 @@ export default function StatePaymentComparison() {
                                 const currentModifierKey = `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}|${item.program}|${item.location_region}`;
                                 const isSelected = selectedModifierKeys.includes(currentModifierKey);
                                 
-                                const rateValue = parseFloat(item.rate.replace('$', '') || '0');
+                                // Safely handle null or undefined rate
+                                const rateValue = parseFloat((item.rate || '').replace('$', '') || '0');
                                 const durationUnit = item.duration_unit?.toUpperCase();
                                 const hourlyRate = durationUnit === '15 MINUTES' ? rateValue * 4 : rateValue;
 
