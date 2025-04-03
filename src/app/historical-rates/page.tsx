@@ -138,7 +138,8 @@ export default function HistoricalRates() {
       modifier_4: false,
       duration_unit: false,
       rate: false,
-      rate_per_hour: false
+      rate_per_hour: false,
+      rate_effective_date: false
     };
 
     if (filteredData.length > 0) {
