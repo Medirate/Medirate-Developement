@@ -55,64 +55,21 @@ ChartJS.register(
 export default function HistoricalRates() {
   const { isAuthenticated, isLoading } = useKindeBrowserClient();
   const router = useRouter();
-
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/api/auth/login");
-    }
-  }, [isAuthenticated, isLoading, router]);
-
   const { data, loading, error } = useData();
 
-  useEffect(() => {
-    if (data.length > 0) {
-      extractFilters(data);
-    }
-  }, [data]);
-
-  if (isLoading || !isAuthenticated) {
-    return null; // or a loading spinner
-  }
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (error) {
-    return <div>Error: {error}</div>;
-  }
-
-  // Filters
+  // Move all useState declarations to the top
   const [selectedServiceCategory, setSelectedServiceCategory] = useState("");
   const [selectedState, setSelectedState] = useState("");
   const [selectedServiceCode, setSelectedServiceCode] = useState("");
-
-  // Unique filter options
   const [serviceCategories, setServiceCategories] = useState<string[]>([]);
   const [states, setStates] = useState<string[]>([]);
   const [serviceCodes, setServiceCodes] = useState<string[]>([]);
-
-  // Update the selected entry state to handle single selection
   const [selectedEntry, setSelectedEntry] = useState<ServiceData | null>(null);
-
-  // Add this state near other state declarations
   const [showRatePerHour, setShowRatePerHour] = useState(false);
 
+  // Move useMemo declarations to the top
   const areFiltersApplied = selectedServiceCategory && selectedState && selectedServiceCode;
 
-  const extractFilters = (data: ServiceData[]) => {
-    const categories = data
-      .map((item) => item.service_category?.trim())
-      .filter(category => category);
-    setServiceCategories([...new Set(categories)].sort((a, b) => a.localeCompare(b)));
-
-    const states = data
-      .map((item) => item.state_name?.trim().toUpperCase())
-      .filter(state => state);
-    setStates([...new Set(states)].sort((a, b) => a.localeCompare(b)));
-  };
-
-  // Get filtered data based on selections
   const filteredData = useMemo(() => {
     if (!areFiltersApplied) return [];
     
@@ -138,7 +95,6 @@ export default function HistoricalRates() {
     return Array.from(uniqueMap.values());
   }, [data, selectedServiceCategory, selectedState, selectedServiceCode]);
 
-  // Add a function to check which columns have data
   const getVisibleColumns = useMemo(() => {
     const columns = {
       state_name: false,
@@ -180,6 +136,44 @@ export default function HistoricalRates() {
 
     return columns;
   }, [filteredData]);
+
+  // Move extractFilters inside the component
+  const extractFilters = (data: ServiceData[]) => {
+    const categories = data
+      .map((item) => item.service_category?.trim())
+      .filter(category => category);
+    setServiceCategories([...new Set(categories)].sort((a, b) => a.localeCompare(b)));
+
+    const states = data
+      .map((item) => item.state_name?.trim().toUpperCase())
+      .filter(state => state);
+    setStates([...new Set(states)].sort((a, b) => a.localeCompare(b)));
+  };
+
+  // Now the useEffect can safely call extractFilters
+  useEffect(() => {
+    if (data.length > 0) {
+      extractFilters(data);
+    }
+  }, [data]);
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push("/api/auth/login");
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  if (isLoading || !isAuthenticated) {
+    return null; // or a loading spinner
+  }
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
 
   const ErrorMessage = ({ error }: { error: string }) => {
     if (!error) return null;
