@@ -35,7 +35,15 @@ export async function POST(req: Request) {
     if (!userData) {
       const { data: newUser, error: insertUserError } = await supabase
         .from("User")
-        .insert([{ Email: email, FirstName: firstName, LastName: lastName, KindeUserID: kindeId }])
+        .insert([
+          { 
+            Email: email, 
+            FirstName: firstName, 
+            LastName: lastName, 
+            KindeUserID: kindeId,
+            UpdatedAt: new Date().toISOString()
+          }
+        ])
         .select()
         .single();
 
@@ -70,6 +78,11 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Failed to add sub-user." }, { status: 500 });
       }
     }
+
+    console.log("Syncing user with email:", email);
+    console.log("First Name:", firstName);
+    console.log("Last Name:", lastName);
+    console.log("Kinde ID:", kindeId);
 
     return NextResponse.json({ message: "User synced successfully." }, { status: 200 });
   } catch (error) {

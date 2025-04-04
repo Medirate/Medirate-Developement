@@ -34,6 +34,13 @@ const Navbar = () => {
     }
   }, [user]);
 
+  // ✅ Sync user to Supabase after login
+  useEffect(() => {
+    if (isAuthenticated && user?.email) {
+      syncUserToSupabase(user.email, user.given_name || "", user.family_name || "", user.id);
+    }
+  }, [isAuthenticated, user]);
+
   const fetchUserFromSupabase = async (email: string) => {
     const { data, error } = await supabase
       .from("User")
@@ -49,6 +56,25 @@ const Navbar = () => {
         email: data.Email,
         picture: data.Picture || undefined,
       });
+    }
+  };
+
+  const syncUserToSupabase = async (email: string, firstName: string, lastName: string, kindeId: string) => {
+    try {
+      const response = await fetch("/api/sync-kinde-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, firstName, lastName, kindeId }),
+      });
+
+      const data = await response.json();
+      if (data.error) {
+        console.error("❌ Error syncing user:", data.error);
+      } else {
+        console.log("✅ User synced successfully:", data);
+      }
+    } catch (err) {
+      console.error("❌ Sync error:", err);
     }
   };
 
