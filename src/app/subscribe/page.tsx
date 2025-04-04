@@ -42,7 +42,25 @@ const StripePricingTableWithFooter = () => {
     <div className="flex flex-col min-h-screen">
       {/* Main Content */}
       <main className="flex-grow flex flex-col items-center justify-center px-4 pt-16">
-        <div className="w-full max-w-4xl transform scale-110" style={{ transformOrigin: "center" }}>
+        {/* Professional Discount Banner */}
+        <div className="w-full max-w-4xl mb-8 p-6 bg-gradient-to-r from-blue-700 to-indigo-700 rounded-lg shadow-lg text-white text-center animate-pulse">
+          <h2 className="text-2xl font-bold mb-2">✨ Limited Time Offer ✨</h2>
+          <p className="text-lg mb-4">
+            Use code <span className="font-bold bg-white text-blue-700 px-2 py-1 rounded">MEDICAID20</span> at checkout to get <span className="font-bold">20% off</span> your annual subscription!
+          </p>
+          <button
+            className="px-6 py-2 bg-white text-blue-700 font-semibold rounded-lg hover:bg-gray-100 transition-colors animate-bounce"
+            onClick={() => {
+              // Optionally, scroll to the pricing table or highlight it
+              document.getElementById("pricing-table")?.scrollIntoView({ behavior: "smooth" });
+            }}
+          >
+            Claim Your Discount Now
+          </button>
+        </div>
+
+        {/* Pricing Table */}
+        <div id="pricing-table" className="w-full max-w-4xl transform scale-110" style={{ transformOrigin: "center" }}>
           {React.createElement("stripe-pricing-table", {
             "pricing-table-id": "prctbl_1QhgA9EA5fbmDyeFHEeLwdrJ", // Replace with actual Pricing Table ID
             "publishable-key":
