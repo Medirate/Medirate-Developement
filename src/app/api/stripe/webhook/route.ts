@@ -17,6 +17,8 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE!
 );
 
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+
 export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.arrayBuffer();
@@ -31,7 +33,7 @@ export async function POST(req: NextRequest) {
       event = stripe.webhooks.constructEvent(
         Buffer.from(rawBody),
         sig,
-        process.env.STRIPE_WEBHOOK_SECRET!
+        endpointSecret
       );
     } catch (error) {
       return NextResponse.json({ error: `Webhook Error: ${(error as Error).message}` }, { status: 400 });

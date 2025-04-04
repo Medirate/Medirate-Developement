@@ -32,7 +32,7 @@ export default function TermsModal() {
     >
       <div className="p-6 flex flex-col h-[80vh]">
         <h2 className="text-xl font-bold text-[#012C61] uppercase font-lemonMilkRegular text-center mb-4">
-          Additional Terms
+          Notifications and Terms of Use
         </h2>
         
         <div className="flex-1 overflow-y-auto pr-4 text-sm text-gray-700">
