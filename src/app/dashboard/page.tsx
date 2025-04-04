@@ -106,17 +106,30 @@ export default function Dashboard() {
   // Add a state to track the current step
   const [filterStep, setFilterStep] = useState(1);
 
+  // Add Fee Schedule Dates Dropdown
+  const [selectedFeeScheduleDate, setSelectedFeeScheduleDate] = useState("");
+  const [feeScheduleDates, setFeeScheduleDates] = useState<string[]>([]);
+
   // Update the filteredData calculation to include year filter
   const filteredData = useMemo(() => {
     if (!areFiltersApplied) return [];
     
     return data.filter(item => {
-      // Date filter
-      const effectiveDate = new Date(item.rate_effective_date);
-      if (effectiveDate < startDate || effectiveDate > endDate) return false;
+      // If a Fee Schedule Date is selected, ignore the Date Range
+      if (selectedFeeScheduleDate) {
+        const itemDate = new Date(item.rate_effective_date).toISOString().split('T')[0];
+        if (itemDate !== selectedFeeScheduleDate) return false;
+      } else {
+        // Otherwise, apply the Date Range filter
+        const effectiveDate = new Date(item.rate_effective_date);
+        if (effectiveDate < startDate || effectiveDate > endDate) return false;
+      }
 
       // Year filter
-      if (selectedYear && effectiveDate.getFullYear() !== selectedYear) return false;
+      if (selectedYear) {
+        const effectiveDate = new Date(item.rate_effective_date);
+        if (effectiveDate.getFullYear() !== selectedYear) return false;
+      }
 
       // Required filter
       if (item.state_name !== selectedState) return false;
@@ -148,7 +161,8 @@ export default function Dashboard() {
     selectedServiceCode,
     selectedProgram,
     selectedLocationRegion,
-    selectedModifier
+    selectedModifier,
+    selectedFeeScheduleDate
   ]);
 
   // Update the sortConfig state initialization
@@ -447,6 +461,7 @@ export default function Dashboard() {
     setSelectedProgram("");
     setSelectedLocationRegion("");
     setSelectedModifier("");
+    setSelectedFeeScheduleDate("");
     setServiceCodes([]);
     setStates([]);
     setPrograms([]);
@@ -566,10 +581,6 @@ export default function Dashboard() {
   const locationRegionId = useId();
   const modifierId = useId();
 
-  // Add Fee Schedule Dates Dropdown
-  const [selectedFeeScheduleDate, setSelectedFeeScheduleDate] = useState("");
-  const [feeScheduleDates, setFeeScheduleDates] = useState<string[]>([]);
-
   useEffect(() => {
     if (data.length > 0) {
       extractFeeScheduleDates(data);
@@ -597,6 +608,9 @@ export default function Dashboard() {
     }
   }, [data, selectedServiceCategory, selectedState, selectedServiceCode, selectedServiceDescription]);
 
+  // Update the Date Range fields to disable them when a Fee Schedule Date is selected
+  const isDateRangeDisabled = !!selectedFeeScheduleDate;
+
   return (
     <AppLayout activeTab="dashboard">
       <CodeDefinitionsIcon />
@@ -620,7 +634,10 @@ export default function Dashboard() {
                   selectsStart
                   startDate={startDate}
                   endDate={endDate}
-                  className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400"
+                  className={`w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 ${
+                    isDateRangeDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  disabled={isDateRangeDisabled}
                 />
               </div>
               <div className="relative">
@@ -632,7 +649,10 @@ export default function Dashboard() {
                   startDate={startDate}
                   endDate={endDate}
                   minDate={startDate}
-                  className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400"
+                  className={`w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 ${
+                    isDateRangeDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  disabled={isDateRangeDisabled}
                 />
               </div>
             </div>
@@ -643,7 +663,14 @@ export default function Dashboard() {
                 instanceId="feeScheduleDatesId"
                 options={feeScheduleDates.map(date => ({ value: date, label: new Date(date).toLocaleDateString() }))}
                 value={selectedFeeScheduleDate ? { value: selectedFeeScheduleDate, label: new Date(selectedFeeScheduleDate).toLocaleDateString() } : null}
-                onChange={(option) => setSelectedFeeScheduleDate(option?.value || "")}
+                onChange={(option) => {
+                  setSelectedFeeScheduleDate(option?.value || "");
+                  // Reset Date Range when a Fee Schedule Date is selected
+                  if (option?.value) {
+                    setStartDate(new Date(2000, 0, 1));
+                    setEndDate(new Date());
+                  }
+                }}
                 placeholder="Select Fee Schedule Date"
                 isSearchable
                 isDisabled={!selectedState || !selectedServiceCategory}
@@ -886,46 +913,130 @@ export default function Dashboard() {
               <thead className="bg-gray-50 sticky top-[5.5rem] z-20">
                 <tr>
                   {getVisibleColumns.state_name && (
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">State</th>
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('state_name', e)}
+                    >
+                      State
+                      <SortIndicator sortKey="state_name" />
+                    </th>
                   )}
                   {getVisibleColumns.service_category && (
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Category</th>
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('service_category', e)}
+                    >
+                      Service Category
+                      <SortIndicator sortKey="service_category" />
+                    </th>
                   )}
                   {getVisibleColumns.service_code && (
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Code</th>
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('service_code', e)}
+                    >
+                      Service Code
+                      <SortIndicator sortKey="service_code" />
+                    </th>
                   )}
                   {getVisibleColumns.service_description && (
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Description</th>
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('service_description', e)}
+                    >
+                      Service Description
+                      <SortIndicator sortKey="service_description" />
+                    </th>
                   )}
                   {getVisibleColumns.duration_unit && (
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Duration Unit</th>
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('duration_unit', e)}
+                    >
+                      Duration Unit
+                      <SortIndicator sortKey="duration_unit" />
+                    </th>
                   )}
                   {getVisibleColumns.rate && (
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Rate per Base Unit</th>
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('rate', e)}
+                    >
+                      Rate per Base Unit
+                      <SortIndicator sortKey="rate" />
+                    </th>
                   )}
                   {getVisibleColumns.rate_per_hour && (
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Hourly Equivalent Rate</th>
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('rate_per_hour', e)}
+                    >
+                      Hourly Equivalent Rate
+                      <SortIndicator sortKey="rate_per_hour" />
+                    </th>
                   )}
                   {getVisibleColumns.rate_effective_date && (
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Effective Date</th>
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('rate_effective_date', e)}
+                    >
+                      Effective Date
+                      <SortIndicator sortKey="rate_effective_date" />
+                    </th>
                   )}
                   {getVisibleColumns.modifier_1 && (
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 1</th>
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('modifier_1', e)}
+                    >
+                      Modifier 1
+                      <SortIndicator sortKey="modifier_1" />
+                    </th>
                   )}
                   {getVisibleColumns.modifier_2 && (
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 2</th>
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('modifier_2', e)}
+                    >
+                      Modifier 2
+                      <SortIndicator sortKey="modifier_2" />
+                    </th>
                   )}
                   {getVisibleColumns.modifier_3 && (
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('modifier_3', e)}
+                    >
+                      Modifier 3
+                      <SortIndicator sortKey="modifier_3" />
+                    </th>
                   )}
                   {getVisibleColumns.modifier_4 && (
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('modifier_4', e)}
+                    >
+                      Modifier 4
+                      <SortIndicator sortKey="modifier_4" />
+                    </th>
                   )}
                   {getVisibleColumns.program && (
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Program</th>
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('program', e)}
+                    >
+                      Program
+                      <SortIndicator sortKey="program" />
+                    </th>
                   )}
                   {getVisibleColumns.location_region && (
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Location/Region</th>
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('location_region', e)}
+                    >
+                      Location/Region
+                      <SortIndicator sortKey="location_region" />
+                    </th>
                   )}
                 </tr>
               </thead>
