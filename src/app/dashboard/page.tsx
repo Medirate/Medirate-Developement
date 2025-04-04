@@ -8,6 +8,8 @@ import "react-datepicker/dist/react-datepicker.css";
 import { useData, ServiceData } from "@/context/DataContext";
 import CodeDefinitionsIcon from '@/app/components/CodeDefinitionsIcon';
 import Select from 'react-select';
+import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
+import { useRouter } from "next/navigation";
 
 // Update the useClickOutside hook to use HTMLDivElement
 const useClickOutside = (ref: React.RefObject<HTMLDivElement | null>, callback: () => void) => {
@@ -45,6 +47,15 @@ const FilterNote = ({ step }: { step: number }) => {
 };
 
 export default function Dashboard() {
+  const { isAuthenticated, isLoading } = useKindeBrowserClient();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push("/api/auth/login");
+    }
+  }, [isAuthenticated, isLoading, router]);
+
   // Always call hooks at the top level
   const { data, loading, error } = useData();
 
@@ -610,6 +621,10 @@ export default function Dashboard() {
 
   // Update the Date Range fields to disable them when a Fee Schedule Date is selected
   const isDateRangeDisabled = !!selectedFeeScheduleDate;
+
+  if (isLoading || !isAuthenticated) {
+    return null; // or a loading spinner
+  }
 
   return (
     <AppLayout activeTab="dashboard">

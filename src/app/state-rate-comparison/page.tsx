@@ -12,6 +12,8 @@ import { FaChartLine, FaArrowUp, FaArrowDown, FaDollarSign, FaSpinner, FaFilter,
 import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
 import { useData } from "@/context/DataContext";
+import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
+import { useRouter } from "next/navigation";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -85,6 +87,15 @@ const lightenColor = (color: string, amount: number): string => {
 };
 
 export default function StatePaymentComparison() {
+  const { isAuthenticated, isLoading } = useKindeBrowserClient();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push("/api/auth/login");
+    }
+  }, [isAuthenticated, isLoading, router]);
+
   const { data, loading, error } = useData();
   const [filterLoading, setFilterLoading] = useState(false);
   const [chartLoading, setChartLoading] = useState(false);
@@ -901,6 +912,10 @@ export default function StatePaymentComparison() {
       </span>
     );
   };
+
+  if (isLoading || !isAuthenticated) {
+    return null; // or a loading spinner
+  }
 
   if (loading) {
     return <div>Loading...</div>;

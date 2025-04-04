@@ -4,9 +4,19 @@ import React, { useState, useEffect } from "react";
 import Footer from "@/app/components/footer";
 import { CreditCard } from "lucide-react"; // Using Lucide icon
 import SubscriptionTermsModal from '@/app/components/SubscriptionTermsModal';
+import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
+import { useRouter } from "next/navigation";
 
 const StripePricingTableWithFooter = () => {
   const [showTerms, setShowTerms] = useState(false);
+  const { isAuthenticated, isLoading } = useKindeBrowserClient();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push("/api/auth/login");
+    }
+  }, [isAuthenticated, isLoading, router]);
 
   useEffect(() => {
     // Dynamically load the Stripe Pricing Table script
@@ -23,6 +33,10 @@ const StripePricingTableWithFooter = () => {
   const toggleModalVisibility = () => {
     setShowTerms(!showTerms); // Toggle modal visibility
   };
+
+  if (isLoading || !isAuthenticated) {
+    return null; // or a loading spinner
+  }
 
   return (
     <div className="flex flex-col min-h-screen">

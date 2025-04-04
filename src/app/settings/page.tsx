@@ -1,12 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AppLayout from "@/app/components/applayout";
 import EmailPreferences from "@/app/email-preferences/page";
 import Profile from "@/app/profile/page";
 import Subscription from "@/app/subscription/page";
+import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
+import { useRouter } from "next/navigation";
 
 export default function Settings() {
+  const { isAuthenticated, isLoading } = useKindeBrowserClient();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push("/api/auth/login");
+    }
+  }, [isAuthenticated, isLoading, router]);
+
   const [activeTab, setActiveTab] = useState("profile");
 
   const renderTabContent = () => {
@@ -21,6 +32,10 @@ export default function Settings() {
         return <Profile />;
     }
   };
+
+  if (isLoading || !isAuthenticated) {
+    return null; // or a loading spinner
+  }
 
   return (
     <AppLayout activeTab="settings">

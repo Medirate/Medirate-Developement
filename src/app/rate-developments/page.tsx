@@ -3,6 +3,8 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import AppLayout from "@/app/components/applayout";
 import { Search, LayoutGrid, LayoutList, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
+import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
+import { useRouter } from "next/navigation";
 
 // Define the type for the datasets
 interface Alert {
@@ -276,6 +278,15 @@ const getAlertServiceLines = (alert: Alert) => {
 
 // Add state for sorting
 export default function RateDevelopments() {
+  const { isAuthenticated, isLoading } = useKindeBrowserClient();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push("/api/auth/login");
+    }
+  }, [isAuthenticated, isLoading, router]);
+
   const [providerAlerts, setProviderAlerts] = useState<Alert[]>([]);
   const [legislativeUpdates, setLegislativeUpdates] = useState<Bill[]>([]);
 
@@ -416,6 +427,10 @@ export default function RateDevelopments() {
     setPopupContent(bill.ai_summary);
     setShowPopup(true);
   };
+
+  if (isLoading || !isAuthenticated) {
+    return null; // or a loading spinner
+  }
 
   return (
     <AppLayout activeTab="rateDevelopments">

@@ -17,6 +17,8 @@ import {
   Legend,
 } from 'chart.js';
 import { useData } from "@/context/DataContext";
+import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
+import { useRouter } from "next/navigation";
 
 interface ServiceData {
   state_name: string;
@@ -51,6 +53,15 @@ ChartJS.register(
 );
 
 export default function HistoricalRates() {
+  const { isAuthenticated, isLoading } = useKindeBrowserClient();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push("/api/auth/login");
+    }
+  }, [isAuthenticated, isLoading, router]);
+
   const { data, loading, error } = useData();
 
   useEffect(() => {
@@ -58,6 +69,10 @@ export default function HistoricalRates() {
       extractFilters(data);
     }
   }, [data]);
+
+  if (isLoading || !isAuthenticated) {
+    return null; // or a loading spinner
+  }
 
   if (loading) {
     return <div>Loading...</div>;
