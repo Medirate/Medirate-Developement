@@ -47,14 +47,40 @@ const FilterNote = ({ step }: { step: number }) => {
 };
 
 export default function Dashboard() {
-  const { isAuthenticated, isLoading } = useKindeBrowserClient();
+  const { isAuthenticated, isLoading, user } = useKindeBrowserClient();
   const router = useRouter();
+  const [isSubscriptionCheckComplete, setIsSubscriptionCheckComplete] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push("/api/auth/login");
+    } else if (isAuthenticated) {
+      checkSubscription();
     }
   }, [isAuthenticated, isLoading, router]);
+
+  const checkSubscription = async () => {
+    const userEmail = user?.email ?? "";
+    if (!userEmail) return;
+
+    try {
+      const response = await fetch("/api/stripe/subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: userEmail }),
+      });
+
+      const data = await response.json();
+      if (data.error || !data.status || data.status !== "active") {
+        router.push("/subscribe");
+      } else {
+        setIsSubscriptionCheckComplete(true); // Mark check as complete
+      }
+    } catch (error) {
+      console.error("Error checking subscription:", error);
+      router.push("/subscribe");
+    }
+  };
 
   // Always call hooks at the top level
   const { data, loading, error } = useData();
@@ -622,8 +648,13 @@ export default function Dashboard() {
   // Update the Date Range fields to disable them when a Fee Schedule Date is selected
   const isDateRangeDisabled = !!selectedFeeScheduleDate;
 
-  if (isLoading || !isAuthenticated) {
-    return null; // or a loading spinner
+  // Don't render anything until the subscription check is complete
+  if (isLoading || !isAuthenticated || !isSubscriptionCheckComplete) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <FaSpinner className="animate-spin h-12 w-12 text-blue-500" />
+      </div>
+    );
   }
 
   return (
