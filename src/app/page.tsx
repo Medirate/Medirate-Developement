@@ -128,7 +128,7 @@ export default function Home() {
             {/* Image Section */}
             <div className="lg:w-1/2 lg:flex lg:justify-start">
               <Image
-                src="/images/screenshot-proper.png"
+                src="/images/HISTORICAL_RATES_1.png"
                 alt="Doctor working on laptop"
                 width={1000}
                 height={750}
@@ -231,7 +231,7 @@ export default function Home() {
           </div>
 
           {/* Newsletter */}
-          <h2 className="text-[#012C61] text-4xl font-medium mb-8">
+          {/* <h2 className="text-[#012C61] text-4xl font-medium mb-8">
             Sign Up for Our Free Newsletter
           </h2>
           <Link
@@ -239,7 +239,7 @@ export default function Home() {
             className="bg-[#012C61] text-white px-10 py-4 rounded-lg border border-transparent transition-colors duration-300 hover:bg-transparent hover:border hover:border-[#012C61] hover:text-[#012C61]"
           >
             <span>Sign Up for Free</span>
-          </Link>
+          </Link> */}
         </div>
       </section>
 

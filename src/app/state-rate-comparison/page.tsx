@@ -208,15 +208,16 @@ export default function StatePaymentComparison() {
     setFilterLoading(false);
   };
 
-  const handleStateChange = (index: number, options: readonly { value: string; label: string }[]) => {
+  // Update the handleStateChange function to handle single state selection
+  const handleStateChange = (index: number, option: { value: string; label: string } | null) => {
     const newFilterSets = [...filterSets];
     
     // If "All States" is selected, set the states to all available states but only display "All States"
-    if (index === 0 && options.some(option => option.value === "ALL_STATES")) {
+    if (index === 0 && option?.value === "ALL_STATES") {
       newFilterSets[index].states = states;
       setIsAllStatesSelected(true);
     } else {
-      newFilterSets[index].states = options.map(option => option.value.toUpperCase());
+      newFilterSets[index].states = option ? [option.value.toUpperCase()] : [];
       setIsAllStatesSelected(false);
     }
     
@@ -913,6 +914,13 @@ export default function StatePaymentComparison() {
     );
   };
 
+  // Add a function to delete a filter set by its index
+  const deleteFilterSet = (index: number) => {
+    const newFilterSets = [...filterSets];
+    newFilterSets.splice(index, 1); // Remove the filter set at the specified index
+    setFilterSets(newFilterSets);
+  };
+
   if (isLoading || !isAuthenticated) {
     return null; // or a loading spinner
   }
@@ -968,7 +976,7 @@ export default function StatePaymentComparison() {
             {/* Filters */}
             <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg">
               {filterSets.map((filterSet, index) => (
-                <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-4">
+                <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-4 relative">
                   {/* Service Category Selector */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Service Line</label>
@@ -1002,13 +1010,14 @@ export default function StatePaymentComparison() {
                         ]}
                         value={
                           filterSet.states.length === states.length && index === 0
-                            ? [{ value: "ALL_STATES", label: "All States" }]
-                            : filterSet.states.map(state => ({ value: state, label: state }))
+                            ? { value: "ALL_STATES", label: "All States" }
+                            : filterSet.states.length > 0
+                              ? { value: filterSet.states[0], label: filterSet.states[0] }
+                              : null
                         }
-                        onChange={(options) => handleStateChange(index, options || [])}
+                        onChange={(option) => handleStateChange(index, option)}
                         placeholder="Select State"
                         isSearchable
-                        isMulti
                         className="react-select-container"
                         classNamePrefix="react-select"
                       />
@@ -1051,6 +1060,30 @@ export default function StatePaymentComparison() {
                       </div>
                     </div>
                   )}
+
+                  {/* Remove Button on the Side */}
+                  {index > 0 && ( // Only show the remove button for filter sets beyond the first one
+                    <div className="absolute -right-12 top-0">
+                      <button
+                        onClick={() => deleteFilterSet(index)}
+                        className="flex items-center justify-center w-10 h-10 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors"
+                        aria-label="Remove this state"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
 
@@ -1059,7 +1092,7 @@ export default function StatePaymentComparison() {
                 onClick={() => setFilterSets([...filterSets, { serviceCategory: "", states: [], serviceCode: "" }])}
                 className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
               >
-                Add Filter Set
+                Add State to Compare Rate
               </button>
             </div>
 
@@ -1097,7 +1130,7 @@ export default function StatePaymentComparison() {
                       <FaChartLine className="h-6 w-6 text-blue-500" />
                       <div>
                         <p className="text-sm font-medium text-gray-700">
-                          You've selected all states. The chart below displays the average rate for the selected service code across each state.
+                          You've selected all states. The chart below displays the <strong>unweighted average rate</strong> for the selected service code across each state.
                         </p>
                         <p className="text-sm text-gray-500 mt-1">
                           <strong>Note:</strong> The rates displayed are the current rates as of the latest available data. Rates are subject to change based on updates from state programs.

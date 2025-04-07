@@ -92,7 +92,16 @@ export default function HistoricalRates() {
       }
     });
 
-    return Array.from(uniqueMap.values());
+    const result = Array.from(uniqueMap.values());
+
+    // Auto-select the entry if there's only one result
+    if (result.length === 1) {
+      setSelectedEntry(result[0]);
+    } else {
+      setSelectedEntry(null); // Reset selection if there are multiple or no results
+    }
+
+    return result;
   }, [data, selectedServiceCategory, selectedState, selectedServiceCode]);
 
   const getVisibleColumns = useMemo(() => {

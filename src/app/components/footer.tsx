@@ -28,9 +28,9 @@ const Footer = () => {
       {/* Centered Content (Social Icons & Text) */}
       <div className="flex flex-col items-center text-center flex-grow">
         {/* Social Icons */}
-        <Link href="https://linkedin.com" target="_blank" rel="noreferrer">
+        {/* <Link href="https://linkedin.com" target="_blank" rel="noreferrer">
           <Linkedin className="w-8 h-8 text-white hover:text-blue-400 transition-colors mb-2" />
-        </Link>
+        </Link> */}
 
         {/* Copyright Text */}
         <p className="text-lg text-gray-300 cursor-pointer">

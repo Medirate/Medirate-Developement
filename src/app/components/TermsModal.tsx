@@ -28,7 +28,8 @@ export default function TermsModal() {
       isOpen={isOpen} 
       onClose={() => {}} 
       width="max-w-4xl"
-      className="z-[1002]" // Higher than other modals
+      className="z-[1002]"
+      showCloseButton={false}
     >
       <div className="p-6 flex flex-col h-[80vh]">
         <h2 className="text-xl font-bold text-[#012C61] uppercase font-lemonMilkRegular text-center mb-4">

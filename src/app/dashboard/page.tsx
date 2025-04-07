@@ -93,8 +93,8 @@ export default function Dashboard() {
   const [selectedProgram, setSelectedProgram] = useState("");
   const [selectedLocationRegion, setSelectedLocationRegion] = useState("");
   const [selectedModifier, setSelectedModifier] = useState("");
-  const [startDate, setStartDate] = useState(new Date(2000, 0, 1));
-  const [endDate, setEndDate] = useState(new Date());
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
 
   // Visibility states for dropdowns
   const [showServiceCategoryDropdown, setShowServiceCategoryDropdown] = useState(false);
@@ -147,31 +147,66 @@ export default function Dashboard() {
   const [selectedFeeScheduleDate, setSelectedFeeScheduleDate] = useState("");
   const [feeScheduleDates, setFeeScheduleDates] = useState<string[]>([]);
 
-  // Update the filteredData calculation to include year filter
+  // Move the parseDate function here, before filteredData
+  const parseDate = (dateString: string | null) => {
+    if (!dateString) return null; // Skip null or undefined dates
+
+    if (!isNaN(Number(dateString))) {
+      const serialDate = Number(dateString);
+      const date = new Date(Date.UTC(1900, 0, serialDate - 1)); // Convert serial date to Date object
+      if (isNaN(date.getTime())) {
+        console.error("Invalid serial date:", dateString);
+        return null; // Skip invalid serial dates
+      }
+      return date;
+    }
+
+    const dateParts = dateString.split('/');
+    if (dateParts.length !== 3) {
+      console.error("Invalid date format:", dateString);
+      return null; // Skip invalid date formats
+    }
+
+    const month = parseInt(dateParts[0], 10) - 1; // Months are 0-based in JavaScript
+    const day = parseInt(dateParts[1], 10);
+    const year = parseInt(dateParts[2], 10);
+
+    if (isNaN(month) || isNaN(day) || isNaN(year)) {
+      console.error("Invalid date parts:", dateString);
+      return null; // Skip invalid date parts
+    }
+
+    const date = new Date(Date.UTC(year, month, day));
+    if (isNaN(date.getTime())) {
+      console.error("Invalid date:", dateString);
+      return null; // Skip invalid dates
+    }
+
+    return date;
+  };
+
+  // Now the filteredData useMemo hook can safely use parseDate
   const filteredData = useMemo(() => {
     if (!areFiltersApplied) return [];
     
     return data.filter(item => {
-      // If a Fee Schedule Date is selected, ignore the Date Range
+                          const parsedDate = parseDate(item.rate_effective_date);
+      if (!parsedDate) return false; // Skip items with invalid dates
+
       if (selectedFeeScheduleDate) {
-        const itemDate = new Date(item.rate_effective_date).toISOString().split('T')[0];
-        if (itemDate !== selectedFeeScheduleDate) return false;
+        const itemDate = parsedDate.toISOString().split('T')[0];
+        const selectedDate = selectedFeeScheduleDate;
+        if (itemDate !== selectedDate) return false;
       } else {
-        // Otherwise, apply the Date Range filter
-        const effectiveDate = new Date(item.rate_effective_date);
-        if (effectiveDate < startDate || effectiveDate > endDate) return false;
+        if ((startDate && parsedDate < startDate) || (endDate && parsedDate > endDate)) return false;
       }
 
-      // Year filter
       if (selectedYear) {
-        const effectiveDate = new Date(item.rate_effective_date);
-        if (effectiveDate.getFullYear() !== selectedYear) return false;
+        if (parsedDate.getFullYear() !== selectedYear) return false;
       }
 
-      // Required filter
       if (item.state_name !== selectedState) return false;
 
-      // Optional filters
       if (selectedServiceCategory && item.service_category !== selectedServiceCategory) return false;
       if (selectedServiceCode && item.service_code !== selectedServiceCode) return false;
       if (selectedProgram && item.program !== selectedProgram) return false;
@@ -210,13 +245,13 @@ export default function Dashboard() {
     event.preventDefault();
     
     setSortConfig(prev => {
-      const isShiftPressed = event.shiftKey;
+      const isCtrlPressed = event.ctrlKey;
       const existingSort = prev.find(sort => sort.key === key);
       const existingIndex = prev.findIndex(sort => sort.key === key);
       
       if (existingSort) {
-        // If it's any sort (primary or secondary) and Shift isn't pressed
-        if (!isShiftPressed) {
+        // If it's any sort (primary or secondary) and Ctrl isn't pressed
+        if (!isCtrlPressed) {
           // If already descending, remove the sort
           if (existingSort.direction === 'desc') {
             return prev.filter(sort => sort.key !== key);
@@ -226,20 +261,20 @@ export default function Dashboard() {
             i === existingIndex ? { ...sort, direction: sort.direction === 'asc' ? 'desc' : 'asc' } : sort
           );
         }
-        // If Shift is pressed and it's a secondary sort, toggle its direction
+        // If Ctrl is pressed and it's a secondary sort, toggle its direction
         if (existingIndex > 0) {
           return prev.map((sort, i) => 
             i === existingIndex ? { ...sort, direction: sort.direction === 'asc' ? 'desc' : 'asc' } : sort
           );
         }
-        // Remove if it's a secondary sort with Shift pressed
+        // Remove if it's a secondary sort with Ctrl pressed
         return prev.filter(sort => sort.key !== key);
       }
       
       // Add new sort
       const newSort = { key, direction: 'asc' as const };
       
-      if (isShiftPressed) {
+      if (isCtrlPressed) {
         return [...prev, newSort];
       }
       
@@ -499,6 +534,8 @@ export default function Dashboard() {
     setSelectedLocationRegion("");
     setSelectedModifier("");
     setSelectedFeeScheduleDate("");
+    setStartDate(null);
+    setEndDate(null);
     setServiceCodes([]);
     setStates([]);
     setPrograms([]);
@@ -550,8 +587,8 @@ export default function Dashboard() {
     if (selectedYear === year) {
       // If clicking the same year, reset to default date range
       setSelectedYear(null);
-      setStartDate(new Date(2000, 0, 1));
-      setEndDate(new Date());
+      setStartDate(null);
+      setEndDate(null);
     } else {
       // Set the selected year and update date range
       setSelectedYear(year);
@@ -620,6 +657,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (data.length > 0) {
+      console.log("Raw rate_effective_date values:", data.map(item => item.rate_effective_date));
       extractFeeScheduleDates(data);
     }
   }, [data]);
@@ -632,10 +670,14 @@ export default function Dashboard() {
         (!selectedServiceCode || item.service_code === selectedServiceCode) &&
         (!selectedServiceDescription || item.service_description === selectedServiceDescription)
       )
-      .map(item => item.rate_effective_date)
-      .filter((date): date is string => !!date)
-      .map(date => new Date(date).toISOString().split('T')[0]);
+      .map(item => {
+        const parsedDate = parseDate(item.rate_effective_date);
+        if (!parsedDate) return null; // Skip invalid dates
+        return parsedDate.toISOString().split('T')[0]; // Use ISO format for consistency
+      })
+      .filter((date): date is string => !!date); // Filter out null values
 
+    console.log("Extracted Fee Schedule Dates:", filteredDates); // Log the extracted dates
     setFeeScheduleDates([...new Set(filteredDates)].sort((a, b) => a.localeCompare(b)));
   };
 
@@ -657,6 +699,11 @@ export default function Dashboard() {
     );
   }
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+
   return (
     <AppLayout activeTab="dashboard">
       <CodeDefinitionsIcon />
@@ -671,7 +718,7 @@ export default function Dashboard() {
           </h1>
           <div className="flex flex-col items-end">
             {/* Date Range Filter */}
-            <div className="flex space-x-4 mb-4">
+            <div className="flex space-x-4 mb-4" style={{ zIndex: 900 }}>
               <div className="relative">
                 <label className="block text-sm font-medium text-[#012C61] mb-2">Start Date</label>
                 <DatePicker
@@ -681,10 +728,32 @@ export default function Dashboard() {
                   startDate={startDate}
                   endDate={endDate}
                   className={`w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 ${
-                    isDateRangeDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                    selectedFeeScheduleDate ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
-                  disabled={isDateRangeDisabled}
+                  disabled={!!selectedFeeScheduleDate}
+                  popperClassName="z-[900]" // Adjusted z-index
+                  popperModifiers={[
+                    {
+                      name: 'preventOverflow',
+                      options: {
+                        rootBoundary: 'viewport',
+                        tether: false,
+                        altAxis: true,
+                      },
+                      fn: (state) => state,
+                    },
+                  ]}
+                  popperPlacement="bottom-start"
+                  portalId="datepicker-portal"
                 />
+                {startDate && (
+                  <button
+                    onClick={() => setStartDate(null)}
+                    className="text-xs text-blue-500 hover:underline mt-1"
+                  >
+                    Clear
+                  </button>
+                )}
               </div>
               <div className="relative">
                 <label className="block text-sm font-medium text-[#012C61] mb-2">End Date</label>
@@ -694,34 +763,76 @@ export default function Dashboard() {
                   selectsEnd
                   startDate={startDate}
                   endDate={endDate}
-                  minDate={startDate}
+                  minDate={startDate || undefined}
                   className={`w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 ${
-                    isDateRangeDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                    selectedFeeScheduleDate ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
-                  disabled={isDateRangeDisabled}
+                  disabled={!!selectedFeeScheduleDate}
+                  popperClassName="z-[900]" // Adjusted z-index
+                  popperModifiers={[
+                    {
+                      name: 'preventOverflow',
+                      options: {
+                        rootBoundary: 'viewport',
+                        tether: false,
+                        altAxis: true,
+                      },
+                      fn: (state) => state,
+                    },
+                  ]}
+                  popperPlacement="bottom-start"
+                  portalId="datepicker-portal"
                 />
+                {endDate && (
+                  <button
+                    onClick={() => setEndDate(null)}
+                    className="text-xs text-blue-500 hover:underline mt-1"
+                  >
+                    Clear
+                  </button>
+                )}
               </div>
             </div>
             {/* Fee Schedule Dates Dropdown */}
-            <div className="relative z-50">
+            <div className="relative" style={{ zIndex: 800 }}>
               <label className="block text-sm font-medium text-[#012C61] mb-2">Fee Schedule Date</label>
               <Select
                 instanceId="feeScheduleDatesId"
-                options={feeScheduleDates.map(date => ({ value: date, label: new Date(date).toLocaleDateString() }))}
-                value={selectedFeeScheduleDate ? { value: selectedFeeScheduleDate, label: new Date(selectedFeeScheduleDate).toLocaleDateString() } : null}
+                options={feeScheduleDates.map(date => {
+                  const dateObj = new Date(date);
+                  const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+                  const day = String(dateObj.getUTCDate()).padStart(2, '0');
+                  const year = dateObj.getUTCFullYear();
+                  return { value: date, label: `${month}/${day}/${year}` };
+                })}
+                value={selectedFeeScheduleDate ? { 
+                  value: selectedFeeScheduleDate, 
+                  label: (() => {
+                    const dateObj = new Date(selectedFeeScheduleDate);
+                    const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+                    const day = String(dateObj.getUTCDate()).padStart(2, '0');
+                    const year = dateObj.getUTCFullYear();
+                    return `${month}/${day}/${year}`;
+                  })()
+                } : null}
                 onChange={(option) => {
                   setSelectedFeeScheduleDate(option?.value || "");
-                  // Reset Date Range when a Fee Schedule Date is selected
                   if (option?.value) {
-                    setStartDate(new Date(2000, 0, 1));
-                    setEndDate(new Date());
+                    setStartDate(null);
+                    setEndDate(null);
                   }
                 }}
                 placeholder="Select Fee Schedule Date"
                 isSearchable
-                isDisabled={!selectedState || !selectedServiceCategory}
-                className={`react-select-container ${!selectedState || !selectedServiceCategory ? 'opacity-50' : ''}`}
+                isDisabled={!!startDate || !!endDate}
+                className={`react-select-container ${
+                  !!startDate || !!endDate ? 'opacity-50' : ''
+                }`}
                 classNamePrefix="react-select"
+                menuPortalTarget={document.body}
+                styles={{
+                  menuPortal: (base) => ({ ...base, zIndex: 800 }), // Adjusted z-index
+                }}
               />
               {selectedFeeScheduleDate && (
                 <ClearButton onClick={() => setSelectedFeeScheduleDate("")} />
@@ -916,7 +1027,7 @@ export default function Dashboard() {
             <li>Click any column header to sort the data</li>
             <li>Click again to toggle between ascending and descending order</li>
             <li>Click a third time to deselect the sort</li>
-            <li>Hold <kbd className="px-1.5 py-0.5 bg-white border border-gray-200 rounded text-xs">Shift</kbd> while clicking to apply multiple sort levels</li>
+            <li>Hold <kbd className="px-1.5 py-0.5 bg-white border border-gray-200 rounded text-xs">Ctrl</kbd> while clicking to apply multiple sort levels</li>
             <li>Sort priority is indicated by numbers next to the sort arrows (1 = primary sort, 2 = secondary sort, etc.)</li>
           </ul>
         </div>
@@ -1129,7 +1240,14 @@ export default function Dashboard() {
                     )}
                     {getVisibleColumns.rate_effective_date && (
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.rate_effective_date ? new Date(item.rate_effective_date).toLocaleDateString() : '-'}
+                        {item.rate_effective_date ? (() => {
+                          const parsedDate = parseDate(item.rate_effective_date);
+                          if (!parsedDate) return '-'; // Handle null case
+                          const month = String(parsedDate.getUTCMonth() + 1).padStart(2, '0');
+                          const day = String(parsedDate.getUTCDate()).padStart(2, '0');
+                          const year = parsedDate.getUTCFullYear();
+                          return `${month}/${day}/${year}`; // Format as mm/dd/yyyy
+                        })() : '-'}
                       </td>
                     )}
                     {getVisibleColumns.modifier_1 && (
@@ -1176,7 +1294,7 @@ export default function Dashboard() {
                 <li>Click any column header to sort the data</li>
                 <li>Click again to toggle between ascending and descending order</li>
                 <li>Click a third time to deselect the sort</li>
-                <li>Hold <kbd className="px-1.5 py-0.5 bg-white border border-gray-200 rounded text-xs">Shift</kbd> while clicking to apply multiple sort levels</li>
+                <li>Hold <kbd className="px-1.5 py-0.5 bg-white border border-gray-200 rounded text-xs">Ctrl</kbd> while clicking to apply multiple sort levels</li>
                 <li>Sort priority is indicated by numbers next to the sort arrows (1 = primary sort, 2 = secondary sort, etc.)</li>
               </ul>
             </div>

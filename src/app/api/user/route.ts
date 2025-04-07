@@ -18,22 +18,33 @@ export async function GET() {
     }
 
     // Query Supabase to fetch the user by email
-    const { data: dbUser, error } = await supabase
-      .from("User") // ✅ Table name must match Supabase schema
+    const { data: dbUser, error: userError } = await supabase
+      .from("User") // Fetch user data
       .select("UserID, FirstName, LastName, Email, Picture, Role")
       .eq("Email", user.email)
       .single();
 
-    if (error) {
-      console.error("❌ Supabase Error:", error);
+    if (userError) {
+      console.error("❌ Supabase Error (User):", userError);
       return NextResponse.json({ error: "Database query error" }, { status: 500 });
     }
 
-    if (!dbUser) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    // Query Supabase to fetch registration form data by email
+    const { data: registrationData, error: registrationError } = await supabase
+      .from("registrationform") // Table name is "registrationform"
+      .select("*")
+      .eq("email", user.email)
+      .single();
+
+    if (registrationError) {
+      console.error("❌ Supabase Error (Registration Form):", registrationError);
+      return NextResponse.json({ error: "Database query error" }, { status: 500 });
     }
 
-    return NextResponse.json(dbUser);
+    return NextResponse.json({
+      user: dbUser,
+      registration: registrationData,
+    });
   } catch (error) {
     console.error("🚨 Unexpected error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

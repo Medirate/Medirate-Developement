@@ -89,11 +89,11 @@ export default function OurSolution() {
               {/* Service Screenshot */}
               <div className="flex justify-center lg:justify-start">
                 <Image
-                  src="/images/Screenshot Service.png"
+                  src="/images/our solution screenshot.png"
                   alt="Service Screenshot"
                   width={600}
                   height={450}
-                  className="rounded-lg shadow-lg border border-gray-200 object-contain"
+                  className="rounded-lg shadow-lg border border-gray-200 object-cover"
                 />
               </div>
               <div className="bg-white/90 p-6 rounded-lg shadow-sm">
@@ -131,11 +131,11 @@ export default function OurSolution() {
               {/* Historical Screenshot */}
               <div className="flex justify-center lg:justify-start">
                 <Image
-                  src="/images/Screenshot Historical.png"
+                  src="/images/Historical_rates_2.png"
                   alt="Historical Screenshot"
                   width={600}
                   height={450}
-                  className="rounded-lg shadow-lg border border-gray-200 object-contain"
+                  className="rounded-lg shadow-lg border border-gray-200 object-cover"
                 />
               </div>
               <div className="bg-white/90 p-6 rounded-lg shadow-sm">
@@ -214,7 +214,7 @@ export default function OurSolution() {
                   alt="Rate Screenshot"
                   width={600}
                   height={450}
-                  className="rounded-lg shadow-lg border border-gray-200 object-contain"
+                  className="rounded-lg shadow-lg border border-gray-200 object-cover"
                 />
               </div>
               <div className="bg-white/90 p-6 rounded-lg shadow-sm">

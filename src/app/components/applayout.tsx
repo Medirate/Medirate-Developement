@@ -70,6 +70,8 @@ const AppLayout = ({ children, activeTab }: AppLayoutProps) => {
 
       {/* Footer */}
       <Footer />
+
+      <div id="datepicker-portal" style={{ zIndex: 3000 }} />
     </div>
   );
 };
