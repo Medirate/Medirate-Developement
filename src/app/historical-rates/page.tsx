@@ -60,11 +60,10 @@ const supabase = createClient(
 );
 
 export default function HistoricalRates() {
-  const { isAuthenticated, isLoading, user } = useKindeBrowserClient();
-  const router = useRouter();
   const { data, loading, error } = useData();
+  const router = useRouter();
 
-  // Move all useState declarations to the top
+  // State hooks
   const [selectedServiceCategory, setSelectedServiceCategory] = useState("");
   const [selectedState, setSelectedState] = useState("");
   const [selectedServiceCode, setSelectedServiceCode] = useState("");
@@ -266,14 +265,6 @@ export default function HistoricalRates() {
       router.push("/subscribe");
     }
   };
-
-  if (isLoading || !isAuthenticated || !isSubscriptionCheckComplete) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <FaSpinner className="animate-spin h-12 w-12 text-blue-500" />
-      </div>
-    );
-  }
 
   if (loading) {
     return <div>Loading...</div>;

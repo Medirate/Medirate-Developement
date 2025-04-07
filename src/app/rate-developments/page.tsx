@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import AppLayout from "@/app/components/applayout";
 import { Search, LayoutGrid, LayoutList, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
-import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { FaSpinner } from "react-icons/fa";
@@ -286,102 +285,7 @@ const getAlertServiceLines = (alert: Alert) => {
 
 // Add state for sorting
 export default function RateDevelopments() {
-  const { isAuthenticated, isLoading, user } = useKindeBrowserClient();
   const router = useRouter();
-  const [isSubscriptionCheckComplete, setIsSubscriptionCheckComplete] = useState(false);
-
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/api/auth/login");
-    } else if (isAuthenticated) {
-      checkSubscriptionAndSubUser();
-    }
-  }, [isAuthenticated, isLoading, router]);
-
-  const checkSubscriptionAndSubUser = async () => {
-    const userEmail = user?.email ?? "";
-    const kindeUserId = user?.id ?? "";
-    if (!userEmail || !kindeUserId) return;
-
-    try {
-      // Check if the user is a sub-user
-      const { data: subUserData, error: subUserError } = await supabase
-        .from("subscription_users")
-        .select("sub_users")
-        .contains("sub_users", JSON.stringify([userEmail]));
-
-      if (subUserError) {
-        console.error("❌ Error checking sub-user:", subUserError);
-        console.error("Full error object:", JSON.stringify(subUserError, null, 2));
-        return;
-      }
-
-      if (subUserData && subUserData.length > 0) {
-        // Check if the user already exists in the User table
-        const { data: existingUser, error: fetchError } = await supabase
-          .from("User")
-          .select("Email")
-          .eq("Email", userEmail)
-          .single();
-
-        if (fetchError && fetchError.code !== "PGRST116") { // Ignore "no rows found" error
-          console.error("❌ Error fetching user:", fetchError);
-          return;
-        }
-
-        if (existingUser) {
-          // User exists, update their role to "sub-user"
-          const { error: updateError } = await supabase
-            .from("User")
-            .update({ Role: "sub-user", UpdatedAt: new Date().toISOString() })
-            .eq("Email", userEmail);
-
-          if (updateError) {
-            console.error("❌ Error updating user role:", updateError);
-          } else {
-            console.log("✅ User role updated to sub-user:", userEmail);
-          }
-        } else {
-          // User does not exist, insert them as a sub-user
-          const { error: insertError } = await supabase
-            .from("User")
-            .insert({
-              KindeUserID: kindeUserId,
-              Email: userEmail,
-              Role: "sub-user",
-              UpdatedAt: new Date().toISOString(),
-            });
-
-          if (insertError) {
-            console.error("❌ Error inserting sub-user:", insertError);
-          } else {
-            console.log("✅ Sub-user inserted successfully:", userEmail);
-          }
-        }
-
-        // Allow sub-user to access the dashboard
-        setIsSubscriptionCheckComplete(true);
-        return;
-      }
-
-      // If not a sub-user, check for an active subscription
-      const response = await fetch("/api/stripe/subscription", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: userEmail }),
-      });
-
-      const data = await response.json();
-      if (data.error || !data.status || data.status !== "active") {
-        router.push("/subscribe");
-      } else {
-        setIsSubscriptionCheckComplete(true);
-      }
-    } catch (error) {
-      console.error("Error checking subscription or sub-user:", error);
-      router.push("/subscribe");
-    }
-  };
 
   const [providerAlerts, setProviderAlerts] = useState<Alert[]>([]);
   const [legislativeUpdates, setLegislativeUpdates] = useState<Bill[]>([]);
@@ -523,14 +427,6 @@ export default function RateDevelopments() {
     setPopupContent(bill.ai_summary);
     setShowPopup(true);
   };
-
-  if (isLoading || !isAuthenticated || !isSubscriptionCheckComplete) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <FaSpinner className="animate-spin h-12 w-12 text-blue-500" />
-      </div>
-    );
-  }
 
   return (
     <AppLayout activeTab="rateDevelopments">
