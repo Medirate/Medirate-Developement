@@ -250,6 +250,10 @@ export default function SubscriptionPage() {
       } else {
         setSubscription(data);
         console.log("Plan:", data.plan);
+
+        // Set slots based on the subscription plan
+        const slotsForPlan = getSlotsForPlan(data.plan);
+        setSlots(slotsForPlan);
       }
     } catch (err) {
       console.error("❌ Fetch error:", err);
