@@ -12,7 +12,6 @@ import { FaChartLine, FaArrowUp, FaArrowDown, FaDollarSign, FaSpinner, FaFilter,
 import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
 import { useData } from "@/context/DataContext";
-import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
@@ -94,112 +93,11 @@ const supabase = createClient(
 );
 
 export default function StatePaymentComparison() {
-  const { isAuthenticated, isLoading, user } = useKindeBrowserClient();
+  // Call all hooks at the top, unconditionally
+  const { data, loading: dataLoading, error: dataError } = useData();
   const router = useRouter();
-  const [isSubscriptionCheckComplete, setIsSubscriptionCheckComplete] = useState(false);
 
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/api/auth/login");
-    } else if (isAuthenticated) {
-      checkSubscriptionAndSubUser();
-    }
-  }, [isAuthenticated, isLoading, router]);
-
-  const checkSubscriptionAndSubUser = async () => {
-    const userEmail = user?.email ?? "";
-    const kindeUserId = user?.id ?? "";
-    if (!userEmail || !kindeUserId) return;
-
-    try {
-      // Check if the user is a sub-user
-      const { data: subUserData, error: subUserError } = await supabase
-        .from("subscription_users")
-        .select("sub_users")
-        .contains("sub_users", JSON.stringify([userEmail]));
-
-      if (subUserError) {
-        console.error("❌ Error checking sub-user:", subUserError);
-        console.error("Full error object:", JSON.stringify(subUserError, null, 2));
-        return;
-      }
-
-      if (subUserData && subUserData.length > 0) {
-        // Check if the user already exists in the User table
-        const { data: existingUser, error: fetchError } = await supabase
-          .from("User")
-          .select("Email")
-          .eq("Email", userEmail)
-          .single();
-
-        if (fetchError && fetchError.code !== "PGRST116") { // Ignore "no rows found" error
-          console.error("❌ Error fetching user:", fetchError);
-          return;
-        }
-
-        if (existingUser) {
-          // User exists, update their role to "sub-user"
-          const { error: updateError } = await supabase
-            .from("User")
-            .update({ Role: "sub-user", UpdatedAt: new Date().toISOString() })
-            .eq("Email", userEmail);
-
-          if (updateError) {
-            console.error("❌ Error updating user role:", updateError);
-          } else {
-            console.log("✅ User role updated to sub-user:", userEmail);
-          }
-        } else {
-          // User does not exist, insert them as a sub-user
-          const { error: insertError } = await supabase
-            .from("User")
-            .insert({
-              KindeUserID: kindeUserId,
-              Email: userEmail,
-              Role: "sub-user",
-              UpdatedAt: new Date().toISOString(),
-            });
-
-          if (insertError) {
-            console.error("❌ Error inserting sub-user:", insertError);
-          } else {
-            console.log("✅ Sub-user inserted successfully:", userEmail);
-          }
-        }
-
-        // Allow sub-user to access the dashboard
-        setIsSubscriptionCheckComplete(true);
-        return;
-      }
-
-      // If not a sub-user, check for an active subscription
-      const response = await fetch("/api/stripe/subscription", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: userEmail }),
-      });
-
-      const data = await response.json();
-      if (data.error || !data.status || data.status !== "active") {
-        router.push("/subscribe");
-      } else {
-        setIsSubscriptionCheckComplete(true);
-      }
-    } catch (error) {
-      console.error("Error checking subscription or sub-user:", error);
-      router.push("/subscribe");
-    }
-  };
-
-  if (isLoading || !isAuthenticated || !isSubscriptionCheckComplete) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <FaSpinner className="animate-spin h-12 w-12 text-blue-500" />
-      </div>
-    );
-  }
-
-  const { data, loading, error } = useData();
+  // State hooks
   const [filterLoading, setFilterLoading] = useState(false);
   const [chartLoading, setChartLoading] = useState(false);
   const [tableLoading, setTableLoading] = useState(false);
@@ -207,74 +105,59 @@ export default function StatePaymentComparison() {
   const [filterError, setFilterError] = useState<string | null>(null);
   const [chartError, setChartError] = useState<string | null>(null);
   const [tableError, setTableError] = useState<string | null>(null);
-
-  // Filters
   const [selectedServiceCategory, setSelectedServiceCategory] = useState("");
   const [selectedStates, setSelectedStates] = useState<string[]>([]);
   const [selectedServiceCode, setSelectedServiceCode] = useState("");
-
-  // Unique filter options
   const [serviceCategories, setServiceCategories] = useState<string[]>([]);
   const [states, setStates] = useState<string[]>([]);
   const [serviceCodes, setServiceCodes] = useState<{ code: string; description: string }[]>([]);
-
-  // Add state for selected modifiers
   const [selectedModifiers, setSelectedModifiers] = useState<{[key: string]: string}>({});
-
-  // Check if we should show checkboxes
-  const showCheckboxes = selectedServiceCategory && selectedServiceCode && selectedStates.length > 0;
-
-  // Add this near other state declarations
   const [filterSets, setFilterSets] = useState<FilterSet[]>([
     { serviceCategory: "", states: [], serviceCode: "" }
   ]);
-
-  // Then use it in the useMemo block
-  const areAllFiltersApplied = useMemo(() => {
-    return filterSets.every(filterSet => 
-      filterSet.serviceCategory && 
-      filterSet.states.length > 0 && 
-      filterSet.serviceCode
-    );
-  }, [filterSets]);
-
-  const selectId = useId();
-
   const [showApplyToAllPrompt, setShowApplyToAllPrompt] = useState(false);
   const [lastSelectedModifier, setLastSelectedModifier] = useState<string | null>(null);
-
-  // Change the state type to handle multiple selections
   const [selectedTableRows, setSelectedTableRows] = useState<{[state: string]: string[]}>({});
-
-  // Add this near other state declarations
   const [showRatePerHour, setShowRatePerHour] = useState(false);
-
-  // Add this state variable near other state declarations
   const [isAllStatesSelected, setIsAllStatesSelected] = useState(false);
-
-  // Add this state variable near other state declarations
   const [globalModifierOrder, setGlobalModifierOrder] = useState<Map<string, number>>(new Map());
-
-  // Add this state variable near other state declarations
   const [globalSelectionOrder, setGlobalSelectionOrder] = useState<Map<string, number>>(new Map());
-
-  // Add this near other state declarations
   const [sortOrder, setSortOrder] = useState<'default' | 'asc' | 'desc'>('default');
-
-  // Add this near other state declarations
   const [selectedStateDetails, setSelectedStateDetails] = useState<{
     state: string;
     average: number;
     entries: ServiceData[];
   } | null>(null);
-
-  // Add this near other state declarations
   const [selectedEntry, setSelectedEntry] = useState<ServiceData | null>(null);
 
-  // Add this useEffect to extract filters when data is loaded
+  // Supabase check (after hooks)
+  if (!supabase) {
+    console.error("Supabase client not initialized.");
+    return <div>Error: Supabase client not initialized.</div>;
+  }
+
+  // Early return for data errors
+  if (dataError) {
+    console.error("Error fetching data:", dataError);
+    return <div>Error: Failed to fetch data.</div>;
+  }
+
+  if (!data || data.length === 0) {
+    console.error("No data found.");
+    return <div>No data available.</div>;
+  }
+
+  // Add logging to see if data is being fetched
+  useEffect(() => {
+    console.log("Data loading state:", dataLoading);
+    console.log("Data error:", dataError);
+    console.log("Data:", data);
+  }, [dataLoading, dataError, data]);
+
+  // Add logging to see if filters are being extracted
   useEffect(() => {
     if (data.length > 0) {
-      console.log("Data loaded:", data);
+      console.log("Data loaded, extracting filters:", data);
       extractFilters(data);
     }
   }, [data]);
@@ -739,8 +622,8 @@ export default function StatePaymentComparison() {
         />
       );
     } catch (error) {
-      setChartError("Failed to render chart. Please check your data.");
-      return null;
+      console.error("Error rendering chart:", error);
+      return <div>Error: Failed to render chart.</div>;
     }
   };
 
@@ -1024,14 +907,6 @@ export default function StatePaymentComparison() {
     setFilterSets(newFilterSets);
   };
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (error) {
-    return <div>Error: {error}</div>;
-  }
-
   return (
     <AppLayout activeTab="stateRateComparison">
       <div className="p-4 sm:p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
@@ -1063,14 +938,14 @@ export default function StatePaymentComparison() {
         </div>
 
         {/* Loading State */}
-        {loading && (
+        {dataLoading && (
           <div className="flex justify-center items-center h-64">
             <FaSpinner className="animate-spin h-12 w-12 text-blue-500" />
             <p className="ml-4 text-gray-600">Loading data...</p>
           </div>
         )}
 
-        {!loading && (
+        {!dataLoading && (
           <>
             {/* Filters */}
             <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg">
@@ -1196,7 +1071,13 @@ export default function StatePaymentComparison() {
             </div>
 
             {/* Comparison Metrics */}
-            {areAllFiltersApplied && (
+            {useMemo(() => {
+              return filterSets.every(filterSet => 
+                filterSet.serviceCategory && 
+                filterSet.states.length > 0 && 
+                filterSet.serviceCode
+              );
+            }, [filterSets]) && (
               <div className="mb-8 p-6 bg-white rounded-xl shadow-lg">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Highest Rate */}
@@ -1221,7 +1102,13 @@ export default function StatePaymentComparison() {
             )}
 
             {/* Chart Section - Only show when selections are made */}
-            {areAllFiltersApplied && (isAllStatesSelected || Object.values(selectedTableRows).some(selections => selections.length > 0)) && (
+            {useMemo(() => {
+              return filterSets.every(filterSet => 
+                filterSet.serviceCategory && 
+                filterSet.states.length > 0 && 
+                filterSet.serviceCode
+              );
+            }, [filterSets]) && (isAllStatesSelected || Object.values(selectedTableRows).some(selections => selections.length > 0)) && (
               <>
                 {isAllStatesSelected && (
                   <div className="mb-6 p-6 bg-blue-50 rounded-xl shadow-lg">
@@ -1301,7 +1188,13 @@ export default function StatePaymentComparison() {
             )}
 
             {/* Prompt to select data when no selections are made */}
-            {areAllFiltersApplied && !isAllStatesSelected && Object.values(selectedTableRows).every(selections => selections.length === 0) && (
+            {useMemo(() => {
+              return filterSets.every(filterSet => 
+                filterSet.serviceCategory && 
+                filterSet.states.length > 0 && 
+                filterSet.serviceCode
+              );
+            }, [filterSets]) && !isAllStatesSelected && Object.values(selectedTableRows).every(selections => selections.length === 0) && (
               <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg text-center">
                 <div className="flex justify-center items-center mb-2 sm:mb-3">
                   <FaChartBar className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
@@ -1313,7 +1206,13 @@ export default function StatePaymentComparison() {
             )}
 
             {/* Data Table - Show when filters are active and "All States" is not selected */}
-            {areAllFiltersApplied && !isAllStatesSelected && (
+            {useMemo(() => {
+              return filterSets.every(filterSet => 
+                filterSet.serviceCategory && 
+                filterSet.states.length > 0 && 
+                filterSet.serviceCode
+              );
+            }, [filterSets]) && !isAllStatesSelected && (
               <>
                 {Object.entries(groupedByState).map(([state, stateData]) => {
                   const selectedModifierKeys = selectedTableRows[state] || [];
