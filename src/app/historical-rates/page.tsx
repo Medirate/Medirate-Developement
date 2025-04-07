@@ -62,6 +62,7 @@ const supabase = createClient(
 export default function HistoricalRates() {
   const { data, loading, error } = useData();
   const router = useRouter();
+  const { user } = useKindeBrowserClient();
 
   // State hooks
   const [selectedServiceCategory, setSelectedServiceCategory] = useState("");
@@ -174,12 +175,8 @@ export default function HistoricalRates() {
   }, [data]);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/api/auth/login");
-    } else if (isAuthenticated) {
-      checkSubscriptionAndSubUser();
-    }
-  }, [isAuthenticated, isLoading, router]);
+    checkSubscriptionAndSubUser();
+  }, [router]);
 
   const checkSubscriptionAndSubUser = async () => {
     const userEmail = user?.email ?? "";
