@@ -32,10 +32,16 @@ const StripePricingTableWithFooter = () => {
   });
   const [loading, setLoading] = useState(false);
   const [formFilled, setFormFilled] = useState(false); // Track if the form is already filled
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false); // Track subscription status
+  const [isSubUser, setIsSubUser] = useState(false);
+  const [primaryEmail, setPrimaryEmail] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push("/api/auth/login");
+    } else if (isAuthenticated) {
+      checkSubscription();
+      checkSubUser();
     }
   }, [isAuthenticated, isLoading, router]);
 
@@ -67,7 +73,7 @@ const StripePricingTableWithFooter = () => {
         .eq("email", email)
         .single();
 
-      if (error) {
+      if (error && error.code !== "PGRST116") { // PGRST116 is the error code for "no rows found"
         console.error("Error fetching form data:", error);
       } else if (data) {
         // If form data exists, mark the form as filled
@@ -82,6 +88,9 @@ const StripePricingTableWithFooter = () => {
           interest: data.interest || "",
           demoRequest: data.demorequest || "No",
         });
+      } else {
+        // If no data is found, mark the form as not filled
+        setFormFilled(false);
       }
     } catch (err) {
       console.error("Unexpected error during form data fetch:", err);
@@ -107,7 +116,7 @@ const StripePricingTableWithFooter = () => {
     try {
       const { data, error } = await supabase
         .from("registrationform")
-        .insert({
+        .upsert({
           email: user.email,
           firstname: formData.firstName,
           lastname: formData.lastName,
@@ -121,13 +130,17 @@ const StripePricingTableWithFooter = () => {
 
       if (error) {
         console.error("Error saving form data:", error);
+        console.error("Full error object:", JSON.stringify(error, null, 2));
+        alert("Failed to save form data. Please try again.");
       } else {
         setFormFilled(true); // Mark the form as filled
         setFormSubmitted(true);
         setShowForm(false);
+        alert("✅ Form submitted successfully!");
       }
     } catch (err) {
       console.error("Unexpected error during form submission:", err);
+      alert("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -154,8 +167,85 @@ const StripePricingTableWithFooter = () => {
     testTableDetection();
   }, []);
 
+  const checkSubscription = async () => {
+    const userEmail = user?.email ?? "";
+    if (!userEmail) return;
+
+    try {
+      const response = await fetch("/api/stripe/subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: userEmail }),
+      });
+
+      const data = await response.json();
+      if (data.error || !data.status || data.status !== "active") {
+        setHasActiveSubscription(false); // No active subscription
+      } else {
+        setHasActiveSubscription(true); // Active subscription found
+      }
+    } catch (error) {
+      console.error("Error checking subscription:", error);
+      setHasActiveSubscription(false); // Assume no active subscription on error
+    }
+  };
+
+  const checkSubUser = async () => {
+    const userEmail = user?.email ?? "";
+    if (!userEmail) return;
+
+    try {
+      const { data: subUserData, error: subUserError } = await supabase
+        .from("subscription_users")
+        .select("sub_users, primary_user")
+        .contains("sub_users", JSON.stringify([userEmail]));
+
+      if (subUserError) {
+        console.error("❌ Error checking sub-user:", subUserError);
+      } else if (subUserData && subUserData.length > 0) {
+        setIsSubUser(true);
+        setPrimaryEmail(subUserData[0].primary_user);
+      }
+    } catch (err) {
+      console.error("❌ Error checking sub-user:", err);
+    }
+  };
+
+  // Don't render anything until the subscription check is complete
   if (isLoading || !isAuthenticated) {
     return null; // or a loading spinner
+  }
+
+  // If the user has an active subscription or is a sub-user, show the "Already Subscribed" card
+  if (hasActiveSubscription || isSubUser) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <main className="flex-grow flex flex-col items-center justify-center px-4 pt-16">
+          <div className="w-full max-w-4xl mb-8 p-8 bg-white rounded-xl shadow-2xl border border-gray-100">
+            <h2 className="text-3xl font-bold mb-6 text-[#012C61] text-center font-lemonMilkRegular">
+              You Are Already Subscribed
+            </h2>
+            <p className="text-lg mb-10 text-gray-600 text-center">
+              Thank you for being a valued MediRate subscriber. You can access all features of your subscription from your dashboard.
+            </p>
+            {isSubUser && (
+              <p className="text-lg mb-10 text-gray-600 text-center">
+                This is a sub-user account.
+              </p>
+            )}
+            <div className="flex justify-center">
+              <a
+                href="/dashboard"
+                className="bg-[#012C61] text-white px-8 py-3 rounded-lg transition-all duration-300 hover:bg-transparent hover:border hover:border-[#012C61] hover:text-[#012C61]"
+              >
+                Go to Dashboard
+              </a>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
   }
 
   // Render the form only if it hasn't been filled yet

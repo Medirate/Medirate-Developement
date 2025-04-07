@@ -132,7 +132,19 @@ export default function EmailPreferences() {
       <h1 className="text-5xl md:text-6xl text-[#012C61] font-lemonMilkRegular uppercase mb-8 text-center">
         Email Alerts
       </h1>
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto relative">
+        {/* Overlay with "Feature Coming Soon" message */}
+        <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10 pointer-events-none">
+          <motion.div
+            className="bg-[#012C61] text-white px-8 py-4 rounded-lg text-lg font-semibold shadow-lg"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            Feature Coming Soon
+          </motion.div>
+        </div>
+
         <p className="text-gray-600 mb-6 text-center text-lg">
           Stay informed of Medicaid provider rate developments by selecting States and Categories for regular email alerts.
         </p>

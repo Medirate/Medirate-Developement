@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import { toast, Toaster } from "react-hot-toast";
+import { createClient } from "@supabase/supabase-js";
 
 interface Subscription {
   plan: string;
@@ -17,14 +18,21 @@ interface Subscription {
   paymentMethod: string;
 }
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
 export default function SubscriptionPage() {
   const { user, isAuthenticated } = useKindeBrowserClient();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSubUser, setIsSubUser] = useState(false);
+  const [primaryEmail, setPrimaryEmail] = useState<string | null>(null);
   const [slots, setSlots] = useState<number>(0);
   const [addedUsers, setAddedUsers] = useState<{ email: string; slot: number }[]>([]);
-  const [newUserEmail, setNewUserEmail] = useState("");
+  const [slotEmails, setSlotEmails] = useState<string[]>([]);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [isAddingSlot, setIsAddingSlot] = useState(false);
 
@@ -35,69 +43,75 @@ export default function SubscriptionPage() {
   useEffect(() => {
     if (!userEmail) return;
 
-    async function syncUserToSupabase() {
+    async function checkSubUser() {
       try {
-        const response = await fetch("/api/sync-kinde-user", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: userEmail,
-            firstName: user?.given_name || "N/A",
-            lastName: user?.family_name || "N/A",
-            kindeId: userId,
-          }),
-        });
+        // Check if the user is a sub-user
+        const { data: subUserData, error: subUserError } = await supabase
+          .from("subscription_users")
+          .select("sub_users, primary_user")
+          .contains("sub_users", JSON.stringify([userEmail]));
 
-        const data = await response.json();
-        if (data.error) {
-          console.error("❌ Error syncing user:", data.error);
-          setError("Failed to sync user to database.");
+        if (subUserError) {
+          console.error("❌ Error checking sub-user:", subUserError);
+          console.error("Full error object:", JSON.stringify(subUserError, null, 2));
+          setError("Failed to check sub-user status.");
+          setLoading(false);
+          return;
+        }
+
+        console.log("Sub-user data:", subUserData); // Log the data returned by Supabase
+
+        if (subUserData && subUserData.length > 0) {
+          setIsSubUser(true);
+          setPrimaryEmail(subUserData[0].primary_user);
+          fetchSubscription(subUserData[0].primary_user);
         } else {
-          console.log("✅ User synced successfully:", data);
-          fetchSubscription();
+          setIsSubUser(false);
+          fetchSubscription(userEmail);
         }
       } catch (err) {
-        console.error("❌ Sync error:", err);
-        setError("Something went wrong.");
-      }
-    }
-
-    async function fetchSubscription() {
-      console.log("🔵 Fetching subscription for:", userEmail);
-      try {
-        const response = await fetch("/api/stripe/subscription", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: userEmail }),
-        });
-
-        const data = await response.json();
-        if (data.error) {
-          console.error("❌ Subscription Error:", data.error);
-          setSubscription(null);
-          setError("No active subscription found.");
-          // Set default slots if no subscription is found
-          setSlots(2);
-        } else {
-          setSubscription(data);
-          // Log the plan and slots
-          console.log("Plan:", data.plan);
-          const slots = getSlotsForPlan(data.plan);
-          console.log("Slots:", slots);
-          // Initialize slots based on the subscription plan
-          setSlots(slots);
-        }
-      } catch (err) {
-        console.error("❌ Fetch error:", err);
-        setError("Failed to load subscription.");
-        // Set default slots if an error occurs
-        setSlots(2);
-      } finally {
+        console.error("❌ Error checking sub-user:", err);
+        setError("Something went wrong while checking sub-user status.");
         setLoading(false);
       }
     }
 
-    syncUserToSupabase();
+    checkSubUser();
+  }, [userEmail]);
+
+  useEffect(() => {
+    console.log("Slots State Updated:", slots);
+  }, [slots]);
+
+  useEffect(() => {
+    if (!userEmail) return;
+
+    const fetchSubUsers = async () => {
+      try {
+        const response = await fetch("/api/subscription-users", {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch sub-users.");
+        }
+
+        const data = await response.json();
+        const subUsers = data.subUsers || []; // Default to an empty array if subUsers is undefined
+
+        // Map sub-users to the addedUsers state
+        setAddedUsers(subUsers.map((email: string, index: number) => ({ email, slot: index })));
+
+        // Initialize slotEmails with the fetched sub-users
+        setSlotEmails(subUsers);
+      } catch (err) {
+        console.error("Error fetching sub-users:", err);
+        toast.error("Failed to fetch sub-users.");
+      }
+    };
+
+    fetchSubUsers();
   }, [userEmail]);
 
   const getRemainingDays = () => {
@@ -159,17 +173,90 @@ export default function SubscriptionPage() {
     }
   };
 
-  const handleAssignUserToSlot = (slotIndex: number) => {
-    if (!newUserEmail) return;
-    setAddedUsers([...addedUsers, { email: newUserEmail, slot: slotIndex }]);
-    setNewUserEmail("");
+  const handleAssignUserToSlot = async (slotIndex: number) => {
+    const newUserEmail = slotEmails[slotIndex]; // Get the email for the specific slot
+
+    if (!newUserEmail || !userEmail) return;
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newUserEmail)) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+
+    try {
+      // Fetch the existing sub-users
+      const response = await fetch("/api/subscription-users", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch sub-users.");
+      }
+
+      const data = await response.json();
+      const subUsers = Array.isArray(data.subUsers) ? data.subUsers : []; // Ensure subUsers is an array
+
+      // Replace the email in the specified slot
+      subUsers[slotIndex] = newUserEmail;
+
+      // Update the sub-users in the database
+      const updateResponse = await fetch("/api/subscription-users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subUsers: subUsers }),
+      });
+
+      if (!updateResponse.ok) {
+        throw new Error("Failed to update sub-users.");
+      }
+
+      // Update the local state
+      const updatedAddedUsers = [...addedUsers];
+      updatedAddedUsers[slotIndex] = { email: newUserEmail, slot: slotIndex };
+      setAddedUsers(updatedAddedUsers);
+      toast.success("Sub-user saved successfully!");
+    } catch (err) {
+      console.error("Unexpected error during sub-user save:", err);
+      toast.error("Failed to save sub-user.");
+    }
   };
 
   const getSlotsForPlan = (plan: string) => {
     if (plan === "Medirate Annual") {
-      return 10; // Annual users get 10 slots
+      return 9; // Annual users get 9 slots
+    } else if (plan === "MediRate 3 Months") {
+      return 1; // 3-month users get 1 slot (main slot)
     }
-    return 2; // Default to 2 slots for all other plans
+    return 0; // Default to 0 slots for all other plans
+  };
+
+  const fetchSubscription = async (email: string) => {
+    console.log("🔵 Fetching subscription for:", email);
+    try {
+      const response = await fetch("/api/stripe/subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+      if (data.error) {
+        console.error("❌ Subscription Error:", data.error);
+        setSubscription(null);
+        setError("No active subscription found.");
+      } else {
+        setSubscription(data);
+        console.log("Plan:", data.plan);
+      }
+    } catch (err) {
+      console.error("❌ Fetch error:", err);
+      setError("Failed to load subscription.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!isAuthenticated) {
@@ -191,6 +278,17 @@ export default function SubscriptionPage() {
       <h1 className="text-5xl md:text-6xl text-[#012C61] font-lemonMilkRegular uppercase mb-8 text-center">
         Subscription
       </h1>
+
+      {isSubUser && (
+        <div className="bg-blue-50 p-6 rounded-lg mb-8">
+          <p className="text-blue-800 text-lg font-semibold">
+            This is a sub-user account. Below are the subscription details of the primary account linked to this email.
+          </p>
+          <p className="text-blue-700 mt-2">
+            Primary Account: <strong>{primaryEmail}</strong>
+          </p>
+        </div>
+      )}
 
       <div className="flex justify-center">
         {loading ? (
@@ -245,78 +343,53 @@ export default function SubscriptionPage() {
                   </p>
                 </div>
 
-                {/* Add Slot Button */}
-                {subscription?.plan === "Medirate Annual" && (
-                  <div className="mt-6 relative group">
-                    <button
-                      onClick={handleAddSlotConfirmation}
-                      className="bg-gradient-to-r from-green-600 to-teal-600 text-white px-6 py-3 rounded-lg shadow-lg hover:from-green-700 hover:to-teal-700 transition-all w-full flex items-center justify-center"
-                      disabled={isAddingSlot}
-                    >
-                      {isAddingSlot ? (
-                        <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-white"></div>
-                      ) : (
-                        "Add Slot (Prorated)"
-                      )}
-                    </button>
-                    <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-sm px-3 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                      Prorated charge based on remaining subscription period.
-                    </div>
-                  </div>
-                )}
-
-                {showConfirmationModal && (
-                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full">
-                      <h2 className="text-2xl font-bold text-gray-900 mb-4">Confirm Slot Addition</h2>
-                      <p className="text-lg text-gray-600 mb-6">
-                        Are you sure you want to add a slot? This will incur a prorated charge based on your remaining subscription period.
-                      </p>
-                      <div className="flex justify-end space-x-4">
-                        <button
-                          onClick={() => setShowConfirmationModal(false)}
-                          className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={handleAddSlotConfirmed}
-                          className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
-                        >
-                          Confirm
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 {/* Slots Section */}
-                {slots > 0 && (
+                {!isSubUser && slots > 0 && (
                   <div id="slots-section" className="mt-8">
                     <h3 className="text-xl font-semibold text-gray-900 mb-4">Available Slots</h3>
                     {[...Array(slots)].map((_, index) => (
-                      <div key={index} className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                      <div
+                        key={index}
+                        className={`mt-4 p-4 rounded-lg border ${
+                          index < 2
+                            ? "bg-gray-50 border-gray-100"
+                            : "bg-gray-200 border-gray-300 opacity-50"
+                        }`}
+                      >
                         <div className="flex items-center space-x-3">
-                          <input
-                            type="email"
-                            value={newUserEmail}
-                            onChange={(e) => setNewUserEmail(e.target.value)}
-                            placeholder="Assign user email"
-                            className="flex-1 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
-                          <button
-                            onClick={() => handleAssignUserToSlot(index)}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-                          >
-                            Assign
-                          </button>
+                          <span className="text-sm text-gray-700">Slot {index + 1}</span>
+                          {index < 2 ? (
+                            <>
+                              <input
+                                type="email"
+                                value={slotEmails[index] || ""}
+                                onChange={(e) => {
+                                  const updatedSlotEmails = [...slotEmails];
+                                  updatedSlotEmails[index] = e.target.value;
+                                  setSlotEmails(updatedSlotEmails);
+                                }}
+                                placeholder="Assign user email"
+                                className="flex-1 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$"
+                                required
+                              />
+                              <button
+                                onClick={() => handleAssignUserToSlot(index)}
+                                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                              >
+                                Save
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-sm text-gray-500">Coming Soon</span>
+                          )}
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
 
-                {addedUsers.length > 0 && (
+                {!isSubUser && addedUsers.length > 0 && (
                   <div className="mt-8">
                     <h3 className="text-xl font-semibold text-gray-900 mb-4">Assigned Users</h3>
                     <div className="overflow-x-auto">
