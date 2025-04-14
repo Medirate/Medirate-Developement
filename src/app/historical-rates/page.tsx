@@ -74,6 +74,7 @@ export default function HistoricalRates() {
   const [selectedEntry, setSelectedEntry] = useState<ServiceData | null>(null);
   const [showRatePerHour, setShowRatePerHour] = useState(false);
   const [isSubscriptionCheckComplete, setIsSubscriptionCheckComplete] = useState(false);
+  const [comment, setComment] = useState<string | null>(null);
 
   // Move useMemo declarations to the top
   const areFiltersApplied = selectedServiceCategory && selectedState && selectedServiceCode;
@@ -263,6 +264,29 @@ export default function HistoricalRates() {
     }
   };
 
+  const fetchComment = async (serviceCategory: string, state: string) => {
+    try {
+      const response = await fetch(`/api/comments_table?serviceCategory=${encodeURIComponent(serviceCategory)}&state=${encodeURIComponent(state)}`);
+      const data = await response.json();
+      if (data.length > 0) {
+        setComment(data[0].comment);
+      } else {
+        setComment(null);
+      }
+    } catch (error) {
+      console.error("Error fetching comment:", error);
+      setComment(null);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedServiceCategory && selectedState) {
+      fetchComment(selectedServiceCategory, selectedState);
+    } else {
+      setComment(null);
+    }
+  }, [selectedServiceCategory, selectedState]);
+
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -315,6 +339,9 @@ export default function HistoricalRates() {
       if (!b) return -1;
       return a.localeCompare(b);
     }));
+
+    console.log("Selected Service Category:", selectedServiceCategory);
+    console.log("Selected State:", selectedState);
   };
 
   const handleStateChange = (state: string) => {
@@ -332,6 +359,9 @@ export default function HistoricalRates() {
         .map((item) => item.service_code);
       setServiceCodes([...new Set(filteredCodes)].sort((a, b) => a.localeCompare(b)));
     }
+
+    console.log("Selected Service Category:", selectedServiceCategory);
+    console.log("Selected State:", selectedState);
   };
 
   const handleServiceCodeChange = (code: string) => {
@@ -445,12 +475,12 @@ export default function HistoricalRates() {
           <h1 className="text-3xl sm:text-5xl md:text-6xl text-[#012C61] font-lemonMilkRegular uppercase mb-3 sm:mb-4">
             Historical Rates
           </h1>
-            <button
+          <button
             onClick={resetFilters}
             className="px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base bg-[#012C61] text-white rounded-lg hover:bg-blue-800 transition-colors"
-            >
+          >
             Reset All Filters
-            </button>
+          </button>
         </div>
 
         {/* Loading State */}
@@ -458,7 +488,7 @@ export default function HistoricalRates() {
           <div className="flex justify-center items-center h-64">
             <FaSpinner className="animate-spin h-12 w-12 text-blue-500" />
             <p className="ml-4 text-gray-600">Loading data...</p>
-      </div>
+          </div>
         )}
 
         {/* Main Content */}
@@ -547,149 +577,160 @@ export default function HistoricalRates() {
                 <p className="text-sm text-gray-500">
                   Choose a service line, state, and service code to see available rate history
                 </p>
-        </div>
+              </div>
             )}
 
             {/* Graph Component */}
             {selectedEntry && areFiltersApplied && (
-              <div className="p-6 bg-white rounded-xl shadow-lg">
-                <h2 className="text-xl font-semibold mb-4 text-gray-800">Rate History</h2>
-                
-                {/* Toggle Switch */}
-                <div className="flex justify-center items-center mb-6">
-                  <div className="flex items-center bg-gray-100 p-1 rounded-lg">
-                    <button
-                      onClick={() => setShowRatePerHour(false)}
-                      className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                        !showRatePerHour
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'text-gray-500 hover:bg-gray-200'
-                      }`}
-                    >
-                      Base Rate
-                    </button>
-                    <button
-                      onClick={() => setShowRatePerHour(true)}
-                      className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                        showRatePerHour
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'text-gray-500 hover:bg-gray-200'
-                      }`}
-                    >
-                      Hourly Equivalent Rate
-                    </button>
+              <>
+                {/* Display the comment above the graph */}
+                {comment && (
+                  <div className="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-200">
+                    <p className="text-sm text-blue-700">
+                      <strong>Comment:</strong> {comment}
+                    </p>
+                  </div>
+                )}
+
+                <div className="p-6 bg-white rounded-xl shadow-lg">
+                  <h2 className="text-xl font-semibold mb-4 text-gray-800">Rate History</h2>
+                  
+                  {/* Toggle Switch */}
+                  <div className="flex justify-center items-center mb-6">
+                    <div className="flex items-center bg-gray-100 p-1 rounded-lg">
+                      <button
+                        onClick={() => setShowRatePerHour(false)}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                          !showRatePerHour
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-gray-500 hover:bg-gray-200'
+                        }`}
+                      >
+                        Base Rate
+                      </button>
+                      <button
+                        onClick={() => setShowRatePerHour(true)}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                          showRatePerHour
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-gray-500 hover:bg-gray-200'
+                        }`}
+                      >
+                        Hourly Equivalent Rate
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="w-full h-80">
+                    <ReactECharts
+                      option={{
+                        tooltip: {
+                          trigger: 'axis',
+                          formatter: (params: any) => {
+                            const data = params[0].data;
+                            if (data.displayValue) {
+                              return data.displayValue;
+                            }
+                            const rate = data.value ? `$${data.value.toFixed(2)}` : '-';
+                            
+                            const modifiers = [
+                              data.modifier1 ? `${data.modifier1}${data.modifier1Details ? ` - ${data.modifier1Details}` : ''}` : null,
+                              data.modifier2 ? `${data.modifier2}${data.modifier2Details ? ` - ${data.modifier2Details}` : ''}` : null,
+                              data.modifier3 ? `${data.modifier3}${data.modifier3Details ? ` - ${data.modifier3Details}` : ''}` : null,
+                              data.modifier4 ? `${data.modifier4}${data.modifier4Details ? ` - ${data.modifier4Details}` : ''}` : null
+                            ].filter(Boolean).join('<br>');
+
+                            return `
+                              <b>State:</b> ${data.state || '-'}<br>
+                              <b>Service Code:</b> ${data.serviceCode || '-'}<br>
+                              <b>Program:</b> ${data.program || '-'}<br>
+                              <b>Location/Region:</b> ${data.locationRegion || '-'}<br>
+                              <b>${showRatePerHour ? 'Hourly Equivalent Rate' : 'Rate Per Base Unit'}:</b> ${rate}<br>
+                              <b>Duration Unit:</b> ${data.durationUnit || '-'}<br>
+                              <b>Effective Date:</b> ${data.date || '-'}<br>
+                              ${modifiers ? `<b>Modifiers:</b><br>${modifiers}` : ''}
+                            `;
+                          }
+                        },
+                        xAxis: {
+                          type: 'category',
+                          data: getGraphData().xAxis,
+                          name: 'Effective Date',
+                          nameLocation: 'middle',
+                          nameGap: 30,
+                          axisLabel: {
+                            formatter: (value: string) => value
+                          }
+                        },
+                        yAxis: {
+                          type: 'value',
+                          name: showRatePerHour ? 'Hourly Equivalent Rate ($)' : 'Rate Per Base Unit ($)',
+                          nameLocation: 'middle',
+                          nameGap: 40,
+                          scale: true,
+                          min: (value: { min: number }) => value.min * 0.95,
+                          max: (value: { max: number }) => value.max * 1.05,
+                          axisLabel: {
+                            formatter: (value: number) => value.toFixed(2)
+                          }
+                        },
+                        series: [
+                          {
+                            data: getGraphData().series,
+                            type: 'line',
+                            smooth: false,
+                            itemStyle: {
+                              color: showRatePerHour ? '#ef4444' : '#3b82f6'
+                            },
+                            label: {
+                              show: true,
+                              position: 'top',
+                              formatter: (params: any) => {
+                                if (params.data.displayValue) {
+                                  return params.data.displayValue;
+                                }
+                                return `$${params.value.toFixed(2)}`;
+                              },
+                              fontSize: 12,
+                              color: '#374151'
+                            }
+                          }
+                        ],
+                        graphic: getGraphData().series.some(data => data.displayValue) ? [
+                          {
+                            type: 'text',
+                            left: 'center',
+                            top: 'middle',
+                            style: {
+                              text: `Hourly equivalent rates not available as the duration unit is "${getGraphData().series.find(data => data.displayValue)?.durationUnit || 'Unknown'}"`,
+                              fontSize: 16,
+                              fontWeight: 'bold',
+                              fill: '#666'
+                            }
+                          }
+                        ] : [],
+                        grid: {
+                          containLabel: true,
+                          left: '10%',
+                          right: '3%',
+                          bottom: '10%',
+                          top: '10%'
+                        }
+                      }}
+                      style={{ height: '100%', width: '100%' }}
+                      notMerge={true}
+                      showLoading={filteredData.length === 0}
+                      loadingOption={{
+                        text: 'No data available',
+                        color: '#3b82f6',
+                        textColor: '#374151',
+                        maskColor: 'rgba(255, 255, 255, 0.8)',
+                        zlevel: 0
+                      }}
+                    />
                   </div>
                 </div>
-
-                <div className="w-full h-80">
-                  <ReactECharts
-                    option={{
-                      tooltip: {
-                        trigger: 'axis',
-                        formatter: (params: any) => {
-                          const data = params[0].data;
-                          if (data.displayValue) {
-                            return data.displayValue;
-                          }
-                          const rate = data.value ? `$${data.value.toFixed(2)}` : '-';
-                          
-                          const modifiers = [
-                            data.modifier1 ? `${data.modifier1}${data.modifier1Details ? ` - ${data.modifier1Details}` : ''}` : null,
-                            data.modifier2 ? `${data.modifier2}${data.modifier2Details ? ` - ${data.modifier2Details}` : ''}` : null,
-                            data.modifier3 ? `${data.modifier3}${data.modifier3Details ? ` - ${data.modifier3Details}` : ''}` : null,
-                            data.modifier4 ? `${data.modifier4}${data.modifier4Details ? ` - ${data.modifier4Details}` : ''}` : null
-                          ].filter(Boolean).join('<br>');
-
-                          return `
-                            <b>State:</b> ${data.state || '-'}<br>
-                            <b>Service Code:</b> ${data.serviceCode || '-'}<br>
-                            <b>Program:</b> ${data.program || '-'}<br>
-                            <b>Location/Region:</b> ${data.locationRegion || '-'}<br>
-                            <b>${showRatePerHour ? 'Hourly Equivalent Rate' : 'Rate Per Base Unit'}:</b> ${rate}<br>
-                            <b>Duration Unit:</b> ${data.durationUnit || '-'}<br>
-                            <b>Effective Date:</b> ${data.date || '-'}<br>
-                            ${modifiers ? `<b>Modifiers:</b><br>${modifiers}` : ''}
-                          `;
-                        }
-                      },
-                      xAxis: {
-                        type: 'category',
-                        data: getGraphData().xAxis,
-                        name: 'Effective Date',
-                        nameLocation: 'middle',
-                        nameGap: 30,
-                        axisLabel: {
-                          formatter: (value: string) => value
-                        }
-                      },
-                      yAxis: {
-                        type: 'value',
-                        name: showRatePerHour ? 'Hourly Equivalent Rate ($)' : 'Rate Per Base Unit ($)',
-                        nameLocation: 'middle',
-                        nameGap: 40,
-                        scale: true,
-                        min: (value: { min: number }) => value.min * 0.95,
-                        max: (value: { max: number }) => value.max * 1.05,
-                        axisLabel: {
-                          formatter: (value: number) => value.toFixed(2)
-                        }
-                      },
-                      series: [
-                        {
-                          data: getGraphData().series,
-                          type: 'line',
-                          smooth: false,
-                          itemStyle: {
-                            color: showRatePerHour ? '#ef4444' : '#3b82f6'
-                          },
-                          label: {
-                            show: true,
-                            position: 'top',
-                            formatter: (params: any) => {
-                              if (params.data.displayValue) {
-                                return params.data.displayValue;
-                              }
-                              return `$${params.value.toFixed(2)}`;
-                            },
-                            fontSize: 12,
-                            color: '#374151'
-                          }
-                        }
-                      ],
-                      graphic: getGraphData().series.some(data => data.displayValue) ? [
-                        {
-                          type: 'text',
-                          left: 'center',
-                          top: 'middle',
-                          style: {
-                            text: `Hourly equivalent rates not available as the duration unit is "${getGraphData().series.find(data => data.displayValue)?.durationUnit || 'Unknown'}"`,
-                            fontSize: 16,
-                            fontWeight: 'bold',
-                            fill: '#666'
-                          }
-                        }
-                      ] : [],
-                      grid: {
-                        containLabel: true,
-                        left: '10%',
-                        right: '3%',
-                        bottom: '10%',
-                        top: '10%'
-                      }
-                    }}
-                    style={{ height: '100%', width: '100%' }}
-                    notMerge={true}
-                    showLoading={filteredData.length === 0}
-                    loadingOption={{
-                      text: 'No data available',
-                      color: '#3b82f6',
-                      textColor: '#374151',
-                      maskColor: 'rgba(255, 255, 255, 0.8)',
-                      zlevel: 0
-                    }}
-                  />
-                </div>
-              </div>
+              </>
             )}
 
             {/* Data Table */}
@@ -886,29 +927,11 @@ export default function HistoricalRates() {
                 <p className="text-sm text-gray-500">
                   Click on any row in the table above to see the rate history graph
                 </p>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
-
-      {/* Move the style tag inside the return statement */}
-      <style jsx>{`
-        .react-select-container {
-          width: 100%;
-        }
-        .react-select__control {
-          min-height: 42px;
-          border-radius: 0.5rem;
-          border-color: #d1d5db;
-          &:hover {
-            border-color: #d1d5db;
-          }
-        }
-        .react-select__menu {
-          z-index: 10;
-        }
-      `}</style>
     </AppLayout>
   );
 }

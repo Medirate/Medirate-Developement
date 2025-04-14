@@ -129,6 +129,8 @@ export default function StatePaymentComparison() {
     entries: ServiceData[];
   } | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<ServiceData | null>(null);
+  const [comment, setComment] = useState<string | null>(null);
+  const [comments, setComments] = useState<{ state: string; comment: string }[]>([]);
 
   // Supabase check (after hooks)
   if (!supabase) {
@@ -907,6 +909,36 @@ export default function StatePaymentComparison() {
     setFilterSets(newFilterSets);
   };
 
+  const fetchComments = async (serviceCategory: string, states: string[]) => {
+    try {
+      const commentsPromises = states.map(async (state) => {
+        const response = await fetch(`/api/comments_table?serviceCategory=${encodeURIComponent(serviceCategory)}&state=${encodeURIComponent(state)}`);
+        const data = await response.json();
+        return { state, comment: data.length > 0 ? data[0].comment : null };
+      });
+
+      const commentsResults = await Promise.all(commentsPromises);
+      setComments(commentsResults.filter((c) => c.comment !== null));
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      setComments([]);
+    }
+  };
+
+  // Update the useEffect to fetch comments for all states
+  useEffect(() => {
+    console.log("Selected Service Category:", selectedServiceCategory); // Log selectedServiceCategory
+    console.log("Selected States:", selectedStates); // Log selectedStates
+
+    if (selectedServiceCategory && selectedStates.length > 0) {
+      console.log("Triggering fetchComments for:", { selectedServiceCategory, selectedStates }); // Log when fetchComments is triggered
+      fetchComments(selectedServiceCategory, selectedStates);
+    } else {
+      console.log("Skipping fetchComments - missing required parameters"); // Log if parameters are missing
+      setComments([]);
+    }
+  }, [selectedServiceCategory, selectedStates]);
+
   return (
     <AppLayout activeTab="stateRateComparison">
       <div className="p-4 sm:p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
@@ -1101,7 +1133,7 @@ export default function StatePaymentComparison() {
               </div>
             )}
 
-            {/* Chart Section - Only show when selections are made */}
+            {/* Graph Component */}
             {useMemo(() => {
               return filterSets.every(filterSet => 
                 filterSet.serviceCategory && 
@@ -1110,6 +1142,19 @@ export default function StatePaymentComparison() {
               );
             }, [filterSets]) && (isAllStatesSelected || Object.values(selectedTableRows).some(selections => selections.length > 0)) && (
               <>
+                {/* Display the comment above the graph */}
+                {comments.length > 0 && (
+                  <div className="space-y-4 mb-4">
+                    {comments.map(({ state, comment }, index) => (
+                      <div key={index} className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <p className="text-sm text-blue-700">
+                          <strong>Comment for {state}:</strong> {comment}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {isAllStatesSelected && (
                   <div className="mb-6 p-6 bg-blue-50 rounded-xl shadow-lg">
                     <div className="flex items-center space-x-4">

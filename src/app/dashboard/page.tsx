@@ -220,6 +220,7 @@ export default function Dashboard() {
   const parseDate = (dateString: string | null) => {
     if (!dateString) return null; // Skip null or undefined dates
 
+    // Check if the dateString is a valid serial date (numeric)
     if (!isNaN(Number(dateString))) {
       const serialDate = Number(dateString);
       const date = new Date(Date.UTC(1900, 0, serialDate - 1)); // Convert serial date to Date object
@@ -230,28 +231,36 @@ export default function Dashboard() {
       return date;
     }
 
+    // Check if the dateString is in the format "mm/dd/yyyy"
     const dateParts = dateString.split('/');
-    if (dateParts.length !== 3) {
-      console.error("Invalid date format:", dateString);
-      return null; // Skip invalid date formats
+    if (dateParts.length === 3) {
+      const month = parseInt(dateParts[0], 10) - 1; // Months are 0-based in JavaScript
+      const day = parseInt(dateParts[1], 10);
+      const year = parseInt(dateParts[2], 10);
+
+      if (isNaN(month) || isNaN(day) || isNaN(year)) {
+        console.error("Invalid date parts:", dateString);
+        return null; // Skip invalid date parts
+      }
+
+      const date = new Date(Date.UTC(year, month, day));
+      if (isNaN(date.getTime())) {
+        console.error("Invalid date:", dateString);
+        return null; // Skip invalid dates
+      }
+
+      return date;
     }
 
-    const month = parseInt(dateParts[0], 10) - 1; // Months are 0-based in JavaScript
-    const day = parseInt(dateParts[1], 10);
-    const year = parseInt(dateParts[2], 10);
-
-    if (isNaN(month) || isNaN(day) || isNaN(year)) {
-      console.error("Invalid date parts:", dateString);
-      return null; // Skip invalid date parts
+    // Check if the dateString is in ISO format (e.g., "2023-12-31")
+    const isoDate = new Date(dateString);
+    if (!isNaN(isoDate.getTime())) {
+      return isoDate;
     }
 
-    const date = new Date(Date.UTC(year, month, day));
-    if (isNaN(date.getTime())) {
-      console.error("Invalid date:", dateString);
-      return null; // Skip invalid dates
-    }
-
-    return date;
+    // Log an error for unrecognized date formats
+    console.error("Unrecognized date format:", dateString);
+    return null; // Skip unrecognized date formats
   };
 
   // Now the filteredData useMemo hook can safely use parseDate
@@ -761,6 +770,31 @@ export default function Dashboard() {
   // Update the Date Range fields to disable them when a Fee Schedule Date is selected
   const isDateRangeDisabled = !!selectedFeeScheduleDate;
 
+  const [comment, setComment] = useState<string | null>(null);
+
+  const fetchComment = async (serviceCategory: string, state: string) => {
+    try {
+      const response = await fetch(`/api/comments_table?serviceCategory=${encodeURIComponent(serviceCategory)}&state=${encodeURIComponent(state)}`);
+      const data = await response.json();
+      if (data.length > 0) {
+        setComment(data[0].comment);
+      } else {
+        setComment(null);
+      }
+    } catch (error) {
+      console.error("Error fetching comment:", error);
+      setComment(null);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedServiceCategory && selectedState) {
+      fetchComment(selectedServiceCategory, selectedState);
+    } else {
+      setComment(null);
+    }
+  }, [selectedServiceCategory, selectedState]);
+
   // Don't render anything until the subscription check is complete
   if (isLoading || !isAuthenticated || !isSubscriptionCheckComplete) {
     return (
@@ -1084,6 +1118,15 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* Display the comment */}
+        {comment && (
+          <div className="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-200">
+            <p className="text-sm text-blue-700">
+              <strong>Comment:</strong> {comment}
+            </p>
+          </div>
+        )}
 
         {/* Sorting Instructions - Show above table when filters aren't applied */}
         {!loading && !areFiltersApplied && (
