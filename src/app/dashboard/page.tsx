@@ -263,12 +263,16 @@ export default function Dashboard() {
     return null; // Skip unrecognized date formats
   };
 
+  // Declare these states before the useMemo
+  const [selectedProviderType, setSelectedProviderType] = useState("");
+  const [providerTypes, setProviderTypes] = useState<string[]>([]);
+
   // Now the filteredData useMemo hook can safely use parseDate
   const filteredData = useMemo(() => {
     if (!areFiltersApplied) return [];
     
     return data.filter(item => {
-                          const parsedDate = parseDate(item.rate_effective_date);
+      const parsedDate = parseDate(item.rate_effective_date);
       if (!parsedDate) return false; // Skip items with invalid dates
 
       if (selectedFeeScheduleDate) {
@@ -299,6 +303,8 @@ export default function Dashboard() {
         if (!hasModifier) return false;
       }
 
+      if (selectedProviderType && item.provider_type !== selectedProviderType) return false;
+
       return true;
     });
   }, [
@@ -312,7 +318,8 @@ export default function Dashboard() {
     selectedProgram,
     selectedLocationRegion,
     selectedModifier,
-    selectedFeeScheduleDate
+    selectedFeeScheduleDate,
+    selectedProviderType
   ]);
 
   // Update the sortConfig state initialization
@@ -474,6 +481,12 @@ export default function Dashboard() {
       .map((item) => item.state_name?.trim().toUpperCase())
       .filter((state): state is string => !!state);
     setStates([...new Set(states)].sort((a, b) => a.localeCompare(b)));
+
+    // Get provider types
+    const types = data
+      .map((item) => item.provider_type?.trim())
+      .filter((type): type is string => !!type);
+    setProviderTypes([...new Set(types)].sort((a, b) => a.localeCompare(b)));
   };
 
   const toggleDropdown = (dropdownSetter: React.Dispatch<React.SetStateAction<boolean>>, otherSetters: React.Dispatch<React.SetStateAction<boolean>>[]) => {
@@ -1128,6 +1141,24 @@ export default function Dashboard() {
               />
               {selectedModifier && (
                 <ClearButton onClick={() => setSelectedModifier("")} />
+              )}
+            </div>
+
+            {/* Provider Type Selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Provider Type</label>
+              <Select
+                options={providerTypes.map(type => ({ value: type, label: type }))}
+                value={selectedProviderType ? { value: selectedProviderType, label: selectedProviderType } : null}
+                onChange={(option) => setSelectedProviderType(option?.value || "")}
+                placeholder="Select Provider Type"
+                isSearchable
+                isDisabled={!selectedServiceCode && !selectedServiceDescription}
+                className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                classNamePrefix="react-select"
+              />
+              {selectedProviderType && (
+                <ClearButton onClick={() => setSelectedProviderType("")} />
               )}
             </div>
           </div>

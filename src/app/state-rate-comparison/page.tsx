@@ -48,6 +48,7 @@ interface ServiceData {
   location_region: string;
   duration_unit?: string;
   service_description?: string;
+  provider_type?: string; // Add this line
 }
 
 interface FilterSet {
@@ -139,6 +140,8 @@ export default function StatePaymentComparison() {
   const [selectedEntry, setSelectedEntry] = useState<ServiceData | null>(null);
   const [comment, setComment] = useState<string | null>(null);
   const [comments, setComments] = useState<{ state: string; comment: string }[]>([]);
+  const [selectedProviderType, setSelectedProviderType] = useState("");
+  const [providerTypes, setProviderTypes] = useState<string[]>([]);
 
   // Supabase check (after hooks)
   if (!supabase) {
@@ -212,6 +215,12 @@ export default function StatePaymentComparison() {
     // Get service descriptions
     const descriptions = data.map(item => item.service_description).filter(desc => desc);
     setServiceDescriptions([...new Set(descriptions)].filter((desc): desc is string => !!desc).sort((a, b) => a.localeCompare(b)));
+
+    // Get provider types
+    const types = data
+      .map((item) => item.provider_type?.trim())
+      .filter((type): type is string => !!type);
+    setProviderTypes([...new Set(types)].sort((a, b) => a.localeCompare(b)));
   };
 
   // Update filter handlers to remove URL updates
@@ -342,10 +351,11 @@ export default function StatePaymentComparison() {
         (!selectedProgram || item.program === selectedProgram) &&
         (!selectedLocationRegion || item.location_region === selectedLocationRegion) &&
         (!selectedModifier || [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].includes(selectedModifier)) &&
-        (!selectedServiceDescription || item.service_description === selectedServiceDescription)
+        (!selectedServiceDescription || item.service_description === selectedServiceDescription) &&
+        (!selectedProviderType || item.provider_type === selectedProviderType)
       ));
     });
-  }, [latestRates, filterSets, selectedProgram, selectedLocationRegion, selectedModifier, selectedServiceDescription]);
+  }, [latestRates, filterSets, selectedProgram, selectedLocationRegion, selectedModifier, selectedServiceDescription, selectedProviderType]);
 
   // Group filtered data by state
   const groupedByState = useMemo(() => {
@@ -445,26 +455,33 @@ export default function StatePaymentComparison() {
 
   // ✅ Prepare ECharts Data
   const echartOptions = useMemo<echarts.EChartsOption>(() => {
-    const statesList = Object.keys(processedData);
+    let statesList = Object.keys(processedData);
     const series: echarts.SeriesOption[] = [];
 
     if (isAllStatesSelected) {
-      // Sort states if needed
+      // Create an array of state-rate pairs for sorting
+      let sortedData = statesList.map(state => ({
+        state,
+        rate: processedData[state]['average'] || 0
+      }));
+
+      // Sort the data if needed
       if (sortOrder !== 'default') {
-        statesList.sort((a, b) => {
-          const rateA = processedData[a]['average'] || 0;
-          const rateB = processedData[b]['average'] || 0;
-          return sortOrder === 'asc' ? rateA - rateB : rateB - rateA;
-        });
+        sortedData.sort((a, b) => 
+          sortOrder === 'asc' ? a.rate - b.rate : b.rate - a.rate
+        );
       }
 
-      // Create a bar for each state's average rate
+      // Update statesList to match the sorted order
+      statesList = sortedData.map(item => item.state);
+      
+      // Create a bar for each state's average rate using sorted data
       series.push({
         name: 'Average Rate',
         type: 'bar',
         barGap: '20%',
         barCategoryGap: '20%',
-        data: statesList.map(state => processedData[state]['average'] || null),
+        data: sortedData.map(item => item.rate || null),
         label: {
           show: true,
           position: 'insideTop',
@@ -484,7 +501,7 @@ export default function StatePaymentComparison() {
         }
       });
     } else {
-      // Existing logic for manual state selection
+      // For manual state selection, create sorted array of selections
       const allSelections: { state: string, modifierKey: string, rate: number }[] = [];
       
       Object.entries(selectedTableRows).forEach(([state, selections]) => {
@@ -494,10 +511,14 @@ export default function StatePaymentComparison() {
         });
       });
 
+      // Sort selections if needed
       if (sortOrder !== 'default') {
         allSelections.sort((a, b) => 
           sortOrder === 'asc' ? a.rate - b.rate : b.rate - a.rate
         );
+
+        // Update statesList to match the sorted order
+        statesList = Array.from(new Set(allSelections.map(item => item.state)));
       }
 
       allSelections.forEach(({ state, modifierKey, rate }, index) => {
@@ -1214,6 +1235,26 @@ export default function StatePaymentComparison() {
                         />
                         {selectedServiceDescription && (
                           <button onClick={() => setSelectedServiceDescription("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Provider Type Selector */}
+                    {filterSet.serviceCategory && filterSet.states.length > 0 && (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Provider Type</label>
+                        <Select
+                          options={providerTypes.map(type => ({ value: type, label: type }))}
+                          value={selectedProviderType ? { value: selectedProviderType, label: selectedProviderType } : null}
+                          onChange={(option) => setSelectedProviderType(option?.value || "")}
+                          placeholder="Select Provider Type"
+                          isSearchable
+                          isDisabled={!selectedServiceCode && !selectedServiceDescription} // Disable until a service code or description is selected
+                          className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                          classNamePrefix="react-select"
+                        />
+                        {selectedProviderType && (
+                          <button onClick={() => setSelectedProviderType("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
                         )}
                       </div>
                     )}

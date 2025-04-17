@@ -40,6 +40,7 @@ interface ServiceData {
   rate_per_hour?: string;
   duration_unit?: string;
   service_description?: string;
+  provider_type?: string;
 }
 
 // Register Chart.js components
@@ -83,6 +84,8 @@ export default function HistoricalRates() {
   const [modifiers, setModifiers] = useState<{ value: string; label: string; details?: string }[]>([]);
   const [serviceDescriptions, setServiceDescriptions] = useState<string[]>([]);
   const [selectedServiceDescription, setSelectedServiceDescription] = useState("");
+  const [selectedProviderType, setSelectedProviderType] = useState("");
+  const [providerTypes, setProviderTypes] = useState<string[]>([]);
 
   // Move useMemo declarations to the top
   const areFiltersApplied = selectedServiceCategory && selectedState && selectedServiceCode;
@@ -105,6 +108,7 @@ export default function HistoricalRates() {
           (item.modifier_4 && item.modifier_4.split(' - ')[0] === selectedModifierCode);
         if (!hasModifier) return false;
       }
+      if (selectedProviderType && item.provider_type !== selectedProviderType) return false;
 
       return true;
     });
@@ -115,7 +119,8 @@ export default function HistoricalRates() {
     selectedServiceCode,
     selectedProgram,
     selectedLocationRegion,
-    selectedModifier
+    selectedModifier,
+    selectedProviderType
   ]);
 
   const getVisibleColumns = useMemo(() => {
@@ -196,6 +201,12 @@ export default function HistoricalRates() {
       const mod = allModifiers.find(mod => mod?.value === value);
       return { value: value as string, label: value as string, details: mod?.details || '' };
     }));
+
+    // Get provider types
+    const types = data
+      .map((item) => item.provider_type?.trim())
+      .filter((type): type is string => !!type);
+    setProviderTypes([...new Set(types)].sort((a, b) => a.localeCompare(b)));
   };
 
   // Now the useEffect can safely call extractFilters
@@ -689,6 +700,26 @@ export default function HistoricalRates() {
                     />
                     {selectedServiceDescription && (
                       <button onClick={() => setSelectedServiceDescription("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                    )}
+                  </div>
+                )}
+
+                {/* Provider Type Selector */}
+                {selectedServiceCategory && selectedState && selectedServiceCode && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Provider Type</label>
+                    <Select
+                      options={providerTypes.map(type => ({ value: type, label: type }))}
+                      value={selectedProviderType ? { value: selectedProviderType, label: selectedProviderType } : null}
+                      onChange={(option) => setSelectedProviderType(option?.value || "")}
+                      placeholder="Select Provider Type"
+                      isSearchable
+                      isDisabled={!selectedServiceCode && !selectedServiceDescription}
+                      className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                      classNamePrefix="react-select"
+                    />
+                    {selectedProviderType && (
+                      <button onClick={() => setSelectedProviderType("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
                     )}
                   </div>
                 )}
