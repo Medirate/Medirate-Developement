@@ -75,43 +75,48 @@ export default function HistoricalRates() {
   const [showRatePerHour, setShowRatePerHour] = useState(false);
   const [isSubscriptionCheckComplete, setIsSubscriptionCheckComplete] = useState(false);
   const [comment, setComment] = useState<string | null>(null);
+  const [selectedProgram, setSelectedProgram] = useState("");
+  const [selectedLocationRegion, setSelectedLocationRegion] = useState("");
+  const [selectedModifier, setSelectedModifier] = useState("");
+  const [programs, setPrograms] = useState<string[]>([]);
+  const [locationRegions, setLocationRegions] = useState<string[]>([]);
+  const [modifiers, setModifiers] = useState<{ value: string; label: string; details?: string }[]>([]);
+  const [serviceDescriptions, setServiceDescriptions] = useState<string[]>([]);
+  const [selectedServiceDescription, setSelectedServiceDescription] = useState("");
 
   // Move useMemo declarations to the top
   const areFiltersApplied = selectedServiceCategory && selectedState && selectedServiceCode;
 
   const filteredData = useMemo(() => {
-    if (!areFiltersApplied) return [];
-    
-    // Create a map to track unique combinations
-    const uniqueMap = new Map<string, ServiceData>();
+    if (!selectedServiceCategory || !selectedState || !selectedServiceCode) return [];
 
-    data.forEach(item => {
-      if (
-        item.service_category === selectedServiceCategory &&
-        item.state_name === selectedState &&
-        item.service_code === selectedServiceCode
-      ) {
-        const key = `${item.service_code}|${item.program}|${item.location_region}|${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}`;
-        
-        // Only keep the latest entry for each unique combination
-        const existing = uniqueMap.get(key);
-        if (!existing || new Date(item.rate_effective_date) > new Date(existing.rate_effective_date)) {
-          uniqueMap.set(key, item);
-        }
+    return data.filter(item => {
+      if (selectedServiceCategory && item.service_category !== selectedServiceCategory) return false;
+      if (selectedState && item.state_name !== selectedState) return false;
+      if (selectedServiceCode && item.service_code !== selectedServiceCode) return false;
+      if (selectedProgram && item.program !== selectedProgram) return false;
+      if (selectedLocationRegion && item.location_region !== selectedLocationRegion) return false;
+      if (selectedModifier) {
+        const selectedModifierCode = selectedModifier.split(' - ')[0];
+        const hasModifier = 
+          (item.modifier_1 && item.modifier_1.split(' - ')[0] === selectedModifierCode) ||
+          (item.modifier_2 && item.modifier_2.split(' - ')[0] === selectedModifierCode) ||
+          (item.modifier_3 && item.modifier_3.split(' - ')[0] === selectedModifierCode) ||
+          (item.modifier_4 && item.modifier_4.split(' - ')[0] === selectedModifierCode);
+        if (!hasModifier) return false;
       }
+
+      return true;
     });
-
-    const result = Array.from(uniqueMap.values());
-
-    // Auto-select the entry if there's only one result
-    if (result.length === 1) {
-      setSelectedEntry(result[0]);
-    } else {
-      setSelectedEntry(null); // Reset selection if there are multiple or no results
-    }
-
-    return result;
-  }, [data, selectedServiceCategory, selectedState, selectedServiceCode]);
+  }, [
+    data,
+    selectedServiceCategory,
+    selectedState,
+    selectedServiceCode,
+    selectedProgram,
+    selectedLocationRegion,
+    selectedModifier
+  ]);
 
   const getVisibleColumns = useMemo(() => {
     const columns = {
@@ -166,6 +171,31 @@ export default function HistoricalRates() {
       .map((item) => item.state_name?.trim().toUpperCase())
       .filter(state => state);
     setStates([...new Set(states)].sort((a, b) => a.localeCompare(b)));
+
+    // Get programs
+    const programs = data
+      .map((item) => item.program?.trim())
+      .filter((program): program is string => !!program);
+    setPrograms([...new Set(programs)].sort((a, b) => a.localeCompare(b)));
+
+    // Get location regions
+    const locationRegions = data
+      .map((item) => item.location_region?.trim())
+      .filter((region): region is string => !!region);
+    setLocationRegions([...new Set(locationRegions)].sort((a, b) => a.localeCompare(b)));
+
+    // Get modifiers
+    const allModifiers = data.flatMap(item => [
+      item.modifier_1 ? { value: item.modifier_1, details: item.modifier_1_details } : null,
+      item.modifier_2 ? { value: item.modifier_2, details: item.modifier_2_details } : null,
+      item.modifier_3 ? { value: item.modifier_3, details: item.modifier_3_details } : null,
+      item.modifier_4 ? { value: item.modifier_4, details: item.modifier_4_details } : null
+    ]).filter(Boolean);
+
+    setModifiers([...new Set(allModifiers.map(mod => mod?.value).filter(Boolean))].map(value => {
+      const mod = allModifiers.find(mod => mod?.value === value);
+      return { value: value as string, label: value as string, details: mod?.details || '' };
+    }));
   };
 
   // Now the useEffect can safely call extractFilters
@@ -464,6 +494,30 @@ export default function HistoricalRates() {
     return text ? text.toUpperCase() : '-';
   };
 
+  // Dynamically populate filter options based on filteredData
+  useEffect(() => {
+    const descriptions = filteredData.map(item => item.service_description).filter((desc): desc is string => !!desc);
+    setServiceDescriptions([...new Set(descriptions)].sort((a, b) => a.localeCompare(b)));
+
+    const programs = filteredData.map(item => item.program).filter((program): program is string => !!program);
+    setPrograms([...new Set(programs)].sort((a, b) => a.localeCompare(b)));
+
+    const locationRegions = filteredData.map(item => item.location_region).filter((region): region is string => !!region);
+    setLocationRegions([...new Set(locationRegions)].sort((a, b) => a.localeCompare(b)));
+
+    const allModifiers = filteredData.flatMap(item => [
+      item.modifier_1 ? { value: item.modifier_1, details: item.modifier_1_details } : null,
+      item.modifier_2 ? { value: item.modifier_2, details: item.modifier_2_details } : null,
+      item.modifier_3 ? { value: item.modifier_3, details: item.modifier_3_details } : null,
+      item.modifier_4 ? { value: item.modifier_4, details: item.modifier_4_details } : null
+    ]).filter(Boolean);
+
+    setModifiers([...new Set(allModifiers.map(mod => mod?.value).filter(Boolean))].map(value => {
+      const mod = allModifiers.find(mod => mod?.value === value);
+      return { value: value as string, label: value as string, details: mod?.details || '' };
+    }));
+  }, [filteredData]);
+
   return (
     <AppLayout activeTab="historicalRates">
       <div className="p-4 sm:p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
@@ -501,13 +555,7 @@ export default function HistoricalRates() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Service Line</label>
                   <Select
-                    options={serviceCategories
-                      .filter(category => {
-                        const trimmedCategory = category.trim();
-                        return trimmedCategory && 
-                               !['HCBS', 'IDD', 'SERVICE CATEGORY'].includes(trimmedCategory);
-                      })
-                      .map(category => ({ value: category, label: category }))}
+                    options={serviceCategories.map(category => ({ value: category, label: category }))}
                     value={selectedServiceCategory ? { value: selectedServiceCategory, label: selectedServiceCategory } : null}
                     onChange={(option) => handleServiceCategoryChange(option?.value || "")}
                     placeholder="Select Service Line"
@@ -515,6 +563,9 @@ export default function HistoricalRates() {
                     className="react-select-container"
                     classNamePrefix="react-select"
                   />
+                  {selectedServiceCategory && (
+                    <button onClick={() => setSelectedServiceCategory("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                  )}
                 </div>
 
                 {/* State Selector */}
@@ -530,6 +581,9 @@ export default function HistoricalRates() {
                       className="react-select-container"
                       classNamePrefix="react-select"
                     />
+                    {selectedState && (
+                      <button onClick={() => setSelectedState("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -553,6 +607,9 @@ export default function HistoricalRates() {
                       className="react-select-container"
                       classNamePrefix="react-select"
                     />
+                    {selectedServiceCode && (
+                      <button onClick={() => setSelectedServiceCode("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -560,6 +617,79 @@ export default function HistoricalRates() {
                     <div className="text-gray-400 text-sm">
                       {selectedServiceCategory ? "Select a state to see available service codes" : "Select a service line first"}
                     </div>
+                  </div>
+                )}
+
+                {/* Program Selector */}
+                {selectedServiceCategory && selectedState && selectedServiceCode && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Program</label>
+                    <Select
+                      options={programs.map((program) => ({ value: program, label: program }))}
+                      value={selectedProgram ? { value: selectedProgram, label: selectedProgram } : null}
+                      onChange={(option) => setSelectedProgram(option?.value || "")}
+                      placeholder="Select Program"
+                      isSearchable
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                    />
+                  </div>
+                )}
+
+                {/* Location/Region Selector */}
+                {selectedServiceCategory && selectedState && selectedServiceCode && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Location/Region</label>
+                    <Select
+                      options={locationRegions.map((region) => ({ value: region, label: region }))}
+                      value={selectedLocationRegion ? { value: selectedLocationRegion, label: selectedLocationRegion } : null}
+                      onChange={(option) => setSelectedLocationRegion(option?.value || "")}
+                      placeholder="Select Location/Region"
+                      isSearchable
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                    />
+                  </div>
+                )}
+
+                {/* Modifier Selector */}
+                {selectedServiceCategory && selectedState && selectedServiceCode && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Modifier</label>
+                    <Select
+                      options={modifiers.map((modifier) => ({
+                        value: modifier.value,
+                        label: `${modifier.value} - ${modifier.details || ''}`
+                      }))}
+                      value={selectedModifier ? { value: selectedModifier, label: selectedModifier } : null}
+                      onChange={(option) => setSelectedModifier(option?.value || "")}
+                      placeholder="Select Modifier"
+                      isSearchable
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                    />
+                    {selectedModifier && (
+                      <button onClick={() => setSelectedModifier("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                    )}
+                  </div>
+                )}
+
+                {/* Service Description Selector */}
+                {selectedServiceCategory && selectedState && selectedServiceCode && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Service Description</label>
+                    <Select
+                      options={serviceDescriptions.map(desc => ({ value: desc, label: desc }))}
+                      value={selectedServiceDescription ? { value: selectedServiceDescription, label: selectedServiceDescription } : null}
+                      onChange={(option) => setSelectedServiceDescription(option?.value || "")}
+                      placeholder="Select Service Description"
+                      isSearchable
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                    />
+                    {selectedServiceDescription && (
+                      <button onClick={() => setSelectedServiceDescription("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                    )}
                   </div>
                 )}
               </div>

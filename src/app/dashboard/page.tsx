@@ -541,7 +541,6 @@ export default function Dashboard() {
 
   const handleServiceCodeChange = (code: string) => {
     setSelectedServiceCode(code);
-    // Don't clear service description anymore
     setFilterStep(4); // Move to next step
 
     // Now we can populate the additional filters
@@ -564,11 +563,18 @@ export default function Dashboard() {
       value: modifier || '',
       label: modifier || ''
     })));
+
+    // Auto-select the associated service description
+    const associatedDescription = filteredData.find(item => item.service_code === code)?.service_description;
+    if (associatedDescription) {
+      setSelectedServiceDescription(associatedDescription);
+    } else {
+      setSelectedServiceDescription("");
+    }
   };
 
   const handleServiceDescriptionChange = (desc: string) => {
     setSelectedServiceDescription(desc);
-    // Don't clear service code anymore
     setFilterStep(4); // Move to next step
 
     // Now we can populate the additional filters
@@ -591,6 +597,14 @@ export default function Dashboard() {
       value: modifier || '',
       label: modifier || ''
     })));
+
+    // Auto-select the associated service code
+    const associatedCode = filteredData.find(item => item.service_description === desc)?.service_code;
+    if (associatedCode) {
+      setSelectedServiceCode(associatedCode);
+    } else {
+      setSelectedServiceCode("");
+    }
   };
 
   const ClearButton = ({ onClick }: { onClick: () => void }) => (

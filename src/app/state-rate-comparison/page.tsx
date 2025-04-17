@@ -106,11 +106,19 @@ export default function StatePaymentComparison() {
   const [chartError, setChartError] = useState<string | null>(null);
   const [tableError, setTableError] = useState<string | null>(null);
   const [selectedServiceCategory, setSelectedServiceCategory] = useState("");
-  const [selectedStates, setSelectedStates] = useState<string[]>([]);
+  const [selectedState, setSelectedState] = useState("");
   const [selectedServiceCode, setSelectedServiceCode] = useState("");
+  const [selectedProgram, setSelectedProgram] = useState("");
+  const [selectedLocationRegion, setSelectedLocationRegion] = useState("");
+  const [selectedModifier, setSelectedModifier] = useState("");
+  const [selectedServiceDescription, setSelectedServiceDescription] = useState("");
   const [serviceCategories, setServiceCategories] = useState<string[]>([]);
   const [states, setStates] = useState<string[]>([]);
-  const [serviceCodes, setServiceCodes] = useState<{ code: string; description: string }[]>([]);
+  const [serviceCodes, setServiceCodes] = useState<string[]>([]);
+  const [programs, setPrograms] = useState<string[]>([]);
+  const [locationRegions, setLocationRegions] = useState<string[]>([]);
+  const [modifiers, setModifiers] = useState<{ value: string; label: string; details?: string }[]>([]);
+  const [serviceDescriptions, setServiceDescriptions] = useState<string[]>([]);
   const [selectedModifiers, setSelectedModifiers] = useState<{[key: string]: string}>({});
   const [filterSets, setFilterSets] = useState<FilterSet[]>([
     { serviceCategory: "", states: [], serviceCode: "" }
@@ -169,12 +177,41 @@ export default function StatePaymentComparison() {
     const categories = data
       .map((item) => item.service_category?.trim())
       .filter((category): category is string => !!category);
-    setServiceCategories([...new Set(categories)].sort((a, b) => a.localeCompare(b)));
+    setServiceCategories([...new Set(categories)].map(category => category || '').sort((a, b) => a.localeCompare(b)));
 
     const states = data
       .map((item) => item.state_name?.trim().toUpperCase())
       .filter((state): state is string => !!state);
-    setStates([...new Set(states)].sort((a, b) => a.localeCompare(b)));
+    setStates([...new Set(states)].map(state => state || '').sort((a, b) => a.localeCompare(b)));
+
+    // Get programs
+    const programs = data
+      .map((item) => item.program?.trim())
+      .filter((program): program is string => !!program);
+    setPrograms([...new Set(programs)].map(program => program || '').sort((a, b) => a.localeCompare(b)));
+
+    // Get location regions
+    const locationRegions = data
+      .map((item) => item.location_region?.trim())
+      .filter((region): region is string => !!region);
+    setLocationRegions([...new Set(locationRegions)].map(region => region || '').sort((a, b) => a.localeCompare(b)));
+
+    // Get modifiers
+    const allModifiers = data.flatMap((item) => [
+      item.modifier_1 ? { value: item.modifier_1, details: item.modifier_1_details } : null,
+      item.modifier_2 ? { value: item.modifier_2, details: item.modifier_2_details } : null,
+      item.modifier_3 ? { value: item.modifier_3, details: item.modifier_3_details } : null,
+      item.modifier_4 ? { value: item.modifier_4, details: item.modifier_4_details } : null
+    ]).filter(Boolean);
+
+    setModifiers([...new Set(allModifiers.map(mod => mod?.value).filter(Boolean))].map(value => {
+      const mod = allModifiers.find(mod => mod?.value === value);
+      return { value: value as string, label: value as string, details: mod?.details || '' };
+    }));
+
+    // Get service descriptions
+    const descriptions = data.map(item => item.service_description).filter(desc => desc);
+    setServiceDescriptions([...new Set(descriptions)].filter((desc): desc is string => !!desc).sort((a, b) => a.localeCompare(b)));
   };
 
   // Update filter handlers to remove URL updates
@@ -191,9 +228,14 @@ export default function StatePaymentComparison() {
       .filter((item) => item.service_category === category)
       .map((item) => item.state_name);
     
-    setStates([...new Set(filteredStates)].sort((a, b) => a.localeCompare(b)));
+    setStates([...new Set(filteredStates)].map(state => state || '').sort((a, b) => a.localeCompare(b)));
     setServiceCodes([]);
     setFilterLoading(false);
+
+    setSelectedProgram("");
+    setSelectedLocationRegion("");
+    setSelectedModifier("");
+    setSelectedServiceDescription("");
   };
 
   // Update the handleStateChange function to handle single state selection
@@ -222,21 +264,55 @@ export default function StatePaymentComparison() {
             item.service_category === newFilterSets[index].serviceCategory
           )
           .map((item) => ({ code: item.service_code, description: item.service_description || '' }));
-        setServiceCodes([...new Set(filteredCodes.map(item => item.code))].map(code => {
+        setServiceCodes([...new Set(filteredCodes.map(item => item.code || ''))].map(code => {
           const item = filteredCodes.find(item => item.code === code);
-          return { code, description: item?.description || '' };
-        }).sort((a, b) => a.code.localeCompare(b.code)));
+          return code || '';
+        }).sort((a, b) => (a || '').localeCompare(b || '')));
         setFilterLoading(false);
       }, 0);
     }
+
+    setSelectedProgram("");
+    setSelectedLocationRegion("");
+    setSelectedModifier("");
+    setSelectedServiceDescription("");
   };
 
+  // Update the handleServiceCodeChange function to ensure filters are enabled
   const handleServiceCodeChange = (index: number, code: string) => {
     const newFilterSets = [...filterSets];
     newFilterSets[index].serviceCode = code;
     setFilterSets(newFilterSets);
-
+    setSelectedServiceCode(code); // Ensure selectedServiceCode is updated
     setFilterLoading(true);
+
+    const filteredData = data.filter(item => 
+      item.service_category === newFilterSets[index].serviceCategory &&
+      newFilterSets[index].states.includes(item.state_name?.toUpperCase()) &&
+      item.service_code === code
+    );
+
+    // Populate programs, location regions, modifiers, and service descriptions
+    const programs = filteredData.map(item => item.program).filter((program): program is string => !!program);
+    setPrograms([...new Set(programs)].map(program => program || '').sort((a, b) => a.localeCompare(b)));
+
+    const locationRegions = filteredData.map(item => item.location_region).filter((region): region is string => !!region);
+    setLocationRegions([...new Set(locationRegions)].map(region => region || '').sort((a, b) => a.localeCompare(b)));
+
+    const allModifiers = filteredData.flatMap(item => [
+      item.modifier_1 ? { value: item.modifier_1, details: item.modifier_1_details } : null,
+      item.modifier_2 ? { value: item.modifier_2, details: item.modifier_2_details } : null,
+      item.modifier_3 ? { value: item.modifier_3, details: item.modifier_3_details } : null,
+      item.modifier_4 ? { value: item.modifier_4, details: item.modifier_4_details } : null
+    ]).filter(Boolean);
+    setModifiers([...new Set(allModifiers.map(mod => mod?.value).filter(Boolean))].map(value => {
+      const mod = allModifiers.find(mod => mod?.value === value);
+      return { value: value as string, label: value as string, details: mod?.details || '' };
+    }));
+
+    const descriptions = filteredData.map(item => item.service_description).filter((desc): desc is string => !!desc);
+    setServiceDescriptions([...new Set(descriptions)].map(desc => desc || '').sort((a, b) => a.localeCompare(b)));
+
     setFilterLoading(false);
   };
 
@@ -262,10 +338,14 @@ export default function StatePaymentComparison() {
       return filterSets.some(filterSet => (
         (!filterSet.serviceCategory || item.service_category === filterSet.serviceCategory) &&
         (!filterSet.states.length || filterSet.states.includes(item.state_name)) &&
-        (!filterSet.serviceCode || item.service_code === filterSet.serviceCode)
+        (!filterSet.serviceCode || item.service_code === filterSet.serviceCode) &&
+        (!selectedProgram || item.program === selectedProgram) &&
+        (!selectedLocationRegion || item.location_region === selectedLocationRegion) &&
+        (!selectedModifier || [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].includes(selectedModifier)) &&
+        (!selectedServiceDescription || item.service_description === selectedServiceDescription)
       ));
     });
-  }, [latestRates, filterSets]);
+  }, [latestRates, filterSets, selectedProgram, selectedLocationRegion, selectedModifier, selectedServiceDescription]);
 
   // Group filtered data by state
   const groupedByState = useMemo(() => {
@@ -656,7 +736,7 @@ export default function StatePaymentComparison() {
 
     // Reset other filter-related states
     setSelectedServiceCategory("");
-    setSelectedStates([]);
+    setSelectedState("");
     setSelectedServiceCode("");
     setSelectedEntry(null);
     setServiceCodes([]);
@@ -928,16 +1008,16 @@ export default function StatePaymentComparison() {
   // Update the useEffect to fetch comments for all states
   useEffect(() => {
     console.log("Selected Service Category:", selectedServiceCategory); // Log selectedServiceCategory
-    console.log("Selected States:", selectedStates); // Log selectedStates
+    console.log("Selected States:", selectedState); // Log selectedState
 
-    if (selectedServiceCategory && selectedStates.length > 0) {
-      console.log("Triggering fetchComments for:", { selectedServiceCategory, selectedStates }); // Log when fetchComments is triggered
-      fetchComments(selectedServiceCategory, selectedStates);
+    if (selectedServiceCategory && selectedState.length > 0) {
+      console.log("Triggering fetchComments for:", { selectedServiceCategory, selectedState }); // Log when fetchComments is triggered
+      fetchComments(selectedServiceCategory, [selectedState]);
     } else {
       console.log("Skipping fetchComments - missing required parameters"); // Log if parameters are missing
       setComments([]);
     }
-  }, [selectedServiceCategory, selectedStates]);
+  }, [selectedServiceCategory, selectedState]);
 
   return (
     <AppLayout activeTab="stateRateComparison">
@@ -980,120 +1060,190 @@ export default function StatePaymentComparison() {
         {!dataLoading && (
           <>
             {/* Filters */}
-            <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg">
+            <div className="mb-6 sm:mb-8">
               {filterSets.map((filterSet, index) => (
-                <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-4 relative">
-                  {/* Service Category Selector */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Service Line</label>
-                    <Select
-                      instanceId={`service-category-select-${index}`}
-                      options={serviceCategories
-                        .filter(category => {
-                          const trimmedCategory = category.trim();
-                          return trimmedCategory && 
-                                 !['HCBS', 'IDD', 'SERVICE CATEGORY'].includes(trimmedCategory);
-                        })
-                        .map(category => ({ value: category, label: category }))}
-                      value={filterSet.serviceCategory ? { value: filterSet.serviceCategory, label: filterSet.serviceCategory } : null}
-                      onChange={(option) => handleServiceCategoryChange(index, option?.value || "")}
-                      placeholder="Select Service Line"
-                      isSearchable
-                      className="react-select-container"
-                      classNamePrefix="react-select"
-                    />
-                  </div>
-
-                  {/* State Selector */}
-                  {filterSet.serviceCategory ? (
+                <div key={index} className="p-4 sm:p-6 bg-white rounded-xl shadow-lg mb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+                    {/* Service Category Selector */}
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">State</label>
+                      <label className="text-sm font-medium text-gray-700">Service Line</label>
                       <Select
-                        instanceId={`state-select-${index}`}
-                        options={[
-                          ...(index === 0 ? [{ value: "ALL_STATES", label: "All States" }] : []),
-                          ...states.map(state => ({ value: state, label: state }))
-                        ]}
-                        value={
-                          filterSet.states.length === states.length && index === 0
-                            ? { value: "ALL_STATES", label: "All States" }
-                            : filterSet.states.length > 0
-                              ? { value: filterSet.states[0], label: filterSet.states[0] }
-                              : null
-                        }
-                        onChange={(option) => handleStateChange(index, option)}
-                        placeholder="Select State"
+                        instanceId={`service-category-select-${index}`}
+                        options={serviceCategories
+                          .filter(category => {
+                            const trimmedCategory = category.trim();
+                            return trimmedCategory && 
+                                   !['HCBS', 'IDD', 'SERVICE CATEGORY'].includes(trimmedCategory);
+                          })
+                          .map(category => ({ value: category, label: category }))}
+                        value={filterSet.serviceCategory ? { value: filterSet.serviceCategory, label: filterSet.serviceCategory } : null}
+                        onChange={(option) => handleServiceCategoryChange(index, option?.value || "")}
+                        placeholder="Select Service Line"
                         isSearchable
                         className="react-select-container"
                         classNamePrefix="react-select"
                       />
                     </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">State</label>
-                      <div className="text-gray-400 text-sm">
-                        Select a service line first
-                      </div>
-                    </div>
-                  )}
 
-                  {/* Service Code Selector */}
-                  {filterSet.serviceCategory && filterSet.states.length > 0 ? (
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Service Code</label>
-                      <Select
-                        instanceId={`service-code-select-${index}`}
-                        options={serviceCodes.map(({ code, description }) => ({ 
-                          value: code, 
-                          label: `${code} - ${description}` 
-                        }))}
-                        value={filterSet.serviceCode ? { 
-                          value: filterSet.serviceCode, 
-                          label: `${filterSet.serviceCode} - ${serviceCodes.find(item => item.code === filterSet.serviceCode)?.description || ''}` 
-                        } : null}
-                        onChange={(option) => handleServiceCodeChange(index, option?.value || "")}
-                        placeholder="Select Service Code"
-                        isSearchable
-                        className="react-select-container"
-                        classNamePrefix="react-select"
-                      />
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Service Code</label>
-                      <div className="text-gray-400 text-sm">
-                        {filterSet.serviceCategory ? "Select a state to see available service codes" : "Select a service line first"}
+                    {/* State Selector */}
+                    {filterSet.serviceCategory ? (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">State</label>
+                        <Select
+                          instanceId={`state-select-${index}`}
+                          options={[
+                            ...(index === 0 ? [{ value: "ALL_STATES", label: "All States" }] : []),
+                            ...states.map(state => ({ value: state, label: state }))
+                          ]}
+                          value={
+                            filterSet.states.length === states.length && index === 0
+                              ? { value: "ALL_STATES", label: "All States" }
+                              : filterSet.states.length > 0
+                                ? { value: filterSet.states[0], label: filterSet.states[0] }
+                                : null
+                          }
+                          onChange={(option) => handleStateChange(index, option)}
+                          placeholder="Select State"
+                          isSearchable
+                          className="react-select-container"
+                          classNamePrefix="react-select"
+                        />
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">State</label>
+                        <div className="text-gray-400 text-sm">
+                          Select a service line first
+                        </div>
+                      </div>
+                    )}
 
-                  {/* Remove Button on the Side */}
-                  {index > 0 && ( // Only show the remove button for filter sets beyond the first one
-                    <div className="absolute -right-12 top-0">
-                      <button
-                        onClick={() => deleteFilterSet(index)}
-                        className="flex items-center justify-center w-10 h-10 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors"
-                        aria-label="Remove this state"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-5 w-5"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
+                    {/* Service Code Selector */}
+                    {filterSet.serviceCategory && filterSet.states.length > 0 ? (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Service Code</label>
+                        <Select
+                          instanceId={`service-code-select-${index}`}
+                          options={serviceCodes.map((code) => ({ value: code, label: code }))}
+                          value={filterSet.serviceCode ? { value: filterSet.serviceCode, label: filterSet.serviceCode } : null}
+                          onChange={(option) => handleServiceCodeChange(index, option?.value || "")}
+                          placeholder="Select Service Code"
+                          isSearchable
+                          className="react-select-container"
+                          classNamePrefix="react-select"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Service Code</label>
+                        <div className="text-gray-400 text-sm">
+                          {filterSet.serviceCategory ? "Select a state to see available service codes" : "Select a service line first"}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Program Selector */}
+                    {filterSet.serviceCategory && filterSet.states.length > 0 && (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Program</label>
+                        <Select
+                          options={programs.map(program => ({ value: program, label: program }))}
+                          value={selectedProgram ? { value: selectedProgram, label: selectedProgram } : null}
+                          onChange={(option) => setSelectedProgram(option?.value || "")}
+                          placeholder="Select Program"
+                          isSearchable
+                          isDisabled={!selectedServiceCode}
+                          classNamePrefix="react-select"
+                        />
+                        {selectedProgram && (
+                          <button onClick={() => setSelectedProgram("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Location/Region Selector */}
+                    {filterSet.serviceCategory && filterSet.states.length > 0 && (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Location/Region</label>
+                        <Select
+                          options={locationRegions.map(region => ({ value: region, label: region }))}
+                          value={selectedLocationRegion ? { value: selectedLocationRegion, label: selectedLocationRegion } : null}
+                          onChange={(option) => setSelectedLocationRegion(option?.value || "")}
+                          placeholder="Select Location/Region"
+                          isSearchable
+                          isDisabled={!selectedServiceCode}
+                          classNamePrefix="react-select"
+                        />
+                        {selectedLocationRegion && (
+                          <button onClick={() => setSelectedLocationRegion("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Modifier Selector */}
+                    {filterSet.serviceCategory && filterSet.states.length > 0 && (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Modifier</label>
+                        <Select
+                          options={modifiers.map(modifier => ({ value: modifier.value, label: `${modifier.value} - ${modifier.details || ''}` }))}
+                          value={selectedModifier ? { value: selectedModifier, label: selectedModifier } : null}
+                          onChange={(option) => setSelectedModifier(option?.value || "")}
+                          placeholder="Select Modifier"
+                          isSearchable
+                          isDisabled={!selectedServiceCode}
+                          classNamePrefix="react-select"
+                        />
+                        {selectedModifier && (
+                          <button onClick={() => setSelectedModifier("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Service Description Selector */}
+                    {filterSet.serviceCategory && filterSet.states.length > 0 && (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Service Description</label>
+                        <Select
+                          options={serviceDescriptions.map(desc => ({ value: desc, label: desc }))}
+                          value={selectedServiceDescription ? { value: selectedServiceDescription, label: selectedServiceDescription } : null}
+                          onChange={(option) => setSelectedServiceDescription(option?.value || "")}
+                          placeholder="Select Service Description"
+                          isSearchable
+                          isDisabled={!selectedServiceCode}
+                          classNamePrefix="react-select"
+                        />
+                        {selectedServiceDescription && (
+                          <button onClick={() => setSelectedServiceDescription("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Remove Button on the Side */}
+                    {index > 0 && ( // Only show the remove button for filter sets beyond the first one
+                      <div className="absolute -right-12 top-0">
+                        <button
+                          onClick={() => deleteFilterSet(index)}
+                          className="flex items-center justify-center w-10 h-10 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors"
+                          aria-label="Remove this state"
                         >
-                          <path
-                            fillRule="evenodd"
-                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  )}
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
-
-              {/* Add Filter Set Button */}
               <button
                 onClick={() => setFilterSets([...filterSets, { serviceCategory: "", states: [], serviceCode: "" }])}
                 className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
