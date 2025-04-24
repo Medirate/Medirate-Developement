@@ -18,8 +18,8 @@ const StripePricingTableWithFooter = () => {
   const [showTerms, setShowTerms] = useState(false);
   const { isAuthenticated, isLoading, user } = useKindeBrowserClient();
   const router = useRouter();
-  const [showForm, setShowForm] = useState(false); // Hide form by default
-  const [formSubmitted, setFormSubmitted] = useState(false); // Track form submission
+  const [showStripeTable, setShowStripeTable] = useState(false);
+  const [formSubmitted, setFormSubmitted] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -31,19 +31,19 @@ const StripePricingTableWithFooter = () => {
     demoRequest: "No",
   });
   const [loading, setLoading] = useState(false);
-  const [formFilled, setFormFilled] = useState(false); // Track if the form is already filled
-  const [hasActiveSubscription, setHasActiveSubscription] = useState(false); // Track subscription status
+  const [formFilled, setFormFilled] = useState(false);
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [isSubUser, setIsSubUser] = useState(false);
   const [primaryEmail, setPrimaryEmail] = useState<string | null>(null);
 
+  // Check subscription status when user is authenticated
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/api/auth/login");
-    } else if (isAuthenticated) {
+    if (isAuthenticated && user?.email) {
       checkSubscription();
       checkSubUser();
+      fetchFormData(user.email);
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, user]);
 
   useEffect(() => {
     // Dynamically load the Stripe Pricing Table script
@@ -52,10 +52,28 @@ const StripePricingTableWithFooter = () => {
     script.async = true;
     document.body.appendChild(script);
 
+    // Add custom CSS to disable purchase buttons for subscribed users
+    if (hasActiveSubscription || isSubUser) {
+      const style = document.createElement('style');
+      style.textContent = `
+        .Button-root[type="submit"] {
+          opacity: 0.5;
+          pointer-events: none;
+          cursor: not-allowed;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
     return () => {
-      document.body.removeChild(script); // Clean up when component unmounts
+      document.body.removeChild(script);
+      // Clean up the style if it was added
+      const style = document.head.querySelector('style:last-child');
+      if (style) {
+        document.head.removeChild(style);
+      }
     };
-  }, []);
+  }, [hasActiveSubscription, isSubUser]);
 
   // Fetch existing form data when the page loads or when the user's email changes
   useEffect(() => {
@@ -135,7 +153,7 @@ const StripePricingTableWithFooter = () => {
       } else {
         setFormFilled(true); // Mark the form as filled
         setFormSubmitted(true);
-        setShowForm(false);
+        setShowStripeTable(true);
         alert("✅ Form submitted successfully!");
       }
     } catch (err) {
@@ -211,152 +229,52 @@ const StripePricingTableWithFooter = () => {
     }
   };
 
-  // Don't render anything until the subscription check is complete
-  if (isLoading || !isAuthenticated) {
-    return null; // or a loading spinner
-  }
+  // Function to handle subscription button click
+  const handleSubscribeClick = async () => {
+    if (!isAuthenticated) {
+      // Redirect to login if not authenticated
+      router.push("/api/auth/login");
+      return;
+    }
 
-  // If the user has an active subscription or is a sub-user, show the "Already Subscribed" card
-  if (hasActiveSubscription || isSubUser) {
-    return (
-      <div className="flex flex-col min-h-screen">
-        <main className="flex-grow flex flex-col items-center justify-center px-4 pt-16">
-          <div className="w-full max-w-4xl mb-8 p-8 bg-white rounded-xl shadow-2xl border border-gray-100">
-            <h2 className="text-3xl font-bold mb-6 text-[#012C61] text-center font-lemonMilkRegular">
-              You Are Already Subscribed
-            </h2>
-            <p className="text-lg mb-10 text-gray-600 text-center">
-              Thank you for being a valued MediRate subscriber. You can access all features of your subscription from your dashboard.
-            </p>
-            {isSubUser && (
-              <p className="text-lg mb-10 text-gray-600 text-center">
-                This is a sub-user account.
-              </p>
-            )}
-            <div className="flex justify-center">
+    // If authenticated but form not filled, show form
+    if (!formFilled) {
+      setShowStripeTable(false);
+      return;
+    }
+
+    // If authenticated and form filled, show Stripe table
+    setShowStripeTable(true);
+  };
+
+  return (
+    <div className="flex flex-col min-h-screen">
+      <main className="flex-grow flex flex-col items-center justify-center px-4 pt-16">
+        {/* Subscription Status Banner - Show only for subscribed users */}
+        {isAuthenticated && (hasActiveSubscription || isSubUser) && (
+          <div className="w-full max-w-4xl mb-8 p-4 bg-green-50 border border-green-200 rounded-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-green-800 font-medium">
+                  ✓ You have an active subscription
+                </p>
+                {isSubUser && (
+                  <p className="text-sm text-green-600">
+                    This is a sub-user account
+                  </p>
+                )}
+              </div>
               <a
                 href="/dashboard"
-                className="bg-[#012C61] text-white px-8 py-3 rounded-lg transition-all duration-300 hover:bg-transparent hover:border hover:border-[#012C61] hover:text-[#012C61]"
+                className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 transition-colors"
               >
                 Go to Dashboard
               </a>
             </div>
           </div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
+        )}
 
-  // Render the form only if it hasn't been filled yet
-  if (formFilled || formSubmitted) {
-    return (
-      <div className="flex flex-col min-h-screen">
-        <main className="flex-grow flex flex-col items-center justify-center px-4 pt-16">
-          {/* Subscription Details */}
-          <div className="w-full max-w-4xl mb-8 p-8 bg-white rounded-xl shadow-2xl border border-gray-100">
-            <h2 className="text-3xl font-bold mb-6 text-[#012C61] text-center font-lemonMilkRegular">Subscription Models</h2>
-            <p className="text-lg mb-10 text-gray-600 text-center">
-              MediRate offers flexible subscription models designed to meet your company's needs:
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Annual Subscription Card */}
-              <div className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-lg border border-gray-100 transform transition-all duration-300 hover:scale-105 hover:shadow-xl">
-                <h3 className="text-2xl font-bold mb-6 text-[#012C61] font-lemonMilkRegular">Annual Subscription</h3>
-                <ul className="space-y-4">
-                  <li className="flex items-center">
-                    <span className="text-green-600 mr-3">✔</span>
-                    <span className="text-gray-700">Three user accounts included</span>
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-green-600 mr-3">✔</span>
-                    <span className="text-gray-700">Ability to add up to ten users on one subscription <span className="text-sm text-gray-500">(In Development)</span></span>
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-green-600 mr-3">✔</span>
-                    <span className="text-gray-700">Access to MediRate's comprehensive reimbursement rate database and tracking tools</span>
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-green-600 mr-3">✔</span>
-                    <span className="text-gray-700">Customizable email alerts for real-time updates on topics and states of your choice <span className="text-sm text-gray-500">(In Development)</span></span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* 3-Month Subscription Card */}
-              <div className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-lg border border-gray-100 transform transition-all duration-300 hover:scale-105 hover:shadow-xl">
-                <h3 className="text-2xl font-bold mb-6 text-[#012C61] font-lemonMilkRegular">3-Month Subscription</h3>
-                <ul className="space-y-4">
-                  <li className="flex items-center">
-                    <span className="text-green-600 mr-3">✔</span>
-                    <span className="text-gray-700">Designed for users with short-term, project-based needs</span>
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-green-600 mr-3">✔</span>
-                    <span className="text-gray-700">Two user accounts included</span>
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-green-600 mr-3">✔</span>
-                    <span className="text-gray-700">Access to MediRate's comprehensive reimbursement rate database and tracking tools</span>
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-green-600 mr-3">✔</span>
-                    <span className="text-gray-700">Customizable email alerts for real-time updates on topics and states of your choice <span className="text-sm text-gray-500">(In Development)</span></span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          {/* Professional Discount Banner */}
-          <div className="w-full max-w-4xl mb-8 p-6 bg-gradient-to-r from-blue-700 to-indigo-700 rounded-lg shadow-lg text-white text-center animate-pulse">
-            <h2 className="text-2xl font-bold mb-2">✨ Limited Time Offer ✨</h2>
-            <p className="text-lg mb-4">
-              Use code <span className="font-bold bg-white text-blue-700 px-2 py-1 rounded">MEDICAID20</span> at checkout to get <span className="font-bold">20% off</span> your annual subscription!
-            </p>
-          </div>
-
-          {/* Pricing Table */}
-          <div id="pricing-table" className="w-full max-w-4xl transform scale-110" style={{ transformOrigin: "center" }}>
-            {React.createElement("stripe-pricing-table", {
-              "pricing-table-id": "prctbl_1QhgA9EA5fbmDyeFHEeLwdrJ", // Replace with actual Pricing Table ID
-              "publishable-key":
-                "pk_test_51QhZ80EA5fbmDyeFadp5z5QeaxeFyaUhRpS4nq3rXQh6Zap8nsAKw5D3lalc3ewBtBpecpBzeULgZx7H1jxragFs00IAS0L60o", // Replace with actual Publishable Key
-            })}
-          </div>
-
-          {/* Accepted Payment Methods */}
-          <div className="mt-6 p-4 bg-gray-100 rounded-lg shadow-md flex items-center space-x-2">
-            <span className="text-lg font-semibold">Accepted Payment Methods:</span>
-            <CreditCard className="w-6 h-6 text-blue-600" /> {/* Lucide icon */}
-            <span className="text-lg">Card</span>
-          </div>
-
-          {/* Terms and Conditions Link */}
-          <div className="mt-6 text-center">
-            <button onClick={toggleModalVisibility} className="text-blue-600 underline">
-              Terms and Conditions
-            </button>
-          </div>
-        </main>
-
-        {/* Subscription Terms and Conditions Modal */}
-        <SubscriptionTermsModal 
-          isOpen={showTerms} 
-          onClose={() => setShowTerms(false)} 
-        />
-
-        {/* Footer */}
-        <Footer />
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col min-h-screen">
-      {/* Main Content */}
-      <main className="flex-grow flex flex-col items-center justify-center px-4 pt-16">
-        {/* Subscription Details */}
+        {/* Subscription Details - Always Visible */}
         <div className="w-full max-w-4xl mb-8 p-8 bg-white rounded-xl shadow-2xl border border-gray-100">
           <h2 className="text-3xl font-bold mb-6 text-[#012C61] text-center font-lemonMilkRegular">Subscription Models</h2>
           <p className="text-lg mb-10 text-gray-600 text-center">
@@ -410,6 +328,12 @@ const StripePricingTableWithFooter = () => {
             </div>
           </div>
           <div className="mt-12 flex space-x-4 justify-center">
+            <button
+              onClick={handleSubscribeClick}
+              className="bg-[#012C61] text-white px-8 py-3 rounded-lg transition-all duration-300 hover:bg-transparent hover:border hover:border-[#012C61] hover:text-[#012C61]"
+            >
+              Subscribe Now
+            </button>
             <a
               href="https://calendar.app.google/DKoJB2VqwdcX4D6Z9"
               target="_blank"
@@ -418,17 +342,19 @@ const StripePricingTableWithFooter = () => {
             >
               Schedule a Demo
             </a>
-            <button
-              onClick={() => setShowForm(true)}
-              className="bg-[#012C61] text-white px-8 py-3 rounded-lg transition-all duration-300 hover:bg-transparent hover:border hover:border-[#012C61] hover:text-[#012C61]"
-            >
-              Learn More About Pricing
-            </button>
           </div>
         </div>
 
-        {/* Form for Learn More */}
-        {showForm && (
+        {/* Professional Discount Banner - Always Visible */}
+        <div className="w-full max-w-4xl mb-8 p-6 bg-gradient-to-r from-blue-700 to-indigo-700 rounded-lg shadow-lg text-white text-center animate-pulse">
+          <h2 className="text-2xl font-bold mb-2">✨ Limited Time Offer ✨</h2>
+          <p className="text-lg mb-4">
+            Use code <span className="font-bold bg-white text-blue-700 px-2 py-1 rounded">MEDICAID20</span> at checkout to get <span className="font-bold">20% off</span> your annual subscription!
+          </p>
+        </div>
+
+        {/* Registration Form - Show only when authenticated but form not filled and not subscribed */}
+        {isAuthenticated && !formFilled && !showStripeTable && !hasActiveSubscription && !isSubUser && (
           <div className="w-full max-w-4xl mb-8 p-8 bg-white rounded-xl shadow-2xl border border-gray-100">
             <h2 className="text-3xl font-bold mb-8 text-[#012C61] text-center font-lemonMilkRegular">Please Complete the Form to Proceed</h2>
             <form onSubmit={handleFormSubmit} className="space-y-6">
@@ -554,14 +480,36 @@ const StripePricingTableWithFooter = () => {
           </div>
         )}
 
-        {/* Terms and Conditions Link */}
-        {formSubmitted && (
-          <div className="mt-6 text-center">
-            <button onClick={toggleModalVisibility} className="text-blue-600 underline">
-              Terms and Conditions
-            </button>
+        {/* Stripe Pricing Table - Always visible */}
+        <div id="pricing-table" className="w-full max-w-4xl transform scale-110" style={{ transformOrigin: "center" }}>
+          {React.createElement("stripe-pricing-table", {
+            "pricing-table-id": "prctbl_1QhgA9EA5fbmDyeFHEeLwdrJ",
+            "publishable-key": "pk_test_51QhZ80EA5fbmDyeFadp5z5QeaxeFyaUhRpS4nq3rXQh6Zap8nsAKw5D3lalc3ewBtBpecpBzeULgZx7H1jxragFs00IAS0L60o",
+          })}
+        </div>
+
+        {/* Warning message for subscribed users */}
+        {isAuthenticated && (hasActiveSubscription || isSubUser) && (
+          <div className="w-full max-w-4xl mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-yellow-800 text-center text-sm">
+              You already have an active subscription. The purchase buttons are disabled.
+            </p>
           </div>
         )}
+
+        {/* Accepted Payment Methods - Always visible */}
+        <div className="mt-6 p-4 bg-gray-100 rounded-lg shadow-md flex items-center space-x-2">
+          <span className="text-lg font-semibold">Accepted Payment Methods:</span>
+          <CreditCard className="w-6 h-6 text-blue-600" />
+          <span className="text-lg">Card</span>
+        </div>
+
+        {/* Terms and Conditions Link - Always Visible */}
+        <div className="mt-6 text-center">
+          <button onClick={toggleModalVisibility} className="text-blue-600 underline">
+            Terms and Conditions
+          </button>
+        </div>
       </main>
 
       {/* Subscription Terms and Conditions Modal */}
@@ -577,3 +525,4 @@ const StripePricingTableWithFooter = () => {
 };
 
 export default StripePricingTableWithFooter;
+

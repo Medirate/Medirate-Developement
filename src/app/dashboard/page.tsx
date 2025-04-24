@@ -204,7 +204,7 @@ export default function Dashboard() {
   useClickOutside(locationRegionRef, () => setShowLocationRegionDropdown(false));
   useClickOutside(modifierRef, () => setShowModifierDropdown(false));
 
-  const areFiltersApplied = selectedState;
+  const areFiltersApplied = selectedServiceCategory && selectedState;
 
   // Add new state for selected year
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
@@ -218,49 +218,55 @@ export default function Dashboard() {
 
   // Move the parseDate function here, before filteredData
   const parseDate = (dateString: string | null) => {
-    if (!dateString) return null; // Skip null or undefined dates
+    if (!dateString) return null;
 
-    // Check if the dateString is a valid serial date (numeric)
-    if (!isNaN(Number(dateString))) {
-      const serialDate = Number(dateString);
-      const date = new Date(Date.UTC(1900, 0, serialDate - 1)); // Convert serial date to Date object
-      if (isNaN(date.getTime())) {
-        console.error("Invalid serial date:", dateString);
-        return null; // Skip invalid serial dates
-      }
-      return date;
+    // First try parsing as a standard date format (ISO or mm/dd/yyyy)
+    const standardDate = new Date(dateString);
+    if (!isNaN(standardDate.getTime())) {
+      return standardDate;
     }
 
-    // Check if the dateString is in the format "mm/dd/yyyy"
+    // If it's a numeric string, it might be an Excel serial date
+    if (!isNaN(Number(dateString))) {
+      const serialDate = Number(dateString);
+      
+      // Validate the serial number is reasonable (between 1 and 2958465 - Excel's date range)
+      if (serialDate < 1 || serialDate > 2958465) {
+        console.error("Excel serial date out of valid range:", dateString);
+        return null;
+      }
+
+      // Excel's epoch starts at January 1, 1900
+      // And Excel has a bug where it thinks 1900 was a leap year
+      const epoch = new Date(1899, 11, 30); // December 30, 1899
+      const offsetDays = serialDate - 1; // Subtract 1 because Excel counts from 1
+      const milliseconds = offsetDays * 24 * 60 * 60 * 1000;
+      const date = new Date(epoch.getTime() + milliseconds);
+      
+      // Validate the resulting date is reasonable (between 1900 and 2100)
+      if (!isNaN(date.getTime()) && date.getFullYear() >= 1900 && date.getFullYear() <= 2100) {
+      return date;
+      }
+    }
+
+    // Try parsing mm/dd/yyyy format explicitly
     const dateParts = dateString.split('/');
     if (dateParts.length === 3) {
       const month = parseInt(dateParts[0], 10) - 1; // Months are 0-based in JavaScript
       const day = parseInt(dateParts[1], 10);
       const year = parseInt(dateParts[2], 10);
 
-      if (isNaN(month) || isNaN(day) || isNaN(year)) {
-        console.error("Invalid date parts:", dateString);
-        return null; // Skip invalid date parts
+      if (!isNaN(month) && !isNaN(day) && !isNaN(year)) {
+        const date = new Date(year, month, day);
+        if (!isNaN(date.getTime()) && date.getFullYear() >= 1900 && date.getFullYear() <= 2100) {
+          return date;
+        }
       }
-
-      const date = new Date(Date.UTC(year, month, day));
-      if (isNaN(date.getTime())) {
-        console.error("Invalid date:", dateString);
-        return null; // Skip invalid dates
-      }
-
-      return date;
     }
 
-    // Check if the dateString is in ISO format (e.g., "2023-12-31")
-    const isoDate = new Date(dateString);
-    if (!isNaN(isoDate.getTime())) {
-      return isoDate;
-    }
-
-    // Log an error for unrecognized date formats
+    // If we get here, the date format is unrecognized
     console.error("Unrecognized date format:", dateString);
-    return null; // Skip unrecognized date formats
+    return null;
   };
 
   // Declare these states before the useMemo
@@ -273,7 +279,7 @@ export default function Dashboard() {
     
     return data.filter(item => {
       const parsedDate = parseDate(item.rate_effective_date);
-      if (!parsedDate) return false; // Skip items with invalid dates
+      if (!parsedDate) return false;
 
       if (selectedFeeScheduleDate) {
         const itemDate = parsedDate.toISOString().split('T')[0];
@@ -291,9 +297,25 @@ export default function Dashboard() {
 
       if (selectedServiceCategory && item.service_category !== selectedServiceCategory) return false;
       if (selectedServiceCode && item.service_code !== selectedServiceCode) return false;
-      if (selectedProgram && item.program !== selectedProgram) return false;
-      if (selectedLocationRegion && item.location_region !== selectedLocationRegion) return false;
-      if (selectedModifier) {
+
+      // Handle "No Program" selection
+      if (selectedProgram === 'No Program') {
+        if (item.program && item.program.trim() !== '') return false;
+      } else if (selectedProgram && item.program !== selectedProgram) {
+        return false;
+      }
+
+      // Handle "No Location/Region" selection
+      if (selectedLocationRegion === 'No Location/Region') {
+        if (item.location_region && item.location_region.trim() !== '') return false;
+      } else if (selectedLocationRegion && item.location_region !== selectedLocationRegion) {
+        return false;
+      }
+
+      // Handle "No Modifier" selection
+      if (selectedModifier === 'No Modifier') {
+        if (item.modifier_1 || item.modifier_2 || item.modifier_3 || item.modifier_4) return false;
+      } else if (selectedModifier) {
         const selectedModifierCode = selectedModifier.split(' - ')[0];
         const hasModifier = 
           (item.modifier_1 && item.modifier_1.split(' - ')[0] === selectedModifierCode) ||
@@ -303,7 +325,12 @@ export default function Dashboard() {
         if (!hasModifier) return false;
       }
 
-      if (selectedProviderType && item.provider_type !== selectedProviderType) return false;
+      // Handle "No Provider Type" selection
+      if (selectedProviderType === 'No Provider Type') {
+        if (item.provider_type && item.provider_type.trim() !== '') return false;
+      } else if (selectedProviderType && item.provider_type !== selectedProviderType) {
+        return false;
+      }
 
       return true;
     });
@@ -469,6 +496,7 @@ export default function Dashboard() {
     );
   };
 
+  // Update the extractFilters function to include "No X" options
   const extractFilters = (data: ServiceData[]) => {
     // Get service categories
     const categories = data
@@ -476,26 +504,148 @@ export default function Dashboard() {
       .filter((category): category is string => !!category);
     setServiceCategories([...new Set(categories)].sort((a, b) => a.localeCompare(b)));
 
-    // Get states
+    // Get states based on selected service category
     const states = data
+      .filter((item) => !selectedServiceCategory || item.service_category === selectedServiceCategory)
       .map((item) => item.state_name?.trim().toUpperCase())
       .filter((state): state is string => !!state);
     setStates([...new Set(states)].sort((a, b) => a.localeCompare(b)));
 
-    // Get provider types
-    const types = data
-      .map((item) => item.provider_type?.trim())
-      .filter((type): type is string => !!type);
-    setProviderTypes([...new Set(types)].sort((a, b) => a.localeCompare(b)));
+    // Get service codes based on selected service category and state
+    const serviceCodes = data
+      .filter((item) => 
+        (!selectedServiceCategory || item.service_category === selectedServiceCategory) &&
+        (!selectedState || item.state_name?.toUpperCase() === selectedState.toUpperCase())
+      )
+      .map((item) => item.service_code)
+      .filter((code): code is string => !!code);
+    setServiceCodes([...new Set(serviceCodes)].sort((a, b) => a.localeCompare(b)));
+
+    // Get service descriptions based on selected service category and state
+    const serviceDescriptions = data
+      .filter((item) => 
+        (!selectedServiceCategory || item.service_category === selectedServiceCategory) &&
+        (!selectedState || item.state_name?.toUpperCase() === selectedState.toUpperCase())
+      )
+      .map((item) => item.service_description)
+      .filter((desc): desc is string => !!desc);
+    setServiceDescriptions([...new Set(serviceDescriptions)].sort((a, b) => a.localeCompare(b)));
+
+    // Get programs based on selected service category, state, and service code/description
+    const filteredForPrograms = data.filter((item) => 
+      (!selectedServiceCategory || item.service_category === selectedServiceCategory) &&
+      (!selectedState || item.state_name?.toUpperCase() === selectedState.toUpperCase()) &&
+      (!selectedServiceCode || item.service_code === selectedServiceCode) &&
+      (!selectedServiceDescription || item.service_description === selectedServiceDescription)
+    );
+
+    const programs = new Set<string>();
+    let hasEmptyProgram = false;
+
+    filteredForPrograms.forEach(item => {
+      if (!item.program || item.program.trim() === '') {
+        hasEmptyProgram = true;
+      } else {
+        programs.add(item.program.trim());
+      }
+    });
+
+    const sortedPrograms = [...programs].sort((a, b) => a.localeCompare(b));
+    if (hasEmptyProgram) {
+      sortedPrograms.unshift('No Program');
+    }
+    setPrograms(sortedPrograms);
+
+    // Get location regions based on selected filters
+    const filteredForLocations = data.filter((item) => 
+      (!selectedServiceCategory || item.service_category === selectedServiceCategory) &&
+      (!selectedState || item.state_name?.toUpperCase() === selectedState.toUpperCase()) &&
+      (!selectedServiceCode || item.service_code === selectedServiceCode) &&
+      (!selectedServiceDescription || item.service_description === selectedServiceDescription)
+    );
+
+    const locations = new Set<string>();
+    let hasEmptyLocation = false;
+
+    filteredForLocations.forEach(item => {
+      if (!item.location_region || item.location_region.trim() === '') {
+        hasEmptyLocation = true;
+      } else {
+        locations.add(item.location_region.trim());
+      }
+    });
+
+    const sortedLocations = [...locations].sort((a, b) => a.localeCompare(b));
+    if (hasEmptyLocation) {
+      sortedLocations.unshift('No Location/Region');
+    }
+    setLocationRegions(sortedLocations);
+
+    // Get modifiers based on selected filters
+    const filteredForModifiers = data.filter((item) => 
+      (!selectedServiceCategory || item.service_category === selectedServiceCategory) &&
+      (!selectedState || item.state_name?.toUpperCase() === selectedState.toUpperCase()) &&
+      (!selectedServiceCode || item.service_code === selectedServiceCode) &&
+      (!selectedServiceDescription || item.service_description === selectedServiceDescription)
+    );
+
+    const modifierSet = new Set<string>();
+    let hasEmptyModifier = false;
+
+    filteredForModifiers.forEach(item => {
+      const hasNoModifiers = !item.modifier_1 && !item.modifier_2 && !item.modifier_3 && !item.modifier_4;
+      if (hasNoModifiers) {
+        hasEmptyModifier = true;
+      } else {
+        [
+          { mod: item.modifier_1, details: item.modifier_1_details },
+          { mod: item.modifier_2, details: item.modifier_2_details },
+          { mod: item.modifier_3, details: item.modifier_3_details },
+          { mod: item.modifier_4, details: item.modifier_4_details }
+        ].forEach(({ mod, details }) => {
+          if (mod) {
+            modifierSet.add(details ? `${mod} - ${details}` : mod);
+          }
+        });
+      }
+    });
+
+    const sortedModifiers = [...modifierSet].sort((a, b) => a.localeCompare(b));
+    if (hasEmptyModifier) {
+      sortedModifiers.unshift('No Modifier');
+    }
+    setModifiers(sortedModifiers.map(modifier => ({
+      value: modifier,
+      label: modifier
+    })));
+
+    // Get provider types based on selected filters
+    const filteredForProviderTypes = data.filter((item) => 
+      (!selectedServiceCategory || item.service_category === selectedServiceCategory) &&
+      (!selectedState || item.state_name?.toUpperCase() === selectedState.toUpperCase()) &&
+      (!selectedServiceCode || item.service_code === selectedServiceCode) &&
+      (!selectedServiceDescription || item.service_description === selectedServiceDescription)
+    );
+
+    const providerTypeSet = new Set<string>();
+    let hasEmptyProviderType = false;
+
+    filteredForProviderTypes.forEach(item => {
+      if (!item.provider_type || item.provider_type.trim() === '') {
+        hasEmptyProviderType = true;
+      } else {
+        providerTypeSet.add(item.provider_type.trim());
+      }
+    });
+
+    const sortedProviderTypes = [...providerTypeSet].sort((a, b) => a.localeCompare(b));
+    if (hasEmptyProviderType) {
+      sortedProviderTypes.unshift('No Provider Type');
+    }
+    setProviderTypes(sortedProviderTypes);
   };
 
-  const toggleDropdown = (dropdownSetter: React.Dispatch<React.SetStateAction<boolean>>, otherSetters: React.Dispatch<React.SetStateAction<boolean>>[]) => {
-    // Close all other dropdowns
-    otherSetters.forEach(setter => setter(false));
-    // Toggle the current dropdown
-    dropdownSetter(prev => !prev);
-  };
-
+  // Update the filter handlers to call extractFilters
   const handleServiceCategoryChange = (category: string) => {
     setSelectedServiceCategory(category);
     setSelectedState("");
@@ -505,20 +655,7 @@ export default function Dashboard() {
     setSelectedLocationRegion("");
     setSelectedModifier("");
     setFilterStep(2);
-
-    // Filter data based on selected category
-    const filteredData = data.filter(item => item.service_category === category);
-    
-    // Update all filter options based on filtered data
-    setStates([...new Set(filteredData
-      .map(item => item.state_name?.toUpperCase())
-      .filter((state): state is string => !!state)
-    )].sort((a, b) => a.localeCompare(b)));
-    setServiceCodes([]);
-    setServiceDescriptions([]);
-    setPrograms([]);
-    setLocationRegions([]);
-    setModifiers([]);
+    extractFilters(data);
   };
 
   const handleStateChange = (state: string) => {
@@ -529,95 +666,19 @@ export default function Dashboard() {
     setSelectedLocationRegion("");
     setSelectedModifier("");
     setFilterStep(3);
-
-    if (selectedServiceCategory) {
-      const filteredData = data.filter(item => 
-        item.state_name?.toUpperCase() === state.toUpperCase() &&
-        item.service_category === selectedServiceCategory
-      );
-      
-      setServiceCodes([...new Set(filteredData
-        .map(item => item.service_code)
-        .filter((code): code is string => !!code)
-      )].sort((a, b) => a.localeCompare(b)));
-      setServiceDescriptions([...new Set(filteredData
-        .map(item => item.service_description)
-        .filter((desc): desc is string => !!desc)
-      )].sort((a, b) => a.localeCompare(b)));
-      
-      // Don't set programs, locationRegions, or modifiers yet
-      setPrograms([]);
-      setLocationRegions([]);
-      setModifiers([]);
-    }
+    extractFilters(data);
   };
 
   const handleServiceCodeChange = (code: string) => {
     setSelectedServiceCode(code);
-    setFilterStep(4); // Move to next step
-
-    // Now we can populate the additional filters
-    const filteredData = data.filter(item => 
-      item.service_category === selectedServiceCategory &&
-      item.state_name === selectedState &&
-      item.service_code === code
-    );
-    
-    setPrograms([...new Set(filteredData.map(item => item.program || ''))]);
-    setLocationRegions([...new Set(filteredData.map(item => item.location_region || ''))]);
-    
-    const allModifiers = filteredData.flatMap(item => [
-      item.modifier_1 ? `${item.modifier_1}${item.modifier_1_details ? ` - ${item.modifier_1_details}` : ''}` : null,
-      item.modifier_2 ? `${item.modifier_2}${item.modifier_2_details ? ` - ${item.modifier_2_details}` : ''}` : null,
-      item.modifier_3 ? `${item.modifier_3}${item.modifier_3_details ? ` - ${item.modifier_3_details}` : ''}` : null,
-      item.modifier_4 ? `${item.modifier_4}${item.modifier_4_details ? ` - ${item.modifier_4_details}` : ''}` : null
-    ]).filter(Boolean);
-    setModifiers([...new Set(allModifiers)].map(modifier => ({
-      value: modifier || '',
-      label: modifier || ''
-    })));
-
-    // Auto-select the associated service description
-    const associatedDescription = filteredData.find(item => item.service_code === code)?.service_description;
-    if (associatedDescription) {
-      setSelectedServiceDescription(associatedDescription);
-    } else {
-      setSelectedServiceDescription("");
-    }
+    setFilterStep(4);
+    extractFilters(data);
   };
 
   const handleServiceDescriptionChange = (desc: string) => {
     setSelectedServiceDescription(desc);
-    setFilterStep(4); // Move to next step
-
-    // Now we can populate the additional filters
-    const filteredData = data.filter(item => 
-      item.service_category === selectedServiceCategory &&
-      item.state_name === selectedState &&
-      item.service_description === desc
-    );
-    
-    setPrograms([...new Set(filteredData.map(item => item.program || ''))]);
-    setLocationRegions([...new Set(filteredData.map(item => item.location_region || ''))]);
-    
-    const allModifiers = filteredData.flatMap(item => [
-      item.modifier_1 ? `${item.modifier_1}${item.modifier_1_details ? ` - ${item.modifier_1_details}` : ''}` : null,
-      item.modifier_2 ? `${item.modifier_2}${item.modifier_2_details ? ` - ${item.modifier_2_details}` : ''}` : null,
-      item.modifier_3 ? `${item.modifier_3}${item.modifier_3_details ? ` - ${item.modifier_3_details}` : ''}` : null,
-      item.modifier_4 ? `${item.modifier_4}${item.modifier_4_details ? ` - ${item.modifier_4_details}` : ''}` : null
-    ]).filter(Boolean);
-    setModifiers([...new Set(allModifiers)].map(modifier => ({
-      value: modifier || '',
-      label: modifier || ''
-    })));
-
-    // Auto-select the associated service code
-    const associatedCode = filteredData.find(item => item.service_description === desc)?.service_code;
-    if (associatedCode) {
-      setSelectedServiceCode(associatedCode);
-    } else {
-      setSelectedServiceCode("");
-    }
+    setFilterStep(4);
+    extractFilters(data);
   };
 
   const ClearButton = ({ onClick }: { onClick: () => void }) => (
@@ -778,14 +839,20 @@ export default function Dashboard() {
       )
       .map(item => {
         const parsedDate = parseDate(item.rate_effective_date);
-        if (!parsedDate) return null; // Skip invalid dates
-        return parsedDate.toISOString().split('T')[0]; // Use ISO format for consistency
+        if (!parsedDate) return null;
+        // Store as ISO string for consistent sorting and formatting
+        return parsedDate.toISOString().split('T')[0];
       })
-      .filter((date): date is string => !!date); // Filter out null values
+      .filter((date): date is string => !!date);
 
-    // Comment out or remove this line
-    // console.log("Extracted Fee Schedule Dates:", filteredDates); // Log the extracted dates
-    setFeeScheduleDates([...new Set(filteredDates)].sort((a, b) => a.localeCompare(b)));
+    // Sort dates in descending order (newest to oldest)
+    const sortedDates = [...new Set(filteredDates)].sort((a, b) => {
+      const dateA = new Date(a);
+      const dateB = new Date(b);
+      return dateB.getTime() - dateA.getTime(); // Changed the order of subtraction for descending sort
+    });
+
+    setFeeScheduleDates(sortedDates);
   };
 
   useEffect(() => {
@@ -931,19 +998,21 @@ export default function Dashboard() {
               <Select
                 instanceId="feeScheduleDatesId"
                 options={feeScheduleDates.map(date => {
-                  const dateObj = new Date(date);
-                  const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
-                  const day = String(dateObj.getUTCDate()).padStart(2, '0');
-                  const year = dateObj.getUTCFullYear();
+                  const parsedDate = parseDate(date);
+                  if (!parsedDate) return { value: date, label: 'Invalid Date' };
+                  const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+                  const day = String(parsedDate.getDate()).padStart(2, '0');
+                  const year = parsedDate.getFullYear();
                   return { value: date, label: `${month}/${day}/${year}` };
                 })}
                 value={selectedFeeScheduleDate ? { 
                   value: selectedFeeScheduleDate, 
                   label: (() => {
-                    const dateObj = new Date(selectedFeeScheduleDate);
-                    const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
-                    const day = String(dateObj.getUTCDate()).padStart(2, '0');
-                    const year = dateObj.getUTCFullYear();
+                    const parsedDate = parseDate(selectedFeeScheduleDate);
+                    if (!parsedDate) return 'Invalid Date';
+                    const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(parsedDate.getDate()).padStart(2, '0');
+                    const year = parsedDate.getFullYear();
                     return `${month}/${day}/${year}`;
                   })()
                 } : null}
@@ -1207,10 +1276,10 @@ export default function Dashboard() {
               <FaFilter className="h-8 w-8 text-blue-500" />
             </div>
             <p className="text-lg font-medium text-gray-700 mb-2">
-              Please select a state to view dashboard data
+              Please select a Service Line and State to view dashboard data
             </p>
             <p className="text-sm text-gray-500">
-              Choose a state to see the dashboard information
+              Choose both filters to see the dashboard information
             </p>
           </div>
         )}
