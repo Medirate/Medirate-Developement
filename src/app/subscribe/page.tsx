@@ -335,7 +335,7 @@ const StripePricingTableWithFooter = () => {
               Subscribe Now
             </button>
             <a
-              href="https://calendar.app.google/DKoJB2VqwdcX4D6Z9"
+              href="https://calendar.app.google/q3xeU2244eisFsXC7"
               target="_blank"
               rel="noopener noreferrer"
               className="bg-[#012C61] text-white px-8 py-3 rounded-lg transition-all duration-300 hover:bg-transparent hover:border hover:border-[#012C61] hover:text-[#012C61]"

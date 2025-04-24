@@ -33,7 +33,7 @@ export default function Home() {
           {/* Get Started Button */}
           <div className="mt-8">
             <Link
-              href="https://calendar.app.google/DKoJB2VqwdcX4D6Z9"
+              href="https://calendar.app.google/q3xeU2244eisFsXC7"
               target="_blank"
               rel="noopener noreferrer"
               className={buttonVariants({
@@ -85,7 +85,7 @@ export default function Home() {
       {/* Buttons */}
       <div className="flex space-x-4">
         <a
-          href="https://calendar.app.google/DKoJB2VqwdcX4D6Z9"
+          href="https://calendar.app.google/q3xeU2244eisFsXC7"
           target="_blank"
           rel="noopener noreferrer"
           className="bg-[#012C61] text-white px-6 py-3 rounded-md transition-colors duration-300 hover:bg-transparent hover:border hover:border-[#012C61] hover:text-[#012C61]"
@@ -172,7 +172,7 @@ export default function Home() {
             {/* Schedule a Demo Button */}
             <div className="mt-4 flex justify-center">
               <Link
-                href="https://calendar.app.google/DKoJB2VqwdcX4D6Z9"
+                href="https://calendar.app.google/q3xeU2244eisFsXC7"
                 target="_blank"
                 rel="noopener noreferrer"
                 className={buttonVariants({
