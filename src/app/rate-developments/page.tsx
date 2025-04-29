@@ -279,7 +279,7 @@ const searchInFields = (searchText: string, fields: (string | null | undefined)[
 // Add a helper function to get service lines for alerts
 const getAlertServiceLines = (alert: Alert) => {
   return [alert.service_lines_impacted, alert.service_lines_impacted_1, alert.service_lines_impacted_2, alert.service_lines_impacted_3]
-    .filter(Boolean)
+    .filter(line => line && line !== "NULL")
     .join(", ");
 };
 

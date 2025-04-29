@@ -53,7 +53,26 @@ const FilterNote = ({ step }: { step: number }) => {
   );
 };
 
+// Move the ClearButton component declaration to the top of the component
+const ClearButton = ({ onClick }: { onClick: () => void }) => (
+  <button
+    onClick={onClick}
+    className="text-xs text-blue-500 hover:underline mt-1"
+  >
+    Clear
+  </button>
+);
+
 export default function Dashboard() {
+  // Move all ID declarations to the top of the component
+  const serviceCategoryId = useId();
+  const stateId = useId();
+  const serviceCodeId = useId();
+  const serviceDescriptionId = useId();
+  const programId = useId();
+  const locationRegionId = useId();
+  const modifierId = useId();
+
   const { isAuthenticated, isLoading, user } = useKindeBrowserClient();
   const router = useRouter();
   const [isSubscriptionCheckComplete, setIsSubscriptionCheckComplete] = useState(false);
@@ -273,11 +292,20 @@ export default function Dashboard() {
   const [selectedProviderType, setSelectedProviderType] = useState("");
   const [providerTypes, setProviderTypes] = useState<string[]>([]);
 
+  // Update the modifier state to handle multiple selections
+  const [selectedModifiers, setSelectedModifiers] = useState<string[]>([]);
+
+  // Move the handleModifierChange function declaration to the top of the component
+  const handleModifierChange = (selectedOptions: any) => {
+    const selectedValues = selectedOptions ? selectedOptions.map((option: any) => option.value) : [];
+    setSelectedModifiers(selectedValues);
+  };
+
   // Now the filteredData useMemo hook can safely use parseDate
   const filteredData = useMemo(() => {
     if (!areFiltersApplied) return [];
     
-    return data.filter(item => {
+    const filtered = data.filter(item => {
       const parsedDate = parseDate(item.rate_effective_date);
       if (!parsedDate) return false;
 
@@ -312,17 +340,18 @@ export default function Dashboard() {
         return false;
       }
 
-      // Handle "No Modifier" selection
-      if (selectedModifier === 'No Modifier') {
-        if (item.modifier_1 || item.modifier_2 || item.modifier_3 || item.modifier_4) return false;
-      } else if (selectedModifier) {
-        const selectedModifierCode = selectedModifier.split(' - ')[0];
-        const hasModifier = 
-          (item.modifier_1 && item.modifier_1.split(' - ')[0] === selectedModifierCode) ||
-          (item.modifier_2 && item.modifier_2.split(' - ')[0] === selectedModifierCode) ||
-          (item.modifier_3 && item.modifier_3.split(' - ')[0] === selectedModifierCode) ||
-          (item.modifier_4 && item.modifier_4.split(' - ')[0] === selectedModifierCode);
-        if (!hasModifier) return false;
+      // Handle multiple modifiers
+      if (selectedModifiers.length > 0) {
+        const hasAnyModifier = selectedModifiers.some(modifier => {
+          const modifierCode = modifier.split(' - ')[0];
+          return (
+            (item.modifier_1 && item.modifier_1.split(' - ')[0] === modifierCode) ||
+            (item.modifier_2 && item.modifier_2.split(' - ')[0] === modifierCode) ||
+            (item.modifier_3 && item.modifier_3.split(' - ')[0] === modifierCode) ||
+            (item.modifier_4 && item.modifier_4.split(' - ')[0] === modifierCode)
+          );
+        });
+        if (!hasAnyModifier) return false;
       }
 
       // Handle "No Provider Type" selection
@@ -334,6 +363,8 @@ export default function Dashboard() {
 
       return true;
     });
+
+    return filtered;
   }, [
     data,
     startDate,
@@ -344,7 +375,7 @@ export default function Dashboard() {
     selectedServiceCode,
     selectedProgram,
     selectedLocationRegion,
-    selectedModifier,
+    selectedModifiers,
     selectedFeeScheduleDate,
     selectedProviderType
   ]);
@@ -496,8 +527,42 @@ export default function Dashboard() {
     );
   };
 
-  // Update the extractFilters function to include "No X" options
+  // Update the extractFilters function to properly check filter availability
   const extractFilters = (data: ServiceData[]) => {
+    // Only check for filter availability if both service category and state are selected
+    if (!selectedServiceCategory || !selectedState) {
+      setHasServiceCodeData(false);
+      setHasServiceDescriptionData(false);
+      setHasProgramData(false);
+      setHasLocationRegionData(false);
+      setHasModifierData(false);
+      setHasProviderTypeData(false);
+      return;
+    }
+
+    const applicableData = data.filter(item => 
+      item.service_category === selectedServiceCategory &&
+      item.state_name?.toUpperCase() === selectedState.toUpperCase()
+    );
+
+    // Check which filters have data
+    const hasServiceCode = applicableData.some(item => !!item.service_code);
+    const hasServiceDescription = applicableData.some(item => !!item.service_description);
+    const hasProgram = applicableData.some(item => !!item.program);
+    const hasLocationRegion = applicableData.some(item => !!item.location_region);
+    const hasModifier = applicableData.some(item => 
+      !!item.modifier_1 || !!item.modifier_2 || !!item.modifier_3 || !!item.modifier_4
+    );
+    const hasProviderType = applicableData.some(item => !!item.provider_type);
+
+    // Update state for filter visibility
+    setHasServiceCodeData(hasServiceCode);
+    setHasServiceDescriptionData(hasServiceDescription);
+    setHasProgramData(hasProgram);
+    setHasLocationRegionData(hasLocationRegion);
+    setHasModifierData(hasModifier);
+    setHasProviderTypeData(hasProviderType);
+
     // Get service categories
     const categories = data
       .map((item) => item.service_category?.trim())
@@ -645,6 +710,201 @@ export default function Dashboard() {
     setProviderTypes(sortedProviderTypes);
   };
 
+  // Add state for filter visibility
+  const [hasServiceCodeData, setHasServiceCodeData] = useState(false);
+  const [hasServiceDescriptionData, setHasServiceDescriptionData] = useState(false);
+  const [hasProgramData, setHasProgramData] = useState(false);
+  const [hasLocationRegionData, setHasLocationRegionData] = useState(false);
+  const [hasModifierData, setHasModifierData] = useState(false);
+  const [hasProviderTypeData, setHasProviderTypeData] = useState(false);
+
+  // Update the filter rendering logic
+  <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg relative z-40">
+    <FilterNote step={filterStep} />
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+      {/* Service Category and State selectors (always visible) */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-gray-700">Service Line</label>
+        <Select
+          instanceId={serviceCategoryId}
+          options={serviceCategories
+            .filter(category => {
+              const trimmedCategory = category.trim();
+              return trimmedCategory && 
+                     !['HCBS', 'IDD', 'SERVICE CATEGORY'].includes(trimmedCategory);
+            })
+            .map(category => ({ value: category, label: category }))}
+          value={selectedServiceCategory ? { value: selectedServiceCategory, label: selectedServiceCategory } : null}
+          onChange={(option) => handleServiceCategoryChange(option?.value || "")}
+          placeholder="Select Service Line"
+          isSearchable
+          className="react-select-container"
+          classNamePrefix="react-select"
+        />
+        {selectedServiceCategory && (
+          <ClearButton onClick={() => handleServiceCategoryChange("")} />
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-gray-700">State</label>
+        <Select
+          instanceId={stateId}
+          options={states.map(state => ({ value: state, label: state }))}
+          value={selectedState ? { value: selectedState, label: selectedState } : null}
+          onChange={(option) => handleStateChange(option?.value || "")}
+          placeholder="Select State"
+          isSearchable
+          isDisabled={!selectedServiceCategory}
+          className={`react-select-container ${!selectedServiceCategory ? 'opacity-50' : ''}`}
+          classNamePrefix="react-select"
+        />
+        {selectedState && (
+          <ClearButton onClick={() => handleStateChange("")} />
+        )}
+      </div>
+
+      {/* Conditional filters - only show if they have data */}
+      {hasServiceCodeData && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Service Code</label>
+          <Select
+            instanceId={serviceCodeId}
+            options={serviceCodes.map(code => ({ value: code, label: code }))}
+            value={selectedServiceCode ? { value: selectedServiceCode, label: selectedServiceCode } : null}
+            onChange={(option) => {
+              setSelectedServiceCode(option?.value || "");
+              setSelectedServiceDescription("");
+              if (option?.value) {
+                handleServiceCodeChange(option.value);
+              }
+            }}
+            placeholder="Select Service Code"
+            isSearchable
+            isDisabled={!selectedState}
+            className={`react-select-container ${!selectedState ? 'opacity-50' : ''}`}
+            classNamePrefix="react-select"
+          />
+          {selectedServiceCode && (
+            <ClearButton onClick={() => {
+              setSelectedServiceCode("");
+              handleServiceCodeChange("");
+            }} />
+          )}
+        </div>
+      )}
+
+      {hasServiceDescriptionData && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Service Description</label>
+          <Select
+            instanceId={serviceDescriptionId}
+            options={serviceDescriptions.map(desc => ({ value: desc, label: desc }))}
+            value={selectedServiceDescription ? { value: selectedServiceDescription, label: selectedServiceDescription } : null}
+            onChange={(option) => {
+              setSelectedServiceDescription(option?.value || "");
+              setSelectedServiceCode("");
+              if (option?.value) {
+                handleServiceDescriptionChange(option.value);
+              }
+            }}
+            placeholder="Select Service Description"
+            isSearchable
+            isDisabled={!selectedState}
+            className={`react-select-container ${!selectedState ? 'opacity-50' : ''}`}
+            classNamePrefix="react-select"
+          />
+          {selectedServiceDescription && (
+            <ClearButton onClick={() => {
+              setSelectedServiceDescription("");
+              handleServiceDescriptionChange("");
+            }} />
+          )}
+        </div>
+      )}
+
+      {hasProgramData && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Program</label>
+          <Select
+            instanceId={programId}
+            options={programs.map(program => ({ value: program, label: program }))}
+            value={selectedProgram ? { value: selectedProgram, label: selectedProgram } : null}
+            onChange={(option) => setSelectedProgram(option?.value || "")}
+            placeholder="Select Program"
+            isSearchable
+            isDisabled={!selectedServiceCode && !selectedServiceDescription}
+            className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+            classNamePrefix="react-select"
+          />
+          {selectedProgram && (
+            <ClearButton onClick={() => setSelectedProgram("")} />
+          )}
+        </div>
+      )}
+
+      {hasLocationRegionData && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Location/Region</label>
+          <Select
+            instanceId={locationRegionId}
+            options={locationRegions.map(region => ({ value: region, label: region }))}
+            value={selectedLocationRegion ? { value: selectedLocationRegion, label: selectedLocationRegion } : null}
+            onChange={(option) => setSelectedLocationRegion(option?.value || "")}
+            placeholder="Select Location/Region"
+            isSearchable
+            isDisabled={!selectedServiceCode && !selectedServiceDescription}
+            className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+            classNamePrefix="react-select"
+          />
+          {selectedLocationRegion && (
+            <ClearButton onClick={() => setSelectedLocationRegion("")} />
+          )}
+        </div>
+      )}
+
+      {hasModifierData && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Modifier</label>
+          <Select
+            instanceId={modifierId}
+            options={modifiers}
+            value={modifiers.filter(option => selectedModifiers.includes(option.value))}
+            onChange={handleModifierChange}
+            placeholder="Select Modifier(s)"
+            isSearchable
+            isMulti
+            isDisabled={!selectedServiceCode && !selectedServiceDescription}
+            className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+            classNamePrefix="react-select"
+          />
+          {selectedModifiers.length > 0 && (
+            <ClearButton onClick={() => setSelectedModifiers([])} />
+          )}
+        </div>
+      )}
+
+      {hasProviderTypeData && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Provider Type</label>
+          <Select
+            options={providerTypes.map(type => ({ value: type, label: type }))}
+            value={selectedProviderType ? { value: selectedProviderType, label: selectedProviderType } : null}
+            onChange={(option) => setSelectedProviderType(option?.value || "")}
+            placeholder="Select Provider Type"
+            isSearchable
+            isDisabled={!selectedServiceCode && !selectedServiceDescription}
+            className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+            classNamePrefix="react-select"
+          />
+          {selectedProviderType && (
+            <ClearButton onClick={() => setSelectedProviderType("")} />
+          )}
+        </div>
+      )}
+    </div>
+  </div>
+
   // Update the filter handlers to call extractFilters
   const handleServiceCategoryChange = (category: string) => {
     setSelectedServiceCategory(category);
@@ -680,15 +940,6 @@ export default function Dashboard() {
     setFilterStep(4);
     extractFilters(data);
   };
-
-  const ClearButton = ({ onClick }: { onClick: () => void }) => (
-    <button
-      onClick={onClick}
-      className="text-xs text-blue-500 hover:underline mt-1"
-    >
-      Clear
-    </button>
-  );
 
   // Update the resetFilters function to reset the filter step
   const resetFilters = () => {
@@ -812,15 +1063,6 @@ export default function Dashboard() {
     return text ? text.toUpperCase() : '-';
   };
 
-  // Inside your Dashboard component, add this before the return statement
-  const serviceCategoryId = useId();
-  const stateId = useId();
-  const serviceCodeId = useId();
-  const serviceDescriptionId = useId();
-  const programId = useId();
-  const locationRegionId = useId();
-  const modifierId = useId();
-
   useEffect(() => {
     if (data.length > 0) {
       // Comment out or remove this line
@@ -889,6 +1131,29 @@ export default function Dashboard() {
     }
   }, [selectedServiceCategory, selectedState]);
 
+  // Update the hasFilterData function to be more specific about provider type
+  const hasFilterData = (data: ServiceData[], filterType: string): boolean => {
+    return data.some(item => {
+      switch (filterType) {
+        case 'serviceCode':
+          return !!item.service_code;
+        case 'serviceDescription':
+          return !!item.service_description;
+        case 'program':
+          return !!item.program;
+        case 'locationRegion':
+          return !!item.location_region;
+        case 'modifier':
+          return !!(item.modifier_1 || item.modifier_2 || item.modifier_3 || item.modifier_4);
+        case 'providerType':
+          // Check if provider_type exists and is not empty
+          return !!item.provider_type && item.provider_type.trim() !== '';
+        default:
+          return false;
+      }
+    });
+  };
+
   // Don't render anything until the subscription check is complete
   if (isLoading || !isAuthenticated || !isSubscriptionCheckComplete) {
     return (
@@ -946,12 +1211,7 @@ export default function Dashboard() {
                   portalId="datepicker-portal"
                 />
                 {startDate && (
-                  <button
-                    onClick={() => setStartDate(null)}
-                    className="text-xs text-blue-500 hover:underline mt-1"
-                  >
-                    Clear
-                  </button>
+                  <ClearButton onClick={() => setStartDate(null)} />
                 )}
               </div>
               <div className="relative">
@@ -983,12 +1243,7 @@ export default function Dashboard() {
                   portalId="datepicker-portal"
                 />
                 {endDate && (
-                  <button
-                    onClick={() => setEndDate(null)}
-                    className="text-xs text-blue-500 hover:underline mt-1"
-                  >
-                    Clear
-                  </button>
+                  <ClearButton onClick={() => setEndDate(null)} />
                 )}
               </div>
             </div>
@@ -1057,7 +1312,7 @@ export default function Dashboard() {
         <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg relative z-40">
           <FilterNote step={filterStep} />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-            {/* Service Category Selector */}
+            {/* Service Category and State selectors (always visible) */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Service Line</label>
               <Select
@@ -1081,7 +1336,6 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* State Selector */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">State</label>
               <Select
@@ -1100,136 +1354,144 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Service Code Selector */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Service Code</label>
-              <Select
-                instanceId={serviceCodeId}
-                options={serviceCodes.map(code => ({ value: code, label: code }))}
-                value={selectedServiceCode ? { value: selectedServiceCode, label: selectedServiceCode } : null}
-                onChange={(option) => {
-                  setSelectedServiceCode(option?.value || "");
-                  setSelectedServiceDescription("");
-                  if (option?.value) {
-                    handleServiceCodeChange(option.value);
-                  }
-                }}
-                placeholder="Select Service Code"
-                isSearchable
-                isDisabled={!selectedState}
-                className={`react-select-container ${!selectedState ? 'opacity-50' : ''}`}
-                classNamePrefix="react-select"
-              />
-              {selectedServiceCode && (
-                <ClearButton onClick={() => {
-                  setSelectedServiceCode("");
-                  handleServiceCodeChange("");
-                }} />
-              )}
-            </div>
+            {/* Conditional filters - only show if they have data */}
+            {hasServiceCodeData && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Service Code</label>
+                <Select
+                  instanceId={serviceCodeId}
+                  options={serviceCodes.map(code => ({ value: code, label: code }))}
+                  value={selectedServiceCode ? { value: selectedServiceCode, label: selectedServiceCode } : null}
+                  onChange={(option) => {
+                    setSelectedServiceCode(option?.value || "");
+                    setSelectedServiceDescription("");
+                    if (option?.value) {
+                      handleServiceCodeChange(option.value);
+                    }
+                  }}
+                  placeholder="Select Service Code"
+                  isSearchable
+                  isDisabled={!selectedState}
+                  className={`react-select-container ${!selectedState ? 'opacity-50' : ''}`}
+                  classNamePrefix="react-select"
+                />
+                {selectedServiceCode && (
+                  <ClearButton onClick={() => {
+                    setSelectedServiceCode("");
+                    handleServiceCodeChange("");
+                  }} />
+                )}
+              </div>
+            )}
 
-            {/* Service Description Selector */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Service Description</label>
-              <Select
-                instanceId={serviceDescriptionId}
-                options={serviceDescriptions.map(desc => ({ value: desc, label: desc }))}
-                value={selectedServiceDescription ? { value: selectedServiceDescription, label: selectedServiceDescription } : null}
-                onChange={(option) => {
-                  setSelectedServiceDescription(option?.value || "");
-                  setSelectedServiceCode("");
-                  if (option?.value) {
-                    handleServiceDescriptionChange(option.value);
-                  }
-                }}
-                placeholder="Select Service Description"
-                isSearchable
-                isDisabled={!selectedState}
-                className={`react-select-container ${!selectedState ? 'opacity-50' : ''}`}
-                classNamePrefix="react-select"
-              />
-              {selectedServiceDescription && (
-                <ClearButton onClick={() => {
-                  setSelectedServiceDescription("");
-                  handleServiceDescriptionChange("");
-                }} />
-              )}
-            </div>
+            {hasServiceDescriptionData && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Service Description</label>
+                <Select
+                  instanceId={serviceDescriptionId}
+                  options={serviceDescriptions.map(desc => ({ value: desc, label: desc }))}
+                  value={selectedServiceDescription ? { value: selectedServiceDescription, label: selectedServiceDescription } : null}
+                  onChange={(option) => {
+                    setSelectedServiceDescription(option?.value || "");
+                    setSelectedServiceCode("");
+                    if (option?.value) {
+                      handleServiceDescriptionChange(option.value);
+                    }
+                  }}
+                  placeholder="Select Service Description"
+                  isSearchable
+                  isDisabled={!selectedState}
+                  className={`react-select-container ${!selectedState ? 'opacity-50' : ''}`}
+                  classNamePrefix="react-select"
+                />
+                {selectedServiceDescription && (
+                  <ClearButton onClick={() => {
+                    setSelectedServiceDescription("");
+                    handleServiceDescriptionChange("");
+                  }} />
+                )}
+              </div>
+            )}
 
-            {/* Program Selector */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Program</label>
-              <Select
-                instanceId={programId}
-                options={programs.map(program => ({ value: program, label: program }))}
-                value={selectedProgram ? { value: selectedProgram, label: selectedProgram } : null}
-                onChange={(option) => setSelectedProgram(option?.value || "")}
-                placeholder="Select Program"
-                isSearchable
-                isDisabled={!selectedServiceCode && !selectedServiceDescription}
-                className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
-                classNamePrefix="react-select"
-              />
-              {selectedProgram && (
-                <ClearButton onClick={() => setSelectedProgram("")} />
-              )}
-            </div>
+            {hasProgramData && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Program</label>
+                <Select
+                  instanceId={programId}
+                  options={programs.map(program => ({ value: program, label: program }))}
+                  value={selectedProgram ? { value: selectedProgram, label: selectedProgram } : null}
+                  onChange={(option) => setSelectedProgram(option?.value || "")}
+                  placeholder="Select Program"
+                  isSearchable
+                  isDisabled={!selectedServiceCode && !selectedServiceDescription}
+                  className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                  classNamePrefix="react-select"
+                />
+                {selectedProgram && (
+                  <ClearButton onClick={() => setSelectedProgram("")} />
+                )}
+              </div>
+            )}
 
-            {/* Location/Region Selector */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Location/Region</label>
-              <Select
-                instanceId={locationRegionId}
-                options={locationRegions.map(region => ({ value: region, label: region }))}
-                value={selectedLocationRegion ? { value: selectedLocationRegion, label: selectedLocationRegion } : null}
-                onChange={(option) => setSelectedLocationRegion(option?.value || "")}
-                placeholder="Select Location/Region"
-                isSearchable
-                isDisabled={!selectedServiceCode && !selectedServiceDescription}
-                className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
-                classNamePrefix="react-select"
-              />
-              {selectedLocationRegion && (
-                <ClearButton onClick={() => setSelectedLocationRegion("")} />
-              )}
-            </div>
+            {hasLocationRegionData && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Location/Region</label>
+                <Select
+                  instanceId={locationRegionId}
+                  options={locationRegions.map(region => ({ value: region, label: region }))}
+                  value={selectedLocationRegion ? { value: selectedLocationRegion, label: selectedLocationRegion } : null}
+                  onChange={(option) => setSelectedLocationRegion(option?.value || "")}
+                  placeholder="Select Location/Region"
+                  isSearchable
+                  isDisabled={!selectedServiceCode && !selectedServiceDescription}
+                  className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                  classNamePrefix="react-select"
+                />
+                {selectedLocationRegion && (
+                  <ClearButton onClick={() => setSelectedLocationRegion("")} />
+                )}
+              </div>
+            )}
 
-            {/* Modifier Selector */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Modifier</label>
-              <Select
-                instanceId={modifierId}
-                options={modifiers}
-                value={selectedModifier ? { value: selectedModifier, label: selectedModifier } : null}
-                onChange={(option) => setSelectedModifier(option?.value || "")}
-                placeholder="Select Modifier"
-                isSearchable
-                isDisabled={!selectedServiceCode && !selectedServiceDescription}
-                className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
-                classNamePrefix="react-select"
-              />
-              {selectedModifier && (
-                <ClearButton onClick={() => setSelectedModifier("")} />
-              )}
-            </div>
+            {hasModifierData && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Modifier</label>
+                <Select
+                  instanceId={modifierId}
+                  options={modifiers}
+                  value={modifiers.filter(option => selectedModifiers.includes(option.value))}
+                  onChange={handleModifierChange}
+                  placeholder="Select Modifier(s)"
+                  isSearchable
+                  isMulti
+                  isDisabled={!selectedServiceCode && !selectedServiceDescription}
+                  className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                  classNamePrefix="react-select"
+                />
+                {selectedModifiers.length > 0 && (
+                  <ClearButton onClick={() => setSelectedModifiers([])} />
+                )}
+              </div>
+            )}
 
-            {/* Provider Type Selector */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Provider Type</label>
-              <Select
-                options={providerTypes.map(type => ({ value: type, label: type }))}
-                value={selectedProviderType ? { value: selectedProviderType, label: selectedProviderType } : null}
-                onChange={(option) => setSelectedProviderType(option?.value || "")}
-                placeholder="Select Provider Type"
-                isSearchable
-                isDisabled={!selectedServiceCode && !selectedServiceDescription}
-                className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
-                classNamePrefix="react-select"
-              />
-              {selectedProviderType && (
-                <ClearButton onClick={() => setSelectedProviderType("")} />
-              )}
-            </div>
+            {hasProviderTypeData && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Provider Type</label>
+                <Select
+                  options={providerTypes.map(type => ({ value: type, label: type }))}
+                  value={selectedProviderType ? { value: selectedProviderType, label: selectedProviderType } : null}
+                  onChange={(option) => setSelectedProviderType(option?.value || "")}
+                  placeholder="Select Provider Type"
+                  isSearchable
+                  isDisabled={!selectedServiceCode && !selectedServiceDescription}
+                  className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                  classNamePrefix="react-select"
+                />
+                {selectedProviderType && (
+                  <ClearButton onClick={() => setSelectedProviderType("")} />
+                )}
+              </div>
+            )}
           </div>
         </div>
 

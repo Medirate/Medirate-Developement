@@ -4,7 +4,7 @@ import pool from "@/lib/db";
 export async function GET() {
   try {
     // Corrected table name to 'provider_alerts'
-    const { rows } = await pool.query("SELECT * FROM provideralerts_data ORDER BY announcement_date DESC");
+    const { rows } = await pool.query("SELECT * FROM provider_alerts ORDER BY announcement_date DESC");
 
     // Return the rows as JSON
     return NextResponse.json(rows);
