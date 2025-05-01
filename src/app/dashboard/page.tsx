@@ -53,26 +53,7 @@ const FilterNote = ({ step }: { step: number }) => {
   );
 };
 
-// Move the ClearButton component declaration to the top of the component
-const ClearButton = ({ onClick }: { onClick: () => void }) => (
-  <button
-    onClick={onClick}
-    className="text-xs text-blue-500 hover:underline mt-1"
-  >
-    Clear
-  </button>
-);
-
 export default function Dashboard() {
-  // Move all ID declarations to the top of the component
-  const serviceCategoryId = useId();
-  const stateId = useId();
-  const serviceCodeId = useId();
-  const serviceDescriptionId = useId();
-  const programId = useId();
-  const locationRegionId = useId();
-  const modifierId = useId();
-
   const { isAuthenticated, isLoading, user } = useKindeBrowserClient();
   const router = useRouter();
   const [isSubscriptionCheckComplete, setIsSubscriptionCheckComplete] = useState(false);
@@ -223,7 +204,7 @@ export default function Dashboard() {
   useClickOutside(locationRegionRef, () => setShowLocationRegionDropdown(false));
   useClickOutside(modifierRef, () => setShowModifierDropdown(false));
 
-  const areFiltersApplied = selectedServiceCategory && selectedState;
+  const areFiltersApplied = selectedState;
 
   // Add new state for selected year
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
@@ -237,77 +218,49 @@ export default function Dashboard() {
 
   // Move the parseDate function here, before filteredData
   const parseDate = (dateString: string | null) => {
-    if (!dateString) return null;
+    if (!dateString) return null; // Skip null or undefined dates
 
-    // First try parsing as a standard date format (ISO or mm/dd/yyyy)
-    const standardDate = new Date(dateString);
-    if (!isNaN(standardDate.getTime())) {
-      return standardDate;
-    }
-
-    // If it's a numeric string, it might be an Excel serial date
     if (!isNaN(Number(dateString))) {
       const serialDate = Number(dateString);
-      
-      // Validate the serial number is reasonable (between 1 and 2958465 - Excel's date range)
-      if (serialDate < 1 || serialDate > 2958465) {
-        console.error("Excel serial date out of valid range:", dateString);
-        return null;
+      const date = new Date(Date.UTC(1900, 0, serialDate - 1)); // Convert serial date to Date object
+      if (isNaN(date.getTime())) {
+        console.error("Invalid serial date:", dateString);
+        return null; // Skip invalid serial dates
       }
-
-      // Excel's epoch starts at January 1, 1900
-      // And Excel has a bug where it thinks 1900 was a leap year
-      const epoch = new Date(1899, 11, 30); // December 30, 1899
-      const offsetDays = serialDate - 1; // Subtract 1 because Excel counts from 1
-      const milliseconds = offsetDays * 24 * 60 * 60 * 1000;
-      const date = new Date(epoch.getTime() + milliseconds);
-      
-      // Validate the resulting date is reasonable (between 1900 and 2100)
-      if (!isNaN(date.getTime()) && date.getFullYear() >= 1900 && date.getFullYear() <= 2100) {
       return date;
-      }
     }
 
-    // Try parsing mm/dd/yyyy format explicitly
     const dateParts = dateString.split('/');
-    if (dateParts.length === 3) {
-      const month = parseInt(dateParts[0], 10) - 1; // Months are 0-based in JavaScript
-      const day = parseInt(dateParts[1], 10);
-      const year = parseInt(dateParts[2], 10);
-
-      if (!isNaN(month) && !isNaN(day) && !isNaN(year)) {
-        const date = new Date(year, month, day);
-        if (!isNaN(date.getTime()) && date.getFullYear() >= 1900 && date.getFullYear() <= 2100) {
-          return date;
-        }
-      }
+    if (dateParts.length !== 3) {
+      console.error("Invalid date format:", dateString);
+      return null; // Skip invalid date formats
     }
 
-    // If we get here, the date format is unrecognized
-    console.error("Unrecognized date format:", dateString);
-    return null;
-  };
+    const month = parseInt(dateParts[0], 10) - 1; // Months are 0-based in JavaScript
+    const day = parseInt(dateParts[1], 10);
+    const year = parseInt(dateParts[2], 10);
 
-  // Declare these states before the useMemo
-  const [selectedProviderType, setSelectedProviderType] = useState("");
-  const [providerTypes, setProviderTypes] = useState<string[]>([]);
+    if (isNaN(month) || isNaN(day) || isNaN(year)) {
+      console.error("Invalid date parts:", dateString);
+      return null; // Skip invalid date parts
+    }
 
-  // Update the modifier state to handle multiple selections
-  const [selectedModifiers, setSelectedModifiers] = useState<string[]>([]);
+    const date = new Date(Date.UTC(year, month, day));
+    if (isNaN(date.getTime())) {
+      console.error("Invalid date:", dateString);
+      return null; // Skip invalid dates
+    }
 
-  // Move the handleModifierChange function declaration to the top of the component
-  const handleModifierChange = (selectedOptions: any) => {
-    const selectedValues = selectedOptions ? selectedOptions.map((option: any) => option.value) : [];
-    setSelectedModifiers(selectedValues);
+    return date;
   };
 
   // Now the filteredData useMemo hook can safely use parseDate
   const filteredData = useMemo(() => {
     if (!areFiltersApplied) return [];
     
-    const filtered = data.filter(item => {
-      const parsedDate = parseDate(item.rate_effective_date);
-      if (!parsedDate) return false;
+    return data.filter(item => {
+                          const parsedDate = parseDate(item.rate_effective_date);
+      if (!parsedDate) return false; // Skip items with invalid dates
 
       if (selectedFeeScheduleDate) {
         const itemDate = parsedDate.toISOString().split('T')[0];
@@ -325,46 +278,20 @@ export default function Dashboard() {
 
       if (selectedServiceCategory && item.service_category !== selectedServiceCategory) return false;
       if (selectedServiceCode && item.service_code !== selectedServiceCode) return false;
-
-      // Handle "No Program" selection
-      if (selectedProgram === 'No Program') {
-        if (item.program && item.program.trim() !== '') return false;
-      } else if (selectedProgram && item.program !== selectedProgram) {
-        return false;
-      }
-
-      // Handle "No Location/Region" selection
-      if (selectedLocationRegion === 'No Location/Region') {
-        if (item.location_region && item.location_region.trim() !== '') return false;
-      } else if (selectedLocationRegion && item.location_region !== selectedLocationRegion) {
-        return false;
-      }
-
-      // Handle multiple modifiers
-      if (selectedModifiers.length > 0) {
-        const hasAnyModifier = selectedModifiers.some(modifier => {
-          const modifierCode = modifier.split(' - ')[0];
-          return (
-            (item.modifier_1 && item.modifier_1.split(' - ')[0] === modifierCode) ||
-            (item.modifier_2 && item.modifier_2.split(' - ')[0] === modifierCode) ||
-            (item.modifier_3 && item.modifier_3.split(' - ')[0] === modifierCode) ||
-            (item.modifier_4 && item.modifier_4.split(' - ')[0] === modifierCode)
-          );
-        });
-        if (!hasAnyModifier) return false;
-      }
-
-      // Handle "No Provider Type" selection
-      if (selectedProviderType === 'No Provider Type') {
-        if (item.provider_type && item.provider_type.trim() !== '') return false;
-      } else if (selectedProviderType && item.provider_type !== selectedProviderType) {
-        return false;
+      if (selectedProgram && item.program !== selectedProgram) return false;
+      if (selectedLocationRegion && item.location_region !== selectedLocationRegion) return false;
+      if (selectedModifier) {
+        const selectedModifierCode = selectedModifier.split(' - ')[0];
+        const hasModifier = 
+          (item.modifier_1 && item.modifier_1.split(' - ')[0] === selectedModifierCode) ||
+          (item.modifier_2 && item.modifier_2.split(' - ')[0] === selectedModifierCode) ||
+          (item.modifier_3 && item.modifier_3.split(' - ')[0] === selectedModifierCode) ||
+          (item.modifier_4 && item.modifier_4.split(' - ')[0] === selectedModifierCode);
+        if (!hasModifier) return false;
       }
 
       return true;
     });
-
-    return filtered;
   }, [
     data,
     startDate,
@@ -375,9 +302,8 @@ export default function Dashboard() {
     selectedServiceCode,
     selectedProgram,
     selectedLocationRegion,
-    selectedModifiers,
-    selectedFeeScheduleDate,
-    selectedProviderType
+    selectedModifier,
+    selectedFeeScheduleDate
   ]);
 
   // Update the sortConfig state initialization
@@ -527,385 +453,27 @@ export default function Dashboard() {
     );
   };
 
-  // Update the extractFilters function to properly check filter availability
   const extractFilters = (data: ServiceData[]) => {
-    // Only check for filter availability if both service category and state are selected
-    if (!selectedServiceCategory || !selectedState) {
-      setHasServiceCodeData(false);
-      setHasServiceDescriptionData(false);
-      setHasProgramData(false);
-      setHasLocationRegionData(false);
-      setHasModifierData(false);
-      setHasProviderTypeData(false);
-      return;
-    }
-
-    const applicableData = data.filter(item => 
-      item.service_category === selectedServiceCategory &&
-      item.state_name?.toUpperCase() === selectedState.toUpperCase()
-    );
-
-    // Check which filters have data
-    const hasServiceCode = applicableData.some(item => !!item.service_code);
-    const hasServiceDescription = applicableData.some(item => !!item.service_description);
-    const hasProgram = applicableData.some(item => !!item.program);
-    const hasLocationRegion = applicableData.some(item => !!item.location_region);
-    const hasModifier = applicableData.some(item => 
-      !!item.modifier_1 || !!item.modifier_2 || !!item.modifier_3 || !!item.modifier_4
-    );
-    const hasProviderType = applicableData.some(item => !!item.provider_type);
-
-    // Update state for filter visibility
-    setHasServiceCodeData(hasServiceCode);
-    setHasServiceDescriptionData(hasServiceDescription);
-    setHasProgramData(hasProgram);
-    setHasLocationRegionData(hasLocationRegion);
-    setHasModifierData(hasModifier);
-    setHasProviderTypeData(hasProviderType);
-
     // Get service categories
     const categories = data
       .map((item) => item.service_category?.trim())
       .filter((category): category is string => !!category);
     setServiceCategories([...new Set(categories)].sort((a, b) => a.localeCompare(b)));
 
-    // Get states based on selected service category
+    // Get states
     const states = data
-      .filter((item) => !selectedServiceCategory || item.service_category === selectedServiceCategory)
       .map((item) => item.state_name?.trim().toUpperCase())
       .filter((state): state is string => !!state);
     setStates([...new Set(states)].sort((a, b) => a.localeCompare(b)));
-
-    // Get service codes based on selected service category and state
-    const serviceCodes = data
-      .filter((item) => 
-        (!selectedServiceCategory || item.service_category === selectedServiceCategory) &&
-        (!selectedState || item.state_name?.toUpperCase() === selectedState.toUpperCase())
-      )
-      .map((item) => item.service_code)
-      .filter((code): code is string => !!code);
-    setServiceCodes([...new Set(serviceCodes)].sort((a, b) => a.localeCompare(b)));
-
-    // Get service descriptions based on selected service category and state
-    const serviceDescriptions = data
-      .filter((item) => 
-        (!selectedServiceCategory || item.service_category === selectedServiceCategory) &&
-        (!selectedState || item.state_name?.toUpperCase() === selectedState.toUpperCase())
-      )
-      .map((item) => item.service_description)
-      .filter((desc): desc is string => !!desc);
-    setServiceDescriptions([...new Set(serviceDescriptions)].sort((a, b) => a.localeCompare(b)));
-
-    // Get programs based on selected service category, state, and service code/description
-    const filteredForPrograms = data.filter((item) => 
-      (!selectedServiceCategory || item.service_category === selectedServiceCategory) &&
-      (!selectedState || item.state_name?.toUpperCase() === selectedState.toUpperCase()) &&
-      (!selectedServiceCode || item.service_code === selectedServiceCode) &&
-      (!selectedServiceDescription || item.service_description === selectedServiceDescription)
-    );
-
-    const programs = new Set<string>();
-    let hasEmptyProgram = false;
-
-    filteredForPrograms.forEach(item => {
-      if (!item.program || item.program.trim() === '') {
-        hasEmptyProgram = true;
-      } else {
-        programs.add(item.program.trim());
-      }
-    });
-
-    const sortedPrograms = [...programs].sort((a, b) => a.localeCompare(b));
-    if (hasEmptyProgram) {
-      sortedPrograms.unshift('No Program');
-    }
-    setPrograms(sortedPrograms);
-
-    // Get location regions based on selected filters
-    const filteredForLocations = data.filter((item) => 
-      (!selectedServiceCategory || item.service_category === selectedServiceCategory) &&
-      (!selectedState || item.state_name?.toUpperCase() === selectedState.toUpperCase()) &&
-      (!selectedServiceCode || item.service_code === selectedServiceCode) &&
-      (!selectedServiceDescription || item.service_description === selectedServiceDescription)
-    );
-
-    const locations = new Set<string>();
-    let hasEmptyLocation = false;
-
-    filteredForLocations.forEach(item => {
-      if (!item.location_region || item.location_region.trim() === '') {
-        hasEmptyLocation = true;
-      } else {
-        locations.add(item.location_region.trim());
-      }
-    });
-
-    const sortedLocations = [...locations].sort((a, b) => a.localeCompare(b));
-    if (hasEmptyLocation) {
-      sortedLocations.unshift('No Location/Region');
-    }
-    setLocationRegions(sortedLocations);
-
-    // Get modifiers based on selected filters
-    const filteredForModifiers = data.filter((item) => 
-      (!selectedServiceCategory || item.service_category === selectedServiceCategory) &&
-      (!selectedState || item.state_name?.toUpperCase() === selectedState.toUpperCase()) &&
-      (!selectedServiceCode || item.service_code === selectedServiceCode) &&
-      (!selectedServiceDescription || item.service_description === selectedServiceDescription)
-    );
-
-    const modifierSet = new Set<string>();
-    let hasEmptyModifier = false;
-
-    filteredForModifiers.forEach(item => {
-      const hasNoModifiers = !item.modifier_1 && !item.modifier_2 && !item.modifier_3 && !item.modifier_4;
-      if (hasNoModifiers) {
-        hasEmptyModifier = true;
-      } else {
-        [
-          { mod: item.modifier_1, details: item.modifier_1_details },
-          { mod: item.modifier_2, details: item.modifier_2_details },
-          { mod: item.modifier_3, details: item.modifier_3_details },
-          { mod: item.modifier_4, details: item.modifier_4_details }
-        ].forEach(({ mod, details }) => {
-          if (mod) {
-            modifierSet.add(details ? `${mod} - ${details}` : mod);
-          }
-        });
-      }
-    });
-
-    const sortedModifiers = [...modifierSet].sort((a, b) => a.localeCompare(b));
-    if (hasEmptyModifier) {
-      sortedModifiers.unshift('No Modifier');
-    }
-    setModifiers(sortedModifiers.map(modifier => ({
-      value: modifier,
-      label: modifier
-    })));
-
-    // Get provider types based on selected filters
-    const filteredForProviderTypes = data.filter((item) => 
-      (!selectedServiceCategory || item.service_category === selectedServiceCategory) &&
-      (!selectedState || item.state_name?.toUpperCase() === selectedState.toUpperCase()) &&
-      (!selectedServiceCode || item.service_code === selectedServiceCode) &&
-      (!selectedServiceDescription || item.service_description === selectedServiceDescription)
-    );
-
-    const providerTypeSet = new Set<string>();
-    let hasEmptyProviderType = false;
-
-    filteredForProviderTypes.forEach(item => {
-      if (!item.provider_type || item.provider_type.trim() === '') {
-        hasEmptyProviderType = true;
-      } else {
-        providerTypeSet.add(item.provider_type.trim());
-      }
-    });
-
-    const sortedProviderTypes = [...providerTypeSet].sort((a, b) => a.localeCompare(b));
-    if (hasEmptyProviderType) {
-      sortedProviderTypes.unshift('No Provider Type');
-    }
-    setProviderTypes(sortedProviderTypes);
   };
 
-  // Add state for filter visibility
-  const [hasServiceCodeData, setHasServiceCodeData] = useState(false);
-  const [hasServiceDescriptionData, setHasServiceDescriptionData] = useState(false);
-  const [hasProgramData, setHasProgramData] = useState(false);
-  const [hasLocationRegionData, setHasLocationRegionData] = useState(false);
-  const [hasModifierData, setHasModifierData] = useState(false);
-  const [hasProviderTypeData, setHasProviderTypeData] = useState(false);
+  const toggleDropdown = (dropdownSetter: React.Dispatch<React.SetStateAction<boolean>>, otherSetters: React.Dispatch<React.SetStateAction<boolean>>[]) => {
+    // Close all other dropdowns
+    otherSetters.forEach(setter => setter(false));
+    // Toggle the current dropdown
+    dropdownSetter(prev => !prev);
+  };
 
-  // Update the filter rendering logic
-  <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg relative z-40">
-    <FilterNote step={filterStep} />
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-      {/* Service Category and State selectors (always visible) */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-700">Service Line</label>
-        <Select
-          instanceId={serviceCategoryId}
-          options={serviceCategories
-            .filter(category => {
-              const trimmedCategory = category.trim();
-              return trimmedCategory && 
-                     !['HCBS', 'IDD', 'SERVICE CATEGORY'].includes(trimmedCategory);
-            })
-            .map(category => ({ value: category, label: category }))}
-          value={selectedServiceCategory ? { value: selectedServiceCategory, label: selectedServiceCategory } : null}
-          onChange={(option) => handleServiceCategoryChange(option?.value || "")}
-          placeholder="Select Service Line"
-          isSearchable
-          className="react-select-container"
-          classNamePrefix="react-select"
-        />
-        {selectedServiceCategory && (
-          <ClearButton onClick={() => handleServiceCategoryChange("")} />
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-700">State</label>
-        <Select
-          instanceId={stateId}
-          options={states.map(state => ({ value: state, label: state }))}
-          value={selectedState ? { value: selectedState, label: selectedState } : null}
-          onChange={(option) => handleStateChange(option?.value || "")}
-          placeholder="Select State"
-          isSearchable
-          isDisabled={!selectedServiceCategory}
-          className={`react-select-container ${!selectedServiceCategory ? 'opacity-50' : ''}`}
-          classNamePrefix="react-select"
-        />
-        {selectedState && (
-          <ClearButton onClick={() => handleStateChange("")} />
-        )}
-      </div>
-
-      {/* Conditional filters - only show if they have data */}
-      {hasServiceCodeData && (
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Service Code</label>
-          <Select
-            instanceId={serviceCodeId}
-            options={serviceCodes.map(code => ({ value: code, label: code }))}
-            value={selectedServiceCode ? { value: selectedServiceCode, label: selectedServiceCode } : null}
-            onChange={(option) => {
-              setSelectedServiceCode(option?.value || "");
-              setSelectedServiceDescription("");
-              if (option?.value) {
-                handleServiceCodeChange(option.value);
-              }
-            }}
-            placeholder="Select Service Code"
-            isSearchable
-            isDisabled={!selectedState}
-            className={`react-select-container ${!selectedState ? 'opacity-50' : ''}`}
-            classNamePrefix="react-select"
-          />
-          {selectedServiceCode && (
-            <ClearButton onClick={() => {
-              setSelectedServiceCode("");
-              handleServiceCodeChange("");
-            }} />
-          )}
-        </div>
-      )}
-
-      {hasServiceDescriptionData && (
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Service Description</label>
-          <Select
-            instanceId={serviceDescriptionId}
-            options={serviceDescriptions.map(desc => ({ value: desc, label: desc }))}
-            value={selectedServiceDescription ? { value: selectedServiceDescription, label: selectedServiceDescription } : null}
-            onChange={(option) => {
-              setSelectedServiceDescription(option?.value || "");
-              setSelectedServiceCode("");
-              if (option?.value) {
-                handleServiceDescriptionChange(option.value);
-              }
-            }}
-            placeholder="Select Service Description"
-            isSearchable
-            isDisabled={!selectedState}
-            className={`react-select-container ${!selectedState ? 'opacity-50' : ''}`}
-            classNamePrefix="react-select"
-          />
-          {selectedServiceDescription && (
-            <ClearButton onClick={() => {
-              setSelectedServiceDescription("");
-              handleServiceDescriptionChange("");
-            }} />
-          )}
-        </div>
-      )}
-
-      {hasProgramData && (
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Program</label>
-          <Select
-            instanceId={programId}
-            options={programs.map(program => ({ value: program, label: program }))}
-            value={selectedProgram ? { value: selectedProgram, label: selectedProgram } : null}
-            onChange={(option) => setSelectedProgram(option?.value || "")}
-            placeholder="Select Program"
-            isSearchable
-            isDisabled={!selectedServiceCode && !selectedServiceDescription}
-            className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
-            classNamePrefix="react-select"
-          />
-          {selectedProgram && (
-            <ClearButton onClick={() => setSelectedProgram("")} />
-          )}
-        </div>
-      )}
-
-      {hasLocationRegionData && (
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Location/Region</label>
-          <Select
-            instanceId={locationRegionId}
-            options={locationRegions.map(region => ({ value: region, label: region }))}
-            value={selectedLocationRegion ? { value: selectedLocationRegion, label: selectedLocationRegion } : null}
-            onChange={(option) => setSelectedLocationRegion(option?.value || "")}
-            placeholder="Select Location/Region"
-            isSearchable
-            isDisabled={!selectedServiceCode && !selectedServiceDescription}
-            className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
-            classNamePrefix="react-select"
-          />
-          {selectedLocationRegion && (
-            <ClearButton onClick={() => setSelectedLocationRegion("")} />
-          )}
-        </div>
-      )}
-
-      {hasModifierData && (
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Modifier</label>
-          <Select
-            instanceId={modifierId}
-            options={modifiers}
-            value={modifiers.filter(option => selectedModifiers.includes(option.value))}
-            onChange={handleModifierChange}
-            placeholder="Select Modifier(s)"
-            isSearchable
-            isMulti
-            isDisabled={!selectedServiceCode && !selectedServiceDescription}
-            className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
-            classNamePrefix="react-select"
-          />
-          {selectedModifiers.length > 0 && (
-            <ClearButton onClick={() => setSelectedModifiers([])} />
-          )}
-        </div>
-      )}
-
-      {hasProviderTypeData && (
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Provider Type</label>
-          <Select
-            options={providerTypes.map(type => ({ value: type, label: type }))}
-            value={selectedProviderType ? { value: selectedProviderType, label: selectedProviderType } : null}
-            onChange={(option) => setSelectedProviderType(option?.value || "")}
-            placeholder="Select Provider Type"
-            isSearchable
-            isDisabled={!selectedServiceCode && !selectedServiceDescription}
-            className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
-            classNamePrefix="react-select"
-          />
-          {selectedProviderType && (
-            <ClearButton onClick={() => setSelectedProviderType("")} />
-          )}
-        </div>
-      )}
-    </div>
-  </div>
-
-  // Update the filter handlers to call extractFilters
   const handleServiceCategoryChange = (category: string) => {
     setSelectedServiceCategory(category);
     setSelectedState("");
@@ -915,7 +483,20 @@ export default function Dashboard() {
     setSelectedLocationRegion("");
     setSelectedModifier("");
     setFilterStep(2);
-    extractFilters(data);
+
+    // Filter data based on selected category
+    const filteredData = data.filter(item => item.service_category === category);
+    
+    // Update all filter options based on filtered data
+    setStates([...new Set(filteredData
+      .map(item => item.state_name?.toUpperCase())
+      .filter((state): state is string => !!state)
+    )].sort((a, b) => a.localeCompare(b)));
+    setServiceCodes([]);
+    setServiceDescriptions([]);
+    setPrograms([]);
+    setLocationRegions([]);
+    setModifiers([]);
   };
 
   const handleStateChange = (state: string) => {
@@ -926,20 +507,91 @@ export default function Dashboard() {
     setSelectedLocationRegion("");
     setSelectedModifier("");
     setFilterStep(3);
-    extractFilters(data);
+
+    if (selectedServiceCategory) {
+      const filteredData = data.filter(item => 
+        item.state_name?.toUpperCase() === state.toUpperCase() &&
+        item.service_category === selectedServiceCategory
+      );
+      
+      setServiceCodes([...new Set(filteredData
+        .map(item => item.service_code)
+        .filter((code): code is string => !!code)
+      )].sort((a, b) => a.localeCompare(b)));
+      setServiceDescriptions([...new Set(filteredData
+        .map(item => item.service_description)
+        .filter((desc): desc is string => !!desc)
+      )].sort((a, b) => a.localeCompare(b)));
+      
+      // Don't set programs, locationRegions, or modifiers yet
+      setPrograms([]);
+      setLocationRegions([]);
+      setModifiers([]);
+    }
   };
 
   const handleServiceCodeChange = (code: string) => {
     setSelectedServiceCode(code);
-    setFilterStep(4);
-    extractFilters(data);
+    // Don't clear service description anymore
+    setFilterStep(4); // Move to next step
+
+    // Now we can populate the additional filters
+    const filteredData = data.filter(item => 
+      item.service_category === selectedServiceCategory &&
+      item.state_name === selectedState &&
+      item.service_code === code
+    );
+    
+    setPrograms([...new Set(filteredData.map(item => item.program || ''))]);
+    setLocationRegions([...new Set(filteredData.map(item => item.location_region || ''))]);
+    
+    const allModifiers = filteredData.flatMap(item => [
+      item.modifier_1 ? `${item.modifier_1}${item.modifier_1_details ? ` - ${item.modifier_1_details}` : ''}` : null,
+      item.modifier_2 ? `${item.modifier_2}${item.modifier_2_details ? ` - ${item.modifier_2_details}` : ''}` : null,
+      item.modifier_3 ? `${item.modifier_3}${item.modifier_3_details ? ` - ${item.modifier_3_details}` : ''}` : null,
+      item.modifier_4 ? `${item.modifier_4}${item.modifier_4_details ? ` - ${item.modifier_4_details}` : ''}` : null
+    ]).filter(Boolean);
+    setModifiers([...new Set(allModifiers)].map(modifier => ({
+      value: modifier || '',
+      label: modifier || ''
+    })));
   };
 
   const handleServiceDescriptionChange = (desc: string) => {
     setSelectedServiceDescription(desc);
-    setFilterStep(4);
-    extractFilters(data);
+    // Don't clear service code anymore
+    setFilterStep(4); // Move to next step
+
+    // Now we can populate the additional filters
+    const filteredData = data.filter(item => 
+      item.service_category === selectedServiceCategory &&
+      item.state_name === selectedState &&
+      item.service_description === desc
+    );
+    
+    setPrograms([...new Set(filteredData.map(item => item.program || ''))]);
+    setLocationRegions([...new Set(filteredData.map(item => item.location_region || ''))]);
+    
+    const allModifiers = filteredData.flatMap(item => [
+      item.modifier_1 ? `${item.modifier_1}${item.modifier_1_details ? ` - ${item.modifier_1_details}` : ''}` : null,
+      item.modifier_2 ? `${item.modifier_2}${item.modifier_2_details ? ` - ${item.modifier_2_details}` : ''}` : null,
+      item.modifier_3 ? `${item.modifier_3}${item.modifier_3_details ? ` - ${item.modifier_3_details}` : ''}` : null,
+      item.modifier_4 ? `${item.modifier_4}${item.modifier_4_details ? ` - ${item.modifier_4_details}` : ''}` : null
+    ]).filter(Boolean);
+    setModifiers([...new Set(allModifiers)].map(modifier => ({
+      value: modifier || '',
+      label: modifier || ''
+    })));
   };
+
+  const ClearButton = ({ onClick }: { onClick: () => void }) => (
+    <button
+      onClick={onClick}
+      className="text-xs text-blue-500 hover:underline mt-1"
+    >
+      Clear
+    </button>
+  );
 
   // Update the resetFilters function to reset the filter step
   const resetFilters = () => {
@@ -1063,6 +715,15 @@ export default function Dashboard() {
     return text ? text.toUpperCase() : '-';
   };
 
+  // Inside your Dashboard component, add this before the return statement
+  const serviceCategoryId = useId();
+  const stateId = useId();
+  const serviceCodeId = useId();
+  const serviceDescriptionId = useId();
+  const programId = useId();
+  const locationRegionId = useId();
+  const modifierId = useId();
+
   useEffect(() => {
     if (data.length > 0) {
       // Comment out or remove this line
@@ -1081,20 +742,14 @@ export default function Dashboard() {
       )
       .map(item => {
         const parsedDate = parseDate(item.rate_effective_date);
-        if (!parsedDate) return null;
-        // Store as ISO string for consistent sorting and formatting
-        return parsedDate.toISOString().split('T')[0];
+        if (!parsedDate) return null; // Skip invalid dates
+        return parsedDate.toISOString().split('T')[0]; // Use ISO format for consistency
       })
-      .filter((date): date is string => !!date);
+      .filter((date): date is string => !!date); // Filter out null values
 
-    // Sort dates in descending order (newest to oldest)
-    const sortedDates = [...new Set(filteredDates)].sort((a, b) => {
-      const dateA = new Date(a);
-      const dateB = new Date(b);
-      return dateB.getTime() - dateA.getTime(); // Changed the order of subtraction for descending sort
-    });
-
-    setFeeScheduleDates(sortedDates);
+    // Comment out or remove this line
+    // console.log("Extracted Fee Schedule Dates:", filteredDates); // Log the extracted dates
+    setFeeScheduleDates([...new Set(filteredDates)].sort((a, b) => a.localeCompare(b)));
   };
 
   useEffect(() => {
@@ -1105,54 +760,6 @@ export default function Dashboard() {
 
   // Update the Date Range fields to disable them when a Fee Schedule Date is selected
   const isDateRangeDisabled = !!selectedFeeScheduleDate;
-
-  const [comment, setComment] = useState<string | null>(null);
-
-  const fetchComment = async (serviceCategory: string, state: string) => {
-    try {
-      const response = await fetch(`/api/comments_table?serviceCategory=${encodeURIComponent(serviceCategory)}&state=${encodeURIComponent(state)}`);
-      const data = await response.json();
-      if (data.length > 0) {
-        setComment(data[0].comment);
-      } else {
-        setComment(null);
-      }
-    } catch (error) {
-      console.error("Error fetching comment:", error);
-      setComment(null);
-    }
-  };
-
-  useEffect(() => {
-    if (selectedServiceCategory && selectedState) {
-      fetchComment(selectedServiceCategory, selectedState);
-    } else {
-      setComment(null);
-    }
-  }, [selectedServiceCategory, selectedState]);
-
-  // Update the hasFilterData function to be more specific about provider type
-  const hasFilterData = (data: ServiceData[], filterType: string): boolean => {
-    return data.some(item => {
-      switch (filterType) {
-        case 'serviceCode':
-          return !!item.service_code;
-        case 'serviceDescription':
-          return !!item.service_description;
-        case 'program':
-          return !!item.program;
-        case 'locationRegion':
-          return !!item.location_region;
-        case 'modifier':
-          return !!(item.modifier_1 || item.modifier_2 || item.modifier_3 || item.modifier_4);
-        case 'providerType':
-          // Check if provider_type exists and is not empty
-          return !!item.provider_type && item.provider_type.trim() !== '';
-        default:
-          return false;
-      }
-    });
-  };
 
   // Don't render anything until the subscription check is complete
   if (isLoading || !isAuthenticated || !isSubscriptionCheckComplete) {
@@ -1211,7 +818,12 @@ export default function Dashboard() {
                   portalId="datepicker-portal"
                 />
                 {startDate && (
-                  <ClearButton onClick={() => setStartDate(null)} />
+                  <button
+                    onClick={() => setStartDate(null)}
+                    className="text-xs text-blue-500 hover:underline mt-1"
+                  >
+                    Clear
+                  </button>
                 )}
               </div>
               <div className="relative">
@@ -1243,7 +855,12 @@ export default function Dashboard() {
                   portalId="datepicker-portal"
                 />
                 {endDate && (
-                  <ClearButton onClick={() => setEndDate(null)} />
+                  <button
+                    onClick={() => setEndDate(null)}
+                    className="text-xs text-blue-500 hover:underline mt-1"
+                  >
+                    Clear
+                  </button>
                 )}
               </div>
             </div>
@@ -1253,21 +870,19 @@ export default function Dashboard() {
               <Select
                 instanceId="feeScheduleDatesId"
                 options={feeScheduleDates.map(date => {
-                  const parsedDate = parseDate(date);
-                  if (!parsedDate) return { value: date, label: 'Invalid Date' };
-                  const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
-                  const day = String(parsedDate.getDate()).padStart(2, '0');
-                  const year = parsedDate.getFullYear();
+                  const dateObj = new Date(date);
+                  const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+                  const day = String(dateObj.getUTCDate()).padStart(2, '0');
+                  const year = dateObj.getUTCFullYear();
                   return { value: date, label: `${month}/${day}/${year}` };
                 })}
                 value={selectedFeeScheduleDate ? { 
                   value: selectedFeeScheduleDate, 
                   label: (() => {
-                    const parsedDate = parseDate(selectedFeeScheduleDate);
-                    if (!parsedDate) return 'Invalid Date';
-                    const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
-                    const day = String(parsedDate.getDate()).padStart(2, '0');
-                    const year = parsedDate.getFullYear();
+                    const dateObj = new Date(selectedFeeScheduleDate);
+                    const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+                    const day = String(dateObj.getUTCDate()).padStart(2, '0');
+                    const year = dateObj.getUTCFullYear();
                     return `${month}/${day}/${year}`;
                   })()
                 } : null}
@@ -1312,18 +927,12 @@ export default function Dashboard() {
         <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg relative z-40">
           <FilterNote step={filterStep} />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-            {/* Service Category and State selectors (always visible) */}
+            {/* Service Category Selector */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Service Line</label>
               <Select
                 instanceId={serviceCategoryId}
-                options={serviceCategories
-                  .filter(category => {
-                    const trimmedCategory = category.trim();
-                    return trimmedCategory && 
-                           !['HCBS', 'IDD', 'SERVICE CATEGORY'].includes(trimmedCategory);
-                  })
-                  .map(category => ({ value: category, label: category }))}
+                options={[{ value: "APPLIED BEHAVIORAL ANALYSIS (ABA)", label: "APPLIED BEHAVIORAL ANALYSIS (ABA)" }]}
                 value={selectedServiceCategory ? { value: selectedServiceCategory, label: selectedServiceCategory } : null}
                 onChange={(option) => handleServiceCategoryChange(option?.value || "")}
                 placeholder="Select Service Line"
@@ -1336,6 +945,7 @@ export default function Dashboard() {
               )}
             </div>
 
+            {/* State Selector */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">State</label>
               <Select
@@ -1354,155 +964,120 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Conditional filters - only show if they have data */}
-            {hasServiceCodeData && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Service Code</label>
-                <Select
-                  instanceId={serviceCodeId}
-                  options={serviceCodes.map(code => ({ value: code, label: code }))}
-                  value={selectedServiceCode ? { value: selectedServiceCode, label: selectedServiceCode } : null}
-                  onChange={(option) => {
-                    setSelectedServiceCode(option?.value || "");
-                    setSelectedServiceDescription("");
-                    if (option?.value) {
-                      handleServiceCodeChange(option.value);
-                    }
-                  }}
-                  placeholder="Select Service Code"
-                  isSearchable
-                  isDisabled={!selectedState}
-                  className={`react-select-container ${!selectedState ? 'opacity-50' : ''}`}
-                  classNamePrefix="react-select"
-                />
-                {selectedServiceCode && (
-                  <ClearButton onClick={() => {
-                    setSelectedServiceCode("");
-                    handleServiceCodeChange("");
-                  }} />
-                )}
-              </div>
-            )}
+            {/* Service Code Selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Service Code</label>
+              <Select
+                instanceId={serviceCodeId}
+                options={serviceCodes.map(code => ({ value: code, label: code }))}
+                value={selectedServiceCode ? { value: selectedServiceCode, label: selectedServiceCode } : null}
+                onChange={(option) => {
+                  setSelectedServiceCode(option?.value || "");
+                  setSelectedServiceDescription("");
+                  if (option?.value) {
+                    handleServiceCodeChange(option.value);
+                  }
+                }}
+                placeholder="Select Service Code"
+                isSearchable
+                isDisabled={!selectedState}
+                className={`react-select-container ${!selectedState ? 'opacity-50' : ''}`}
+                classNamePrefix="react-select"
+              />
+              {selectedServiceCode && (
+                <ClearButton onClick={() => {
+                  setSelectedServiceCode("");
+                  handleServiceCodeChange("");
+                }} />
+              )}
+            </div>
 
-            {hasServiceDescriptionData && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Service Description</label>
-                <Select
-                  instanceId={serviceDescriptionId}
-                  options={serviceDescriptions.map(desc => ({ value: desc, label: desc }))}
-                  value={selectedServiceDescription ? { value: selectedServiceDescription, label: selectedServiceDescription } : null}
-                  onChange={(option) => {
-                    setSelectedServiceDescription(option?.value || "");
-                    setSelectedServiceCode("");
-                    if (option?.value) {
-                      handleServiceDescriptionChange(option.value);
-                    }
-                  }}
-                  placeholder="Select Service Description"
-                  isSearchable
-                  isDisabled={!selectedState}
-                  className={`react-select-container ${!selectedState ? 'opacity-50' : ''}`}
-                  classNamePrefix="react-select"
-                />
-                {selectedServiceDescription && (
-                  <ClearButton onClick={() => {
-                    setSelectedServiceDescription("");
-                    handleServiceDescriptionChange("");
-                  }} />
-                )}
-              </div>
-            )}
+            {/* Service Description Selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Service Description</label>
+              <Select
+                instanceId={serviceDescriptionId}
+                options={serviceDescriptions.map(desc => ({ value: desc, label: desc }))}
+                value={selectedServiceDescription ? { value: selectedServiceDescription, label: selectedServiceDescription } : null}
+                onChange={(option) => {
+                  setSelectedServiceDescription(option?.value || "");
+                  setSelectedServiceCode("");
+                  if (option?.value) {
+                    handleServiceDescriptionChange(option.value);
+                  }
+                }}
+                placeholder="Select Service Description"
+                isSearchable
+                isDisabled={!selectedState}
+                className={`react-select-container ${!selectedState ? 'opacity-50' : ''}`}
+                classNamePrefix="react-select"
+              />
+              {selectedServiceDescription && (
+                <ClearButton onClick={() => {
+                  setSelectedServiceDescription("");
+                  handleServiceDescriptionChange("");
+                }} />
+              )}
+            </div>
 
-            {hasProgramData && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Program</label>
-                <Select
-                  instanceId={programId}
-                  options={programs.map(program => ({ value: program, label: program }))}
-                  value={selectedProgram ? { value: selectedProgram, label: selectedProgram } : null}
-                  onChange={(option) => setSelectedProgram(option?.value || "")}
-                  placeholder="Select Program"
-                  isSearchable
-                  isDisabled={!selectedServiceCode && !selectedServiceDescription}
-                  className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
-                  classNamePrefix="react-select"
-                />
-                {selectedProgram && (
-                  <ClearButton onClick={() => setSelectedProgram("")} />
-                )}
-              </div>
-            )}
+            {/* Program Selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Program</label>
+              <Select
+                instanceId={programId}
+                options={programs.map(program => ({ value: program, label: program }))}
+                value={selectedProgram ? { value: selectedProgram, label: selectedProgram } : null}
+                onChange={(option) => setSelectedProgram(option?.value || "")}
+                placeholder="Select Program"
+                isSearchable
+                isDisabled={!selectedServiceCode && !selectedServiceDescription}
+                className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                classNamePrefix="react-select"
+              />
+              {selectedProgram && (
+                <ClearButton onClick={() => setSelectedProgram("")} />
+              )}
+            </div>
 
-            {hasLocationRegionData && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Location/Region</label>
-                <Select
-                  instanceId={locationRegionId}
-                  options={locationRegions.map(region => ({ value: region, label: region }))}
-                  value={selectedLocationRegion ? { value: selectedLocationRegion, label: selectedLocationRegion } : null}
-                  onChange={(option) => setSelectedLocationRegion(option?.value || "")}
-                  placeholder="Select Location/Region"
-                  isSearchable
-                  isDisabled={!selectedServiceCode && !selectedServiceDescription}
-                  className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
-                  classNamePrefix="react-select"
-                />
-                {selectedLocationRegion && (
-                  <ClearButton onClick={() => setSelectedLocationRegion("")} />
-                )}
-              </div>
-            )}
+            {/* Location/Region Selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Location/Region</label>
+              <Select
+                instanceId={locationRegionId}
+                options={locationRegions.map(region => ({ value: region, label: region }))}
+                value={selectedLocationRegion ? { value: selectedLocationRegion, label: selectedLocationRegion } : null}
+                onChange={(option) => setSelectedLocationRegion(option?.value || "")}
+                placeholder="Select Location/Region"
+                isSearchable
+                isDisabled={!selectedServiceCode && !selectedServiceDescription}
+                className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                classNamePrefix="react-select"
+              />
+              {selectedLocationRegion && (
+                <ClearButton onClick={() => setSelectedLocationRegion("")} />
+              )}
+            </div>
 
-            {hasModifierData && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Modifier</label>
-                <Select
-                  instanceId={modifierId}
-                  options={modifiers}
-                  value={modifiers.filter(option => selectedModifiers.includes(option.value))}
-                  onChange={handleModifierChange}
-                  placeholder="Select Modifier(s)"
-                  isSearchable
-                  isMulti
-                  isDisabled={!selectedServiceCode && !selectedServiceDescription}
-                  className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
-                  classNamePrefix="react-select"
-                />
-                {selectedModifiers.length > 0 && (
-                  <ClearButton onClick={() => setSelectedModifiers([])} />
-                )}
-              </div>
-            )}
-
-            {hasProviderTypeData && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Provider Type</label>
-                <Select
-                  options={providerTypes.map(type => ({ value: type, label: type }))}
-                  value={selectedProviderType ? { value: selectedProviderType, label: selectedProviderType } : null}
-                  onChange={(option) => setSelectedProviderType(option?.value || "")}
-                  placeholder="Select Provider Type"
-                  isSearchable
-                  isDisabled={!selectedServiceCode && !selectedServiceDescription}
-                  className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
-                  classNamePrefix="react-select"
-                />
-                {selectedProviderType && (
-                  <ClearButton onClick={() => setSelectedProviderType("")} />
-                )}
-              </div>
-            )}
+            {/* Modifier Selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Modifier</label>
+              <Select
+                instanceId={modifierId}
+                options={modifiers}
+                value={selectedModifier ? { value: selectedModifier, label: selectedModifier } : null}
+                onChange={(option) => setSelectedModifier(option?.value || "")}
+                placeholder="Select Modifier"
+                isSearchable
+                isDisabled={!selectedServiceCode && !selectedServiceDescription}
+                className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                classNamePrefix="react-select"
+              />
+              {selectedModifier && (
+                <ClearButton onClick={() => setSelectedModifier("")} />
+              )}
+            </div>
           </div>
         </div>
-
-        {/* Display the comment */}
-        {comment && (
-          <div className="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-200">
-            <p className="text-sm text-blue-700">
-              <strong>Comment:</strong> {comment}
-            </p>
-          </div>
-        )}
 
         {/* Sorting Instructions - Show above table when filters aren't applied */}
         {!loading && !areFiltersApplied && (
@@ -1538,10 +1113,10 @@ export default function Dashboard() {
               <FaFilter className="h-8 w-8 text-blue-500" />
             </div>
             <p className="text-lg font-medium text-gray-700 mb-2">
-              Please select a Service Line and State to view dashboard data
+              Please select a state to view dashboard data
             </p>
             <p className="text-sm text-gray-500">
-              Choose both filters to see the dashboard information
+              Choose a state to see the dashboard information
             </p>
           </div>
         )}

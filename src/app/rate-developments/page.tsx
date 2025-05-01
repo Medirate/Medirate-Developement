@@ -18,7 +18,7 @@ interface Alert {
   subject: string;
   announcement_date: string;
   state?: string | null;
-  links?: string | null;
+  link?: string | null;
   service_lines_impacted?: string | null;
   service_lines_impacted_1?: string | null;
   service_lines_impacted_2?: string | null;
@@ -586,7 +586,7 @@ export default function RateDevelopments() {
                         {alert.state || ""}
                       </td>
                       <td className="p-4 text-sm text-gray-700 border-b">
-                        {alert.announcement_date ? new Date(alert.announcement_date).toLocaleDateString() : ""}
+                        {alert.announcement_date || ""}
                       </td>
                       <td className="p-4 text-sm text-gray-700 border-b">
                         <div className="flex items-center">
@@ -601,9 +601,9 @@ export default function RateDevelopments() {
                           >
                             {alert.subject || ""}
                           </span>
-                          {alert.links && (
+                          {alert.link && (
                             <a
-                              href={alert.links}
+                              href={alert.link}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="ml-2 text-blue-500 hover:underline"
@@ -751,7 +751,7 @@ export default function RateDevelopments() {
                         {alert.state || ""}
                       </td>
                       <td className="p-4 text-sm text-gray-700 border-b">
-                        {alert.announcement_date ? new Date(alert.announcement_date).toLocaleDateString() : ""}
+                        {alert.announcement_date || ""}
                       </td>
                       <td className="p-4 text-sm text-gray-700 border-b">
                         <div className="flex items-center">
@@ -766,9 +766,9 @@ export default function RateDevelopments() {
                           >
                             {alert.subject || ""}
                           </span>
-                          {alert.links && (
+                          {alert.link && (
                             <a
-                              href={alert.links}
+                              href={alert.link}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="ml-2 text-blue-500 hover:underline"
