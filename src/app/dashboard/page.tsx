@@ -216,6 +216,12 @@ export default function Dashboard() {
   const [selectedFeeScheduleDate, setSelectedFeeScheduleDate] = useState("");
   const [feeScheduleDates, setFeeScheduleDates] = useState<string[]>([]);
 
+  // Add new state for selected provider type
+  const [selectedProviderType, setSelectedProviderType] = useState("");
+
+  // Add provider types state
+  const [providerTypes, setProviderTypes] = useState<string[]>([]);
+
   // Move the parseDate function here, before filteredData
   const parseDate = (dateString: string | null) => {
     if (!dateString) return null; // Skip null or undefined dates
@@ -290,6 +296,8 @@ export default function Dashboard() {
         if (!hasModifier) return false;
       }
 
+      if (selectedProviderType && item.provider_type !== selectedProviderType) return false;
+
       return true;
     });
   }, [
@@ -303,7 +311,8 @@ export default function Dashboard() {
     selectedProgram,
     selectedLocationRegion,
     selectedModifier,
-    selectedFeeScheduleDate
+    selectedFeeScheduleDate,
+    selectedProviderType
   ]);
 
   // Update the sortConfig state initialization
@@ -465,6 +474,12 @@ export default function Dashboard() {
       .map((item) => item.state_name?.trim().toUpperCase())
       .filter((state): state is string => !!state);
     setStates([...new Set(states)].sort((a, b) => a.localeCompare(b)));
+
+    // Get provider types
+    const types = data
+      .map((item) => item.provider_type?.trim())
+      .filter((type): type is string => !!type);
+    setProviderTypes([...new Set(types)].sort((a, b) => a.localeCompare(b)));
   };
 
   const toggleDropdown = (dropdownSetter: React.Dispatch<React.SetStateAction<boolean>>, otherSetters: React.Dispatch<React.SetStateAction<boolean>>[]) => {
@@ -682,7 +697,8 @@ export default function Dashboard() {
       duration_unit: false,
       rate: false,
       rate_per_hour: false,
-      rate_effective_date: false
+      rate_effective_date: false,
+      provider_type: false
     };
 
     if (filteredData.length > 0) {
@@ -1076,6 +1092,30 @@ export default function Dashboard() {
                 <ClearButton onClick={() => setSelectedModifier("")} />
               )}
             </div>
+
+            {/* Provider Type Selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Provider Type</label>
+              <Select
+                instanceId="providerTypeId"
+                options={providerTypes.map(type => ({ value: type, label: type }))}
+                value={selectedProviderType ? { value: selectedProviderType, label: selectedProviderType } : null}
+                onChange={(option) => setSelectedProviderType(option?.value || "")}
+                placeholder="Select Provider Type"
+                isSearchable
+                isDisabled={!selectedServiceCode && !selectedServiceDescription}
+                className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                classNamePrefix="react-select"
+              />
+              {selectedProviderType && (
+                <button
+                  onClick={() => setSelectedProviderType("")}
+                  className="text-xs text-blue-500 hover:underline mt-1"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1260,6 +1300,11 @@ export default function Dashboard() {
                       <SortIndicator sortKey="location_region" />
                     </th>
                   )}
+                  {getVisibleColumns.provider_type && (
+                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                      Provider Type
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -1340,6 +1385,11 @@ export default function Dashboard() {
                     )}
                     {getVisibleColumns.location_region && (
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.location_region)}</td>
+                    )}
+                    {getVisibleColumns.provider_type && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatText(item.provider_type)}
+                      </td>
                     )}
                   </tr>
                 ))}
