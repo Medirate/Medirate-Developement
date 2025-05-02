@@ -283,7 +283,7 @@ const getAlertServiceLines = (alert: Alert) => {
     .join(", ");
 };
 
-// Add state for sorting
+// Add this new state for bill progress filter
 export default function RateDevelopments() {
   const router = useRouter();
 
@@ -295,6 +295,8 @@ export default function RateDevelopments() {
 
   const [selectedState, setSelectedState] = useState<string>("");
   const [selectedServiceLine, setSelectedServiceLine] = useState<string>("");
+
+  const [selectedBillProgress, setSelectedBillProgress] = useState<string>("");
 
   const [layout, setLayout] = useState<"vertical" | "horizontal">("horizontal");
   const [activeTable, setActiveTable] = useState<"provider" | "legislative">("provider");
@@ -395,6 +397,7 @@ export default function RateDevelopments() {
     return matchesSearch && matchesState && matchesServiceLine;
   });
 
+  // Update the filteredLegislativeUpdates logic to include bill progress filter
   const filteredLegislativeUpdates = sortedLegislativeUpdates.filter((bill) => {
     const matchesSearch = !legislativeSearch || searchInFields(legislativeSearch, [
       bill.name,
@@ -413,7 +416,10 @@ export default function RateDevelopments() {
         bill.service_lines_impacted_2
       ].some(line => line?.includes(selectedServiceLine));
 
-    return matchesSearch && matchesState && matchesServiceLine;
+    const matchesBillProgress = !selectedBillProgress || 
+      bill.bill_progress?.includes(selectedBillProgress);
+
+    return matchesSearch && matchesState && matchesServiceLine && matchesBillProgress;
   });
 
   const getServiceLines = (bill: Bill) => {
@@ -489,6 +495,26 @@ export default function RateDevelopments() {
                 placeholder="All Service Lines"
               />
             </div>
+
+            {/* Add this new dropdown for bill progress */}
+            {activeTable === "legislative" && (
+              <div className="flex-1 min-w-0">
+                <CustomDropdown
+                  value={selectedBillProgress}
+                  onChange={setSelectedBillProgress}
+                  options={[
+                    { value: "", label: "All Bill Progress" },
+                    { value: "Introduced", label: "Introduced" },
+                    { value: "In Committee", label: "In Committee" },
+                    { value: "Passed", label: "Passed" },
+                    { value: "Failed", label: "Failed" },
+                    { value: "Vetoed", label: "Vetoed" },
+                    { value: "Enacted", label: "Enacted" }
+                  ]}
+                  placeholder="All Bill Progress"
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
