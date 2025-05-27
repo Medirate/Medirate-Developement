@@ -11,7 +11,7 @@ export default function Home() {
       <div className="relative w-full h-screen">
         {/* Background Image */}
         <Image
-          src="/images/doc looking at screen.jpg"
+          src="/images/Lady looking at screens.png"
           alt="Lady Looking at Screen"
           layout="fill"
           objectFit="cover"

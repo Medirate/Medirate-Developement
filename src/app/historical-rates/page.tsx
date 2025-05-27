@@ -943,6 +943,8 @@ export default function HistoricalRates() {
                       {getVisibleColumns.location_region && (
                         <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Location/Region</th>
                       )}
+                      {/* Add Provider Type Column */}
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Provider Type</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -1068,6 +1070,10 @@ export default function HistoricalRates() {
                               {formatText(item.location_region)}
                             </td>
                           )}
+                          {/* Add Provider Type Column */}
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {formatText(item.provider_type)}
+                          </td>
                         </tr>
                       );
                     })}

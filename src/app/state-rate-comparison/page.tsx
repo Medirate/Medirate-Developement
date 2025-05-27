@@ -377,7 +377,12 @@ export default function StatePaymentComparison() {
       const filteredDataForSet = latestRates.filter((item) => (
         item.service_category === filterSet.serviceCategory &&
         filterSet.states.includes(item.state_name?.toUpperCase()) &&
-        item.service_code === filterSet.serviceCode
+        item.service_code === filterSet.serviceCode &&
+        (!selectedProgram || item.program === selectedProgram) &&
+        (!selectedLocationRegion || item.location_region === selectedLocationRegion) &&
+        (!selectedModifier || [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].includes(selectedModifier)) &&
+        (!selectedServiceDescription || item.service_description === selectedServiceDescription) &&
+        (!selectedProviderType || item.provider_type === selectedProviderType)
       ));
 
       // If "All States" is selected, calculate the average rate for each state
@@ -1455,129 +1460,129 @@ export default function StatePaymentComparison() {
                   
                   return (
                     <div key={state} className="mb-8 p-6 bg-white rounded-xl shadow-lg">
-                      <h2 className="text-xl font-semibold mb-4 text-gray-800">{state}</h2>
+                      <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-semibold text-gray-800">{state}</h2>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => {
+                              // Select all rows for this state
+                              const allModifierKeys = stateData.map(item => 
+                                `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}|${item.program}|${item.location_region}`
+                              );
+                              setSelectedTableRows(prev => ({
+                                ...prev,
+                                [state]: allModifierKeys
+                              }));
+                            }}
+                            className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center space-x-1"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                            <span>Select All</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              // Deselect all rows for this state
+                              setSelectedTableRows(prev => ({
+                                ...prev,
+                                [state]: []
+                              }));
+                            }}
+                            className="px-3 py-1.5 text-sm bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors flex items-center space-x-1"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                            <span>Deselect All</span>
+                          </button>
+                        </div>
+                      </div>
                       <p className="text-sm text-gray-500 mb-4">
                         <strong>Note:</strong> The rates displayed are the current rates as of the latest available data. Rates are subject to change based on updates from state programs.
                       </p>
-                      {tableLoading ? (
-                        <div className="flex justify-center items-center h-32">
-                          <FaSpinner className="animate-spin h-8 w-8 text-blue-500" />
-                          <p className="ml-4 text-gray-600">Loading table data...</p>
-                        </div>
-                      ) : (
-                        <div className="overflow-x-auto rounded-lg" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                          <table className="min-w-full bg-white" style={{ tableLayout: 'fixed' }}>
-                            <colgroup>
-                              <col style={{ width: '50px' }} />
-                              {getVisibleColumns.service_category && <col style={{ width: '150px' }} />}
-                              {getVisibleColumns.service_code && <col style={{ width: '100px' }} />}
-                              {getVisibleColumns.service_description && <col style={{ width: '200px' }} />}
-                              {getVisibleColumns.program && <col style={{ width: '120px' }} />}
-                              {getVisibleColumns.location_region && <col style={{ width: '150px' }} />}
-                              {getVisibleColumns.modifier_1 && <col style={{ width: '150px' }} />}
-                              {getVisibleColumns.modifier_2 && <col style={{ width: '150px' }} />}
-                              {getVisibleColumns.modifier_3 && <col style={{ width: '150px' }} />}
-                              {getVisibleColumns.modifier_4 && <col style={{ width: '100px' }} />}
-                              {getVisibleColumns.duration_unit && <col style={{ width: '100px' }} />}
-                              {getVisibleColumns.rate && (
-                                <col style={{ width: '100px' }} />
-                              )}
-                              {getVisibleColumns.rate_per_hour && <col style={{ width: '120px' }} />}
-                            </colgroup>
-                            <thead className="bg-gray-50 sticky top-0">
+                      {stateData.length > 0 && (
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
                               <tr>
-                                <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Select</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Select
+                                </th>
                                 {getVisibleColumns.service_category && (
-                                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Category</th>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service Category</th>
                                 )}
                                 {getVisibleColumns.service_code && (
-                                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Code</th>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service Code</th>
                                 )}
                                 {getVisibleColumns.service_description && (
-                                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Description</th>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service Description</th>
                                 )}
                                 {getVisibleColumns.program && (
-                                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Program</th>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Program</th>
                                 )}
                                 {getVisibleColumns.location_region && (
-                                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Location Region</th>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location Region</th>
                                 )}
                                 {getVisibleColumns.modifier_1 && (
-                                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 1</th>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modifier 1</th>
                                 )}
                                 {getVisibleColumns.modifier_2 && (
-                                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 2</th>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modifier 2</th>
                                 )}
                                 {getVisibleColumns.modifier_3 && (
-                                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
                                 )}
                                 {getVisibleColumns.modifier_4 && (
-                                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
                                 )}
                                 {getVisibleColumns.duration_unit && (
-                                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Duration Unit</th>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration Unit</th>
                                 )}
                                 {getVisibleColumns.rate && (
-                                  <th 
-                                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
-                                    onClick={(e) => handleSort('rate', e)}
-                                  >
-                                    Rate per Base Unit <SortIndicator sortKey="rate" />
-                                  </th>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
                                 )}
                                 {getVisibleColumns.rate_per_hour && (
-                                  <th 
-                                    className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider sortable"
-                                    onClick={(e) => handleSort('rate_per_hour', e)}
-                                  >
-                                    Hourly Equivalent Rate <SortIndicator sortKey="rate_per_hour" />
-                                  </th>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hourly Equivalent Rate</th>
                                 )}
+                                {/* Add Provider Type Column */}
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider Type</th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200">
+                            <tbody className="bg-white divide-y divide-gray-200">
                               {stateData.map((item, index) => {
                                 const currentModifierKey = `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}|${item.program}|${item.location_region}`;
                                 const isSelected = selectedModifierKeys.includes(currentModifierKey);
                                 
-                                // Safely handle null or undefined rate
-                                const rateValue = parseFloat((item.rate || '').replace('$', '') || '0');
-                                const durationUnit = item.duration_unit?.toUpperCase();
-                                const hourlyRate = durationUnit === '15 MINUTES' ? rateValue * 4 : rateValue;
-
                                 return (
-                                  <tr 
-                                    key={index} 
-                                    onClick={() => handleTableRowSelection(state, item)}
-                                    className={`${
-                                      selectedTableRows[state]?.includes(currentModifierKey)
-                                        ? 'bg-blue-50 cursor-pointer'
-                                        : 'hover:bg-gray-50 cursor-pointer'
-                                    } transition-colors`}
-                                  >
+                                  <tr key={index} className="hover:bg-gray-50">
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                      <div className="flex items-center">
-                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                                          selectedTableRows[state]?.includes(currentModifierKey)
-                                            ? 'border-blue-500 bg-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.2)]' 
-                                            : 'border-gray-300 hover:border-gray-400'
-                                        }`}>
-                                          {selectedTableRows[state]?.includes(currentModifierKey) && (
-                                            <svg 
-                                              className="w-3 h-3 text-white" 
-                                              fill="none" 
-                                              stroke="currentColor" 
-                                              viewBox="0 0 24 24"
-                                            >
-                                              <path 
-                                                strokeLinecap="round" 
-                                                strokeLinejoin="round" 
-                                                strokeWidth={2} 
-                                                d="M5 13l4 4L19 7" 
-                                              />
+                                      <div className="flex items-center space-x-2">
+                                        {isSelected && (
+                                          <button
+                                            onClick={() => handleTableRowSelection(state, item)}
+                                            className="text-gray-400 hover:text-red-500 transition-colors"
+                                            title="Deselect"
+                                          >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                            </svg>
+                                          </button>
+                                        )}
+                                        <button
+                                          onClick={() => handleTableRowSelection(state, item)}
+                                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                                            isSelected 
+                                              ? 'bg-blue-500 border-blue-500 text-white' 
+                                              : 'border-gray-300 hover:border-blue-500'
+                                          }`}
+                                        >
+                                          {isSelected && (
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                             </svg>
                                           )}
-                                        </div>
+                                        </button>
                                       </div>
                                     </td>
                                     {getVisibleColumns.service_category && (
@@ -1658,6 +1663,10 @@ export default function StatePaymentComparison() {
                                         })()}
                                       </td>
                                     )}
+                                    {/* Add Provider Type Column */}
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                      {formatText(item.provider_type)}
+                                    </td>
                                   </tr>
                                 );
                               })}

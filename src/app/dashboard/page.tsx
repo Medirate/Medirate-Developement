@@ -59,9 +59,12 @@ export default function Dashboard() {
   const [isSubscriptionCheckComplete, setIsSubscriptionCheckComplete] = useState(false);
 
   useEffect(() => {
+    console.log('Auth State:', { isLoading, isAuthenticated, userEmail: user?.email });
     if (!isLoading && !isAuthenticated) {
+      console.log('❌ Not authenticated, redirecting to login');
       router.push("/api/auth/login");
     } else if (isAuthenticated) {
+      console.log('✅ Authenticated, checking subscription');
       checkSubscriptionAndSubUser();
     }
   }, [isAuthenticated, isLoading, router]);
@@ -69,10 +72,16 @@ export default function Dashboard() {
   const checkSubscriptionAndSubUser = async () => {
     const userEmail = user?.email ?? "";
     const kindeUserId = user?.id ?? "";
-    if (!userEmail || !kindeUserId) return;
+    console.log('🔍 Checking subscription for:', { userEmail, kindeUserId });
+    
+    if (!userEmail || !kindeUserId) {
+      console.log('❌ Missing user email or ID');
+      return;
+    }
 
     try {
       // Check if the user is a sub-user
+      console.log('🔍 Checking if user is a sub-user...');
       const { data: subUserData, error: subUserError } = await supabase
         .from("subscription_users")
         .select("sub_users")
@@ -84,7 +93,10 @@ export default function Dashboard() {
         return;
       }
 
+      console.log('📊 Sub-user check result:', { subUserData });
+
       if (subUserData && subUserData.length > 0) {
+        console.log('✅ User is a sub-user, checking User table...');
         // Check if the user already exists in the User table
         const { data: existingUser, error: fetchError } = await supabase
           .from("User")
@@ -97,7 +109,10 @@ export default function Dashboard() {
           return;
         }
 
+        console.log('📊 Existing user check result:', { existingUser });
+
         if (existingUser) {
+          console.log('🔄 Updating existing user role to sub-user...');
           // User exists, update their role to "sub-user"
           const { error: updateError } = await supabase
             .from("User")
@@ -110,6 +125,7 @@ export default function Dashboard() {
             console.log("✅ User role updated to sub-user:", userEmail);
           }
         } else {
+          console.log('➕ Inserting new sub-user...');
           // User does not exist, insert them as a sub-user
           const { error: insertError } = await supabase
             .from("User")
@@ -128,11 +144,13 @@ export default function Dashboard() {
         }
 
         // Allow sub-user to access the dashboard
+        console.log('✅ Sub-user access granted');
         setIsSubscriptionCheckComplete(true);
         return;
       }
 
       // If not a sub-user, check for an active subscription
+      console.log('🔍 Checking for active subscription...');
       const response = await fetch("/api/stripe/subscription", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -140,13 +158,18 @@ export default function Dashboard() {
       });
 
       const data = await response.json();
-      if (data.error || !data.status || data.status !== "active") {
+      console.log('📊 Subscription check result:', data);
+
+      if (data.error || data.status === 'no_customer' || data.status === 'no_subscription' || data.status === 'no_items') {
+        console.log('❌ No active subscription, redirecting to subscribe page');
         router.push("/subscribe");
       } else {
+        console.log('✅ Active subscription found');
         setIsSubscriptionCheckComplete(true);
       }
     } catch (error) {
-      console.error("Error checking subscription or sub-user:", error);
+      console.error("❌ Error in subscription check:", error);
+      console.log('❌ Redirecting to subscribe page due to error');
       router.push("/subscribe");
     }
   };
@@ -499,8 +522,11 @@ export default function Dashboard() {
     setSelectedModifier("");
     setFilterStep(2);
 
+    // Ensure data is an array, fallback to an empty array if it's not
+    const safeData = Array.isArray(data) ? data : [];
+
     // Filter data based on selected category
-    const filteredData = data.filter(item => item.service_category === category);
+    const filteredData = safeData.filter(item => item.service_category === category);
     
     // Update all filter options based on filtered data
     setStates([...new Set(filteredData
@@ -1301,8 +1327,12 @@ export default function Dashboard() {
                     </th>
                   )}
                   {getVisibleColumns.provider_type && (
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('provider_type', e)}
+                    >
                       Provider Type
+                      <SortIndicator sortKey="provider_type" />
                     </th>
                   )}
                 </tr>
@@ -1352,11 +1382,11 @@ export default function Dashboard() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {item.rate_effective_date ? (() => {
                           const parsedDate = parseDate(item.rate_effective_date);
-                          if (!parsedDate) return '-'; // Handle null case
+                          if (!parsedDate) return '-';
                           const month = String(parsedDate.getUTCMonth() + 1).padStart(2, '0');
                           const day = String(parsedDate.getUTCDate()).padStart(2, '0');
                           const year = parsedDate.getUTCFullYear();
-                          return `${month}/${day}/${year}`; // Format as mm/dd/yyyy
+                          return `${month}/${day}/${year}`;
                         })() : '-'}
                       </td>
                     )}

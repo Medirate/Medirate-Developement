@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     const customers = await stripe.customers.list({ email });
 
     if (!customers.data.length) {
-      return NextResponse.json({ error: "No customer found with this email." }, { status: 404 });
+      return NextResponse.json({ status: "no_customer" }, { status: 200 });
     }
 
     const customer = customers.data[0];
@@ -33,14 +33,14 @@ export async function POST(req: Request) {
     });
 
     if (!subscriptions.data.length) {
-      return NextResponse.json({ error: "No active subscriptions found." }, { status: 404 });
+      return NextResponse.json({ status: "no_subscription" }, { status: 200 });
     }
 
     // Extract subscription details safely
     const subscription = subscriptions.data[0];
 
     if (!subscription.items?.data || subscription.items.data.length === 0) {
-      return NextResponse.json({ error: "No subscription items found." }, { status: 404 });
+      return NextResponse.json({ status: "no_items" }, { status: 200 });
     }
 
     // Get product details
