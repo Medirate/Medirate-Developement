@@ -974,7 +974,7 @@ export default function Dashboard() {
               <label className="text-sm font-medium text-gray-700">Service Line</label>
               <Select
                 instanceId={serviceCategoryId}
-                options={[{ value: "APPLIED BEHAVIORAL ANALYSIS (ABA)", label: "APPLIED BEHAVIORAL ANALYSIS (ABA)" }]}
+                options={serviceCategories.map(category => ({ value: category, label: category }))}
                 value={selectedServiceCategory ? { value: selectedServiceCategory, label: selectedServiceCategory } : null}
                 onChange={(option) => handleServiceCategoryChange(option?.value || "")}
                 placeholder="Select Service Line"
