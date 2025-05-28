@@ -484,7 +484,7 @@ export default function HistoricalRates() {
 
     if (selectedServiceCategory) {
       const filteredData = data.filter(
-        (item) =>
+          (item) =>
           item.state_name?.trim().toUpperCase() === state.trim().toUpperCase() &&
           item.service_category?.trim().toUpperCase() === selectedServiceCategory.trim().toUpperCase()
       );
