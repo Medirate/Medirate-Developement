@@ -94,10 +94,19 @@ export default function HistoricalRates() {
   const filteredData = useMemo(() => {
     if (!selectedServiceCategory || !selectedState || !selectedServiceCode) return [];
 
-    return data.filter(item => {
-      if (selectedServiceCategory && item.service_category !== selectedServiceCategory) return false;
-      if (selectedState && item.state_name !== selectedState) return false;
-      if (selectedServiceCode && item.service_code !== selectedServiceCode) return false;
+    const result = data.filter(item => {
+      if (
+        selectedServiceCategory &&
+        item.service_category?.trim().toUpperCase() !== selectedServiceCategory.trim().toUpperCase()
+      ) return false;
+      if (
+        selectedState &&
+        item.state_name?.trim().toUpperCase() !== selectedState.trim().toUpperCase()
+      ) return false;
+      if (
+        selectedServiceCode &&
+        item.service_code?.trim().toUpperCase() !== selectedServiceCode.trim().toUpperCase()
+      ) return false;
       if (selectedProgram && item.program !== selectedProgram) return false;
       if (selectedLocationRegion && item.location_region !== selectedLocationRegion) return false;
       if (selectedModifier) {
@@ -113,6 +122,8 @@ export default function HistoricalRates() {
 
       return true;
     });
+    console.log('Final filteredData for table:', result.length, result.slice(0, 3));
+    return result;
   }, [
     data,
     selectedServiceCategory,
@@ -383,16 +394,19 @@ export default function HistoricalRates() {
 
     console.log('Filtered data items for category:', filteredData.length);
     console.log('Sample of filtered items:', filteredData.slice(0, 3));
-    
+    if (filteredData.length === 0) {
+      console.warn('No data found for selected category:', category);
+    }
+
     // Update all filter options based on filtered data
     const uniqueStates = [...new Set(filteredData
       .map(item => item.state_name?.trim().toUpperCase())
       .filter((state): state is string => !!state)
     )].sort((a, b) => a.localeCompare(b));
-    
+
     console.log('Unique states found for category:', uniqueStates);
     setStates(uniqueStates);
-    
+
     // Update service codes
     const codes = filteredData
       .map(item => item.service_code?.trim())
@@ -488,11 +502,18 @@ export default function HistoricalRates() {
           item.state_name?.trim().toUpperCase() === state.trim().toUpperCase() &&
           item.service_category?.trim().toUpperCase() === selectedServiceCategory.trim().toUpperCase()
       );
+      console.log('Filtered data for state/category:', filteredData.length, { state, selectedServiceCategory });
+      if (filteredData.length === 0) {
+        console.warn('No data found for selected state/category:', { state, selectedServiceCategory });
+      } else {
+        console.log('Sample filtered data for state/category:', filteredData.slice(0, 3));
+      }
 
       // Update service codes
       const codes = filteredData
         .map(item => item.service_code?.trim())
         .filter((code): code is string => !!code);
+      console.log('Service codes found for state/category:', codes);
       setServiceCodes([...new Set(codes)].sort((a, b) => a.localeCompare(b)));
 
       // Update service descriptions

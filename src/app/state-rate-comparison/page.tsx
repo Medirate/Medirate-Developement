@@ -363,21 +363,6 @@ export default function StatePaymentComparison() {
       item.state_name?.trim().toUpperCase() === filterSets[index].states[0].trim().toUpperCase()
     );
 
-    // Get all service codes for this state and category
-    const serviceCodes = [...new Set(stateCategoryData
-      .map(item => item.service_code?.trim())
-      .filter((code): code is string => !!code)
-    )].sort((a, b) => a.localeCompare(b));
-
-    console.log('Available service codes:', {
-      total: serviceCodes.length,
-      codes: serviceCodes
-    });
-
-    // Update service codes list
-    newFilters[index].serviceCodeOptions = serviceCodes;
-    setFilterSets(newFilters);
-
     // Get filtered data for selected code
     const filteredData = stateCategoryData.filter(item => 
       item.service_code?.trim() === code.trim()
@@ -387,6 +372,80 @@ export default function StatePaymentComparison() {
       code,
       totalItems: filteredData.length,
       sampleItems: filteredData.slice(0, 3)
+    });
+
+    // Update programs
+    const programs = [...new Set(filteredData
+      .map(item => item.program?.trim())
+      .filter((program): program is string => !!program)
+    )].sort((a, b) => a.localeCompare(b));
+    setPrograms(programs);
+
+    // Update location regions
+    const regions = [...new Set(filteredData
+      .map(item => item.location_region?.trim())
+      .filter((region): region is string => !!region)
+    )].sort((a, b) => a.localeCompare(b));
+    setLocationRegions(regions);
+
+    // Update provider types
+    const types = [...new Set(filteredData
+      .map(item => item.provider_type?.trim())
+      .filter((type): type is string => !!type)
+    )].sort((a, b) => a.localeCompare(b));
+    setProviderTypes(types);
+    
+    // Update modifiers
+    const allModifiers = filteredData.flatMap(item => {
+      const modifiers = [];
+      if (item.modifier_1) {
+        modifiers.push({
+          value: item.modifier_1.trim(),
+          details: item.modifier_1_details?.trim() || '',
+          fullText: `${item.modifier_1.trim()}${item.modifier_1_details ? ` - ${item.modifier_1_details.trim()}` : ''}`
+        });
+      }
+      if (item.modifier_2) {
+        modifiers.push({
+          value: item.modifier_2.trim(),
+          details: item.modifier_2_details?.trim() || '',
+          fullText: `${item.modifier_2.trim()}${item.modifier_2_details ? ` - ${item.modifier_2_details.trim()}` : ''}`
+        });
+      }
+      if (item.modifier_3) {
+        modifiers.push({
+          value: item.modifier_3.trim(),
+          details: item.modifier_3_details?.trim() || '',
+          fullText: `${item.modifier_3.trim()}${item.modifier_3_details ? ` - ${item.modifier_3_details.trim()}` : ''}`
+        });
+      }
+      if (item.modifier_4) {
+        modifiers.push({
+          value: item.modifier_4.trim(),
+          details: item.modifier_4_details?.trim() || '',
+          fullText: `${item.modifier_4.trim()}${item.modifier_4_details ? ` - ${item.modifier_4_details.trim()}` : ''}`
+        });
+      }
+      return modifiers;
+    });
+
+    const uniqueModifiers = [...new Set(allModifiers.map(mod => mod.fullText))].map(fullText => {
+      const mod = allModifiers.find(m => m.fullText === fullText);
+      return {
+        value: fullText,
+        label: fullText,
+        details: mod?.details || ''
+      };
+    });
+
+    setModifiers(uniqueModifiers);
+
+    // Log available options for debugging
+    console.log('Available options after service code selection:', {
+      programs: programs.length,
+      regions: regions.length,
+      types: types.length,
+      modifiers: uniqueModifiers.length
     });
   };
 
@@ -1184,10 +1243,10 @@ export default function StatePaymentComparison() {
                           instanceId={`state-select-${index}`}
                           options={[
                             ...(index === 0 ? [{ value: "ALL_STATES", label: "All States" }] : []),
-                            ...states.map(state => ({ value: state, label: state }))
+                            ...filterSet.stateOptions
                           ]}
                           value={
-                            filterSet.states.length === states.length && index === 0
+                            filterSet.states.length === filterSet.stateOptions.length && index === 0
                               ? { value: "ALL_STATES", label: "All States" }
                               : filterSet.states.length > 0
                                 ? { value: filterSet.states[0], label: filterSet.states[0] }
@@ -1246,16 +1305,23 @@ export default function StatePaymentComparison() {
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Program</label>
                         <Select
+                          instanceId={`program-select-${index}`}
                           options={programs.map(program => ({ value: program, label: program }))}
                           value={selectedProgram ? { value: selectedProgram, label: selectedProgram } : null}
                           onChange={(option) => setSelectedProgram(option?.value || "")}
                           placeholder="Select Program"
                           isSearchable
-                          isDisabled={!selectedServiceCode}
+                          isDisabled={programs.length === 0}
+                          className={`react-select-container ${programs.length === 0 ? 'opacity-50' : ''}`}
                           classNamePrefix="react-select"
                         />
                         {selectedProgram && (
-                          <button onClick={() => setSelectedProgram("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                          <button
+                            onClick={() => setSelectedProgram("")}
+                            className="text-xs text-blue-500 hover:underline mt-1"
+                          >
+                            Clear
+                          </button>
                         )}
                       </div>
                     )}
@@ -1265,16 +1331,23 @@ export default function StatePaymentComparison() {
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Location/Region</label>
                         <Select
+                          instanceId={`location-region-select-${index}`}
                           options={locationRegions.map(region => ({ value: region, label: region }))}
                           value={selectedLocationRegion ? { value: selectedLocationRegion, label: selectedLocationRegion } : null}
                           onChange={(option) => setSelectedLocationRegion(option?.value || "")}
                           placeholder="Select Location/Region"
                           isSearchable
-                          isDisabled={!selectedServiceCode}
+                          isDisabled={locationRegions.length === 0}
+                          className={`react-select-container ${locationRegions.length === 0 ? 'opacity-50' : ''}`}
                           classNamePrefix="react-select"
                         />
                         {selectedLocationRegion && (
-                          <button onClick={() => setSelectedLocationRegion("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                          <button
+                            onClick={() => setSelectedLocationRegion("")}
+                            className="text-xs text-blue-500 hover:underline mt-1"
+                          >
+                            Clear
+                          </button>
                         )}
                       </div>
                     )}
@@ -1284,35 +1357,23 @@ export default function StatePaymentComparison() {
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Modifier</label>
                         <Select
-                          options={modifiers.map(modifier => ({ value: modifier.value, label: `${modifier.value} - ${modifier.details || ''}` }))}
+                          instanceId={`modifier-select-${index}`}
+                          options={modifiers}
                           value={selectedModifier ? { value: selectedModifier, label: selectedModifier } : null}
                           onChange={(option) => setSelectedModifier(option?.value || "")}
                           placeholder="Select Modifier"
                           isSearchable
-                          isDisabled={!selectedServiceCode}
+                          isDisabled={modifiers.length === 0}
+                          className={`react-select-container ${modifiers.length === 0 ? 'opacity-50' : ''}`}
                           classNamePrefix="react-select"
                         />
                         {selectedModifier && (
-                          <button onClick={() => setSelectedModifier("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Service Description Selector */}
-                    {filterSet.serviceCategory && filterSet.states.length > 0 && (
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Service Description</label>
-                        <Select
-                          options={serviceDescriptions.map(desc => ({ value: desc, label: desc }))}
-                          value={selectedServiceDescription ? { value: selectedServiceDescription, label: selectedServiceDescription } : null}
-                          onChange={(option) => setSelectedServiceDescription(option?.value || "")}
-                          placeholder="Select Service Description"
-                          isSearchable
-                          isDisabled={!selectedServiceCode}
-                          classNamePrefix="react-select"
-                        />
-                        {selectedServiceDescription && (
-                          <button onClick={() => setSelectedServiceDescription("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                          <button
+                            onClick={() => setSelectedModifier("")}
+                            className="text-xs text-blue-500 hover:underline mt-1"
+                          >
+                            Clear
+                          </button>
                         )}
                       </div>
                     )}
@@ -1322,42 +1383,24 @@ export default function StatePaymentComparison() {
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">Provider Type</label>
                         <Select
+                          instanceId={`provider-type-select-${index}`}
                           options={providerTypes.map(type => ({ value: type, label: type }))}
                           value={selectedProviderType ? { value: selectedProviderType, label: selectedProviderType } : null}
                           onChange={(option) => setSelectedProviderType(option?.value || "")}
                           placeholder="Select Provider Type"
                           isSearchable
-                          isDisabled={!selectedServiceCode && !selectedServiceDescription} // Disable until a service code or description is selected
-                          className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                          isDisabled={providerTypes.length === 0}
+                          className={`react-select-container ${providerTypes.length === 0 ? 'opacity-50' : ''}`}
                           classNamePrefix="react-select"
                         />
                         {selectedProviderType && (
-                          <button onClick={() => setSelectedProviderType("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Remove Button on the Side */}
-                    {index > 0 && ( // Only show the remove button for filter sets beyond the first one
-                      <div className="absolute -right-12 top-0">
                         <button
-                          onClick={() => deleteFilterSet(index)}
-                          className="flex items-center justify-center w-10 h-10 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors"
-                          aria-label="Remove this state"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-5 w-5"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
+                            onClick={() => setSelectedProviderType("")}
+                            className="text-xs text-blue-500 hover:underline mt-1"
                           >
-                            <path
-                              fillRule="evenodd"
-                              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
+                            Clear
                         </button>
+                        )}
                       </div>
                     )}
                   </div>
