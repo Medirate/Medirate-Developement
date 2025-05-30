@@ -185,8 +185,8 @@ export default function Dashboard() {
   const [selectedProgram, setSelectedProgram] = useState("");
   const [selectedLocationRegion, setSelectedLocationRegion] = useState("");
   const [selectedModifier, setSelectedModifier] = useState("");
-  const [startDate, setStartDate] = useState<Date | null>(null);
-  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [startDate, setStartDate] = useState<Date | null>(new Date(2017, 0, 1));
+  const [endDate, setEndDate] = useState<Date | null>(new Date());
 
   // Visibility states for dropdowns
   const [showServiceCategoryDropdown, setShowServiceCategoryDropdown] = useState(false);
