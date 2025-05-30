@@ -94,7 +94,8 @@ export default function HistoricalRates() {
   const filteredData = useMemo(() => {
     if (!selectedServiceCategory || !selectedState || !selectedServiceCode) return [];
 
-    const result = data.filter(item => {
+    // First get all matching entries
+    const allMatchingEntries = data.filter(item => {
       if (selectedServiceCategory && item.service_category !== selectedServiceCategory) return false;
       if (selectedState && item.state_name !== selectedState) return false;
       if (selectedServiceCode && item.service_code !== selectedServiceCode) return false;
@@ -113,8 +114,47 @@ export default function HistoricalRates() {
 
       return true;
     });
-    console.log('Final filteredData for table:', result.length, result.slice(0, 3));
-    return result;
+
+    // Group entries by all fields except rate_effective_date
+    const groupedEntries = allMatchingEntries.reduce((acc, entry) => {
+      const key = JSON.stringify({
+        state_name: entry.state_name,
+        service_category: entry.service_category,
+        service_code: entry.service_code,
+        service_description: entry.service_description,
+        program: entry.program,
+        location_region: entry.location_region,
+        modifier_1: entry.modifier_1,
+        modifier_1_details: entry.modifier_1_details,
+        modifier_2: entry.modifier_2,
+        modifier_2_details: entry.modifier_2_details,
+        modifier_3: entry.modifier_3,
+        modifier_3_details: entry.modifier_3_details,
+        modifier_4: entry.modifier_4,
+        modifier_4_details: entry.modifier_4_details,
+        duration_unit: entry.duration_unit,
+        rate: entry.rate,
+        provider_type: entry.provider_type
+      });
+
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push(entry);
+      return acc;
+    }, {} as Record<string, ServiceData[]>);
+
+    // For each group, get the entry with the latest rate_effective_date
+    const latestEntries = Object.values(groupedEntries).map(entries => {
+      return entries.reduce((latest, current) => {
+        const latestDate = new Date(latest.rate_effective_date);
+        const currentDate = new Date(current.rate_effective_date);
+        return currentDate > latestDate ? current : latest;
+      });
+    });
+
+    console.log('Final filteredData for table:', latestEntries.length, latestEntries.slice(0, 3));
+    return latestEntries;
   }, [
     data,
     selectedServiceCategory,
