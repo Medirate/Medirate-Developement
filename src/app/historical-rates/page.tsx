@@ -95,18 +95,9 @@ export default function HistoricalRates() {
     if (!selectedServiceCategory || !selectedState || !selectedServiceCode) return [];
 
     const result = data.filter(item => {
-      if (
-        selectedServiceCategory &&
-        item.service_category?.trim().toUpperCase() !== selectedServiceCategory.trim().toUpperCase()
-      ) return false;
-      if (
-        selectedState &&
-        item.state_name?.trim().toUpperCase() !== selectedState.trim().toUpperCase()
-      ) return false;
-      if (
-        selectedServiceCode &&
-        item.service_code?.trim().toUpperCase() !== selectedServiceCode.trim().toUpperCase()
-      ) return false;
+      if (selectedServiceCategory && item.service_category !== selectedServiceCategory) return false;
+      if (selectedState && item.state_name !== selectedState) return false;
+      if (selectedServiceCode && item.service_code !== selectedServiceCode) return false;
       if (selectedProgram && item.program !== selectedProgram) return false;
       if (selectedLocationRegion && item.location_region !== selectedLocationRegion) return false;
       if (selectedModifier) {

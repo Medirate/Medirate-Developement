@@ -375,9 +375,9 @@ export default function Dashboard() {
       });
     }
 
-    if (selectedModifier) {
+      if (selectedModifier) {
       const beforeCount = filtered.length;
-      const selectedModifierCode = selectedModifier.split(' - ')[0];
+        const selectedModifierCode = selectedModifier.split(' - ')[0];
       filtered = filtered.filter(item => {
         const hasModifier = 
           (item.modifier_1 && item.modifier_1.split(' - ')[0] === selectedModifierCode) ||
@@ -391,7 +391,7 @@ export default function Dashboard() {
         after: filtered.length,
         modifier: selectedModifier
       });
-    }
+      }
 
     if (selectedProviderType) {
       const beforeCount = filtered.length;
@@ -1216,7 +1216,7 @@ export default function Dashboard() {
 
   // Create a utility function to format text
   const formatText = (text: string | null | undefined) => {
-    return text ? text.toUpperCase() : '-';
+    return text || '-';
   };
 
   // Inside your Dashboard component, add this before the return statement
@@ -1803,13 +1803,13 @@ export default function Dashboard() {
                 {sortedData.map((item, index) => (
                   <tr key={index} className="hover:bg-gray-50 transition-colors">
                     {getVisibleColumns.state_name && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.state_name)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.state_name || '-'}</td>
                     )}
                     {getVisibleColumns.service_category && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.service_category)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_category || '-'}</td>
                     )}
                     {getVisibleColumns.service_code && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.service_code)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code || '-'}</td>
                     )}
                     {getVisibleColumns.service_description && (
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_description || '-'}</td>
@@ -1841,16 +1841,7 @@ export default function Dashboard() {
                       </td>
                     )}
                     {getVisibleColumns.rate_effective_date && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.rate_effective_date ? (() => {
-                          const parsedDate = parseDate(item.rate_effective_date);
-                          if (!parsedDate) return '-';
-                          const month = String(parsedDate.getUTCMonth() + 1).padStart(2, '0');
-                          const day = String(parsedDate.getUTCDate()).padStart(2, '0');
-                          const year = parsedDate.getUTCFullYear();
-                          return `${month}/${day}/${year}`;
-                        })() : '-'}
-                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate_effective_date || '-'}</td>
                     )}
                     {getVisibleColumns.modifier_1 && (
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -1873,15 +1864,13 @@ export default function Dashboard() {
                       </td>
                     )}
                     {getVisibleColumns.program && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.program}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.program || '-'}</td>
                     )}
                     {getVisibleColumns.location_region && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.location_region)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.location_region || '-'}</td>
                     )}
                     {getVisibleColumns.provider_type && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatText(item.provider_type)}
-                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.provider_type || '-'}</td>
                     )}
                   </tr>
                 ))}

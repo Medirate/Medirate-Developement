@@ -394,7 +394,7 @@ export default function StatePaymentComparison() {
       .filter((type): type is string => !!type)
     )].sort((a, b) => a.localeCompare(b));
     setProviderTypes(types);
-    
+
     // Update modifiers
     const allModifiers = filteredData.flatMap(item => {
       const modifiers = [];
