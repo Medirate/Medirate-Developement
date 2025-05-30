@@ -402,7 +402,6 @@ export default function HistoricalRates() {
   };
 
   const handleServiceCategoryChange = (category: string) => {
-    console.log('Selected category:', category);
     setSelectedServiceCategory(category);
     setSelectedState("");
     setSelectedServiceCode("");
@@ -410,185 +409,105 @@ export default function HistoricalRates() {
     setSelectedProgram("");
     setSelectedLocationRegion("");
     setSelectedModifier("");
+    setSelectedProviderType("");
     setFilterStep(2);
 
-    // Ensure data is an array, fallback to an empty array if it's not
-    const safeData = Array.isArray(data) ? data : [];
-    console.log('Total data items:', safeData.length);
+    // Reset all dependent filter options
+    setStates([]);
+    setServiceCodes([]);
+    setServiceDescriptions([]);
+    setPrograms([]);
+    setLocationRegions([]);
+    setModifiers([]);
+    setProviderTypes([]);
 
-    // Filter data based on selected category - make it case insensitive and trim whitespace
-    const filteredData = safeData.filter(item => {
-      const itemCategory = item.service_category?.trim().toUpperCase();
-      const selectedCategory = category.trim().toUpperCase();
-      return itemCategory === selectedCategory;
-    });
-
-    console.log('Filtered data items for category:', filteredData.length);
-    console.log('Sample of filtered items:', filteredData.slice(0, 3));
-    if (filteredData.length === 0) {
-      console.warn('No data found for selected category:', category);
-    }
-
-    // Update all filter options based on filtered data
-    const uniqueStates = [...new Set(filteredData
-      .map(item => item.state_name?.trim().toUpperCase())
-      .filter((state): state is string => !!state)
-    )].sort((a, b) => a.localeCompare(b));
-
-    console.log('Unique states found for category:', uniqueStates);
-    setStates(uniqueStates);
-
-    // Update service codes
-    const codes = filteredData
-      .map(item => item.service_code?.trim())
-      .filter((code): code is string => !!code);
-    console.log('Service codes found:', codes);
-    setServiceCodes([...new Set(codes)].sort((a, b) => a.localeCompare(b)));
-    
-    // Update service descriptions
-    const descriptions = filteredData
-      .map(item => item.service_description?.trim())
-      .filter((desc): desc is string => !!desc);
-    console.log('Service descriptions found:', descriptions);
-    setServiceDescriptions([...new Set(descriptions)].sort((a, b) => a.localeCompare(b)));
-    
-    // Update programs
-    const programs = filteredData
-      .map(item => item.program?.trim())
-      .filter((program): program is string => !!program);
-    console.log('Programs found:', programs);
-    setPrograms([...new Set(programs)].sort((a, b) => a.localeCompare(b)));
-    
-    // Update location regions
-    const regions = filteredData
-      .map(item => item.location_region?.trim())
-      .filter((region): region is string => !!region);
-    console.log('Location regions found:', regions);
-    setLocationRegions([...new Set(regions)].sort((a, b) => a.localeCompare(b)));
-    
-    // Update provider types
-    const types = filteredData
-      .map(item => item.provider_type?.trim())
-      .filter((type): type is string => !!type);
-    console.log('Provider types found:', types);
-    setProviderTypes([...new Set(types)].sort((a, b) => a.localeCompare(b)));
-    
-    // Update modifiers
-    const allModifiers = filteredData.flatMap(item => {
-      const modifiers = [];
-      if (item.modifier_1) {
-        modifiers.push({
-          value: item.modifier_1.trim(),
-          details: item.modifier_1_details?.trim() || '',
-          fullText: `${item.modifier_1.trim()}${item.modifier_1_details ? ` - ${item.modifier_1_details.trim()}` : ''}`
-        });
-      }
-      if (item.modifier_2) {
-        modifiers.push({
-          value: item.modifier_2.trim(),
-          details: item.modifier_2_details?.trim() || '',
-          fullText: `${item.modifier_2.trim()}${item.modifier_2_details ? ` - ${item.modifier_2_details.trim()}` : ''}`
-        });
-      }
-      if (item.modifier_3) {
-        modifiers.push({
-          value: item.modifier_3.trim(),
-          details: item.modifier_3_details?.trim() || '',
-          fullText: `${item.modifier_3.trim()}${item.modifier_3_details ? ` - ${item.modifier_3_details.trim()}` : ''}`
-        });
-      }
-      if (item.modifier_4) {
-        modifiers.push({
-          value: item.modifier_4.trim(),
-          details: item.modifier_4_details?.trim() || '',
-          fullText: `${item.modifier_4.trim()}${item.modifier_4_details ? ` - ${item.modifier_4_details.trim()}` : ''}`
-        });
-      }
-      return modifiers;
-    });
-
-    console.log('All modifiers found:', allModifiers);
-    
-    const uniqueModifiers = [...new Set(allModifiers.map(mod => mod.fullText))].map(fullText => {
-      const mod = allModifiers.find(m => m.fullText === fullText);
-      return {
-        value: fullText,
-        label: fullText,
-        details: mod?.details || ''
-      };
-    });
-
-    console.log('Unique modifiers:', uniqueModifiers);
-    setModifiers(uniqueModifiers);
+    // Filter data based on selected category
+    const filteredData = data.filter(item => item.service_category === category);
+    setStates([...new Set(filteredData.map(item => item.state_name).filter((v): v is string => !!v))].sort());
+    setServiceCodes([...new Set(filteredData.map(item => item.service_code).filter((v): v is string => !!v))].sort());
+    setServiceDescriptions([...new Set(filteredData.map(item => item.service_description).filter((v): v is string => !!v))].sort());
+    setPrograms([...new Set(filteredData.map(item => item.program).filter((v): v is string => !!v))].sort());
+    setLocationRegions([...new Set(filteredData.map(item => item.location_region).filter((v): v is string => !!v))].sort());
+    setProviderTypes([...new Set(filteredData.map(item => item.provider_type).filter((v): v is string => !!v))].sort());
+    // Modifiers
+    const allModifiers = filteredData.flatMap(item => [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].filter((v): v is string => !!v));
+    setModifiers([...new Set(allModifiers)].map(value => ({ value, label: value })));
   };
 
   const handleStateChange = (state: string) => {
-    setSelectedState(state.toUpperCase());
+    setSelectedState(state);
     setSelectedServiceCode("");
-    setSelectedEntry(null);
+    setSelectedServiceDescription("");
+    setSelectedProgram("");
+    setSelectedLocationRegion("");
+    setSelectedModifier("");
+    setSelectedProviderType("");
+    setFilterStep(3);
 
-    if (selectedServiceCategory) {
-      const filteredData = data.filter(
-          (item) =>
-          item.state_name?.trim().toUpperCase() === state.trim().toUpperCase() &&
-          item.service_category?.trim().toUpperCase() === selectedServiceCategory.trim().toUpperCase()
-      );
-      console.log('Filtered data for state/category:', filteredData.length, { state, selectedServiceCategory });
-      if (filteredData.length === 0) {
-        console.warn('No data found for selected state/category:', { state, selectedServiceCategory });
-      } else {
-        console.log('Sample filtered data for state/category:', filteredData.slice(0, 3));
-      }
+    setServiceCodes([]);
+    setServiceDescriptions([]);
+    setPrograms([]);
+    setLocationRegions([]);
+    setModifiers([]);
+    setProviderTypes([]);
 
-      // Update service codes
-      const codes = filteredData
-        .map(item => item.service_code?.trim())
-        .filter((code): code is string => !!code);
-      console.log('Service codes found for state/category:', codes);
-      setServiceCodes([...new Set(codes)].sort((a, b) => a.localeCompare(b)));
-
-      // Update service descriptions
-      const descriptions = filteredData
-        .map(item => item.service_description?.trim())
-        .filter((desc): desc is string => !!desc);
-      setServiceDescriptions([...new Set(descriptions)].sort((a, b) => a.localeCompare(b)));
-
-      // Update programs
-      const programs = filteredData
-        .map(item => item.program?.trim())
-        .filter((program): program is string => !!program);
-      setPrograms([...new Set(programs)].sort((a, b) => a.localeCompare(b)));
-
-      // Update location regions
-      const regions = filteredData
-        .map(item => item.location_region?.trim())
-        .filter((region): region is string => !!region);
-      setLocationRegions([...new Set(regions)].sort((a, b) => a.localeCompare(b)));
-
-      // Update provider types
-      const types = filteredData
-        .map(item => item.provider_type?.trim())
-        .filter((type): type is string => !!type);
-      setProviderTypes([...new Set(types)].sort((a, b) => a.localeCompare(b)));
-
-      // Update modifiers
-      const allModifiers = filteredData.flatMap(item => [
-        item.modifier_1 ? { value: item.modifier_1.trim(), details: item.modifier_1_details?.trim() } : null,
-        item.modifier_2 ? { value: item.modifier_2.trim(), details: item.modifier_2_details?.trim() } : null,
-        item.modifier_3 ? { value: item.modifier_3.trim(), details: item.modifier_3_details?.trim() } : null,
-        item.modifier_4 ? { value: item.modifier_4.trim(), details: item.modifier_4_details?.trim() } : null
-      ]).filter(Boolean);
-
-      setModifiers([...new Set(allModifiers.map(mod => mod?.value).filter(Boolean))].map(value => {
-        const mod = allModifiers.find(mod => mod?.value === value);
-        return { value: value as string, label: value as string, details: mod?.details || '' };
-      }));
-    }
+    const filteredData = data.filter(item => item.service_category === selectedServiceCategory && item.state_name === state);
+    setServiceCodes([...new Set(filteredData.map(item => item.service_code).filter((v): v is string => !!v))].sort());
+    setServiceDescriptions([...new Set(filteredData.map(item => item.service_description).filter((v): v is string => !!v))].sort());
+    setPrograms([...new Set(filteredData.map(item => item.program).filter((v): v is string => !!v))].sort());
+    setLocationRegions([...new Set(filteredData.map(item => item.location_region).filter((v): v is string => !!v))].sort());
+    setProviderTypes([...new Set(filteredData.map(item => item.provider_type).filter((v): v is string => !!v))].sort());
+    const allModifiers = filteredData.flatMap(item => [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].filter((v): v is string => !!v));
+    setModifiers([...new Set(allModifiers)].map(value => ({ value, label: value })));
   };
 
   const handleServiceCodeChange = (code: string) => {
     setSelectedServiceCode(code);
-    setSelectedEntry(null);
+    setSelectedServiceDescription("");
+    setSelectedProgram("");
+    setSelectedLocationRegion("");
+    setSelectedModifier("");
+    setSelectedProviderType("");
+    setFilterStep(4);
+
+    setServiceCodes([]);
+    setPrograms([]);
+    setLocationRegions([]);
+    setModifiers([]);
+    setProviderTypes([]);
+
+    const filteredData = data.filter(item => item.service_category === selectedServiceCategory && item.state_name === selectedState && item.service_code === code);
+    setServiceCodes([...new Set(filteredData.map(item => item.service_code).filter((v): v is string => !!v))].sort());
+    setServiceDescriptions([...new Set(filteredData.map(item => item.service_description).filter((v): v is string => !!v))].sort());
+    setPrograms([...new Set(filteredData.map(item => item.program).filter((v): v is string => !!v))].sort());
+    setLocationRegions([...new Set(filteredData.map(item => item.location_region).filter((v): v is string => !!v))].sort());
+    setProviderTypes([...new Set(filteredData.map(item => item.provider_type).filter((v): v is string => !!v))].sort());
+    const allModifiers = filteredData.flatMap(item => [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].filter((v): v is string => !!v));
+    setModifiers([...new Set(allModifiers)].map(value => ({ value, label: value })));
+  };
+
+  const handleServiceDescriptionChange = (desc: string) => {
+    setSelectedServiceDescription(desc);
+    setSelectedServiceCode("");
+    setSelectedProgram("");
+    setSelectedLocationRegion("");
+    setSelectedModifier("");
+    setSelectedProviderType("");
+    setFilterStep(4);
+
+    setServiceCodes([]);
+    setPrograms([]);
+    setLocationRegions([]);
+    setModifiers([]);
+    setProviderTypes([]);
+
+    const filteredData = data.filter(item => item.service_category === selectedServiceCategory && item.state_name === selectedState && item.service_description === desc);
+    setServiceCodes([...new Set(filteredData.map(item => item.service_code).filter((v): v is string => !!v))].sort());
+    setPrograms([...new Set(filteredData.map(item => item.program).filter((v): v is string => !!v))].sort());
+    setLocationRegions([...new Set(filteredData.map(item => item.location_region).filter((v): v is string => !!v))].sort());
+    setProviderTypes([...new Set(filteredData.map(item => item.provider_type).filter((v): v is string => !!v))].sort());
+    const allModifiers = filteredData.flatMap(item => [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].filter((v): v is string => !!v));
+    setModifiers([...new Set(allModifiers)].map(value => ({ value, label: value })));
   };
 
   const getGraphData = () => {
@@ -873,7 +792,7 @@ export default function HistoricalRates() {
                     <Select
                       options={serviceDescriptions.map(desc => ({ value: desc, label: desc }))}
                       value={selectedServiceDescription ? { value: selectedServiceDescription, label: selectedServiceDescription } : null}
-                      onChange={(option) => setSelectedServiceDescription(option?.value || "")}
+                      onChange={(option) => handleServiceDescriptionChange(option?.value || "")}
                       placeholder="Select Service Description"
                       isSearchable
                       className="react-select-container"

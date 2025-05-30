@@ -764,13 +764,6 @@ export default function Dashboard() {
   const handleServiceCategoryChange = (category: string) => {
     console.log('=== Service Category Change ===');
     console.log('Selected category:', category);
-    console.log('Category details:', {
-      original: category,
-      trimmed: category.trim(),
-      upperCase: category.trim().toUpperCase(),
-      length: category.length,
-      charCodes: Array.from(category).map(c => c.charCodeAt(0))
-    });
     
     setSelectedServiceCategory(category);
     setSelectedState("");
@@ -779,7 +772,17 @@ export default function Dashboard() {
     setSelectedProgram("");
     setSelectedLocationRegion("");
     setSelectedModifier("");
+    setSelectedProviderType("");
     setFilterStep(2);
+
+    // Reset all dependent filter options
+    setStates([]);
+    setServiceCodes([]);
+    setServiceDescriptions([]);
+    setPrograms([]);
+    setLocationRegions([]);
+    setModifiers([]);
+    setProviderTypes([]);
 
     // Ensure data is an array, fallback to an empty array if it's not
     const safeData = Array.isArray(data) ? data : [];
@@ -789,21 +792,10 @@ export default function Dashboard() {
     const filteredData = safeData.filter(item => {
       const itemCategory = item.service_category?.trim().toUpperCase();
       const selectedCategory = category.trim().toUpperCase();
-      
-      if (itemCategory === selectedCategory) {
-        console.log('Match found:', {
-          itemCategory,
-          selectedCategory,
-          state: item.state_name,
-          serviceCode: item.service_code
-        });
-      }
-      
       return itemCategory === selectedCategory;
     });
 
     console.log('Filtered data items for category:', filteredData.length);
-    console.log('Sample of filtered items:', filteredData.slice(0, 3));
     
     // Update all filter options based on filtered data
     const uniqueStates = [...new Set(filteredData
@@ -813,19 +805,104 @@ export default function Dashboard() {
     
     console.log('Unique states found for category:', uniqueStates);
     setStates(uniqueStates);
+
+    // Update service codes
+    const codes = filteredData
+      .map(item => item.service_code?.trim())
+      .filter((code): code is string => !!code);
+    setServiceCodes([...new Set(codes)].sort((a, b) => a.localeCompare(b)));
+    
+    // Update service descriptions
+    const descriptions = filteredData
+      .map(item => item.service_description?.trim())
+      .filter((desc): desc is string => !!desc);
+    setServiceDescriptions([...new Set(descriptions)].sort((a, b) => a.localeCompare(b)));
+    
+    // Update programs
+    const programs = filteredData
+      .map(item => item.program?.trim())
+      .filter((program): program is string => !!program);
+    setPrograms([...new Set(programs)].sort((a, b) => a.localeCompare(b)));
+    
+    // Update location regions
+    const regions = filteredData
+      .map(item => item.location_region?.trim())
+      .filter((region): region is string => !!region);
+    setLocationRegions([...new Set(regions)].sort((a, b) => a.localeCompare(b)));
+    
+    // Update provider types
+    const types = filteredData
+      .map(item => item.provider_type?.trim())
+      .filter((type): type is string => !!type);
+    setProviderTypes([...new Set(types)].sort((a, b) => a.localeCompare(b)));
+    
+    // Update modifiers
+    const allModifiers = filteredData.flatMap(item => {
+      const modifiers = [];
+      if (item.modifier_1) {
+        modifiers.push({
+          value: item.modifier_1.trim(),
+          details: item.modifier_1_details?.trim() || '',
+          fullText: `${item.modifier_1.trim()}${item.modifier_1_details ? ` - ${item.modifier_1_details.trim()}` : ''}`
+        });
+      }
+      if (item.modifier_2) {
+        modifiers.push({
+          value: item.modifier_2.trim(),
+          details: item.modifier_2_details?.trim() || '',
+          fullText: `${item.modifier_2.trim()}${item.modifier_2_details ? ` - ${item.modifier_2_details.trim()}` : ''}`
+        });
+      }
+      if (item.modifier_3) {
+        modifiers.push({
+          value: item.modifier_3.trim(),
+          details: item.modifier_3_details?.trim() || '',
+          fullText: `${item.modifier_3.trim()}${item.modifier_3_details ? ` - ${item.modifier_3_details.trim()}` : ''}`
+        });
+      }
+      if (item.modifier_4) {
+        modifiers.push({
+          value: item.modifier_4.trim(),
+          details: item.modifier_4_details?.trim() || '',
+          fullText: `${item.modifier_4.trim()}${item.modifier_4_details ? ` - ${item.modifier_4_details.trim()}` : ''}`
+        });
+      }
+      return modifiers;
+    });
+
+    const uniqueModifiers = [...new Set(allModifiers.map(mod => mod.fullText))].map(fullText => {
+      const mod = allModifiers.find(m => m.fullText === fullText);
+      return {
+        value: fullText,
+        label: fullText,
+        details: mod?.details || ''
+      };
+    });
+
+    setModifiers(uniqueModifiers);
   };
 
   const handleStateChange = (state: string) => {
     console.log('=== State Change ===');
     console.log('Selected state:', state);
     console.log('Current service category:', selectedServiceCategory);
+    
     setSelectedState(state.toUpperCase());
     setSelectedServiceCode("");
     setSelectedServiceDescription("");
     setSelectedProgram("");
     setSelectedLocationRegion("");
     setSelectedModifier("");
+    setSelectedProviderType("");
     setFilterStep(3);
+
+    // Reset dependent filter options
+    setServiceCodes([]);
+    setServiceDescriptions([]);
+    setPrograms([]);
+    setLocationRegions([]);
+    setModifiers([]);
+    setProviderTypes([]);
 
     if (selectedServiceCategory) {
       const filteredData = data.filter(item => {
@@ -841,8 +918,7 @@ export default function Dashboard() {
         state,
         category: selectedServiceCategory,
         totalMatches: filteredData.length,
-        uniqueServiceCodes: [...new Set(filteredData.map(item => item.service_code))].length,
-        uniqueDescriptions: [...new Set(filteredData.map(item => item.service_description))].length
+        uniqueServiceCodes: [...new Set(filteredData.map(item => item.service_code))].length
       });
 
       // Update service codes
@@ -858,20 +934,74 @@ export default function Dashboard() {
         .filter((desc): desc is string => !!desc)
       )].sort((a, b) => a.localeCompare(b));
       setServiceDescriptions(serviceDescriptions);
+
+      // Update programs
+      const programs = [...new Set(filteredData
+        .map(item => item.program?.trim())
+        .filter((program): program is string => !!program)
+      )].sort((a, b) => a.localeCompare(b));
+      setPrograms(programs);
+
+      // Update location regions
+      const regions = [...new Set(filteredData
+        .map(item => item.location_region?.trim())
+        .filter((region): region is string => !!region)
+      )].sort((a, b) => a.localeCompare(b));
+      setLocationRegions(regions);
+
+      // Update provider types
+      const types = [...new Set(filteredData
+        .map(item => item.provider_type?.trim())
+        .filter((type): type is string => !!type)
+      )].sort((a, b) => a.localeCompare(b));
+      setProviderTypes(types);
+
+      // Update modifiers
+      const allModifiers = filteredData.flatMap(item => {
+        const modifiers = [];
+        if (item.modifier_1) {
+          modifiers.push({
+            value: item.modifier_1.trim(),
+            details: item.modifier_1_details?.trim() || '',
+            fullText: `${item.modifier_1.trim()}${item.modifier_1_details ? ` - ${item.modifier_1_details.trim()}` : ''}`
+          });
+        }
+        if (item.modifier_2) {
+          modifiers.push({
+            value: item.modifier_2.trim(),
+            details: item.modifier_2_details?.trim() || '',
+            fullText: `${item.modifier_2.trim()}${item.modifier_2_details ? ` - ${item.modifier_2_details.trim()}` : ''}`
+          });
+        }
+        if (item.modifier_3) {
+          modifiers.push({
+            value: item.modifier_3.trim(),
+            details: item.modifier_3_details?.trim() || '',
+            fullText: `${item.modifier_3.trim()}${item.modifier_3_details ? ` - ${item.modifier_3_details.trim()}` : ''}`
+          });
+        }
+        if (item.modifier_4) {
+          modifiers.push({
+            value: item.modifier_4.trim(),
+            details: item.modifier_4_details?.trim() || '',
+            fullText: `${item.modifier_4.trim()}${item.modifier_4_details ? ` - ${item.modifier_4_details.trim()}` : ''}`
+          });
+        }
+        return modifiers;
+      });
+
+      const uniqueModifiers = [...new Set(allModifiers.map(mod => mod.fullText))].map(fullText => {
+        const mod = allModifiers.find(m => m.fullText === fullText);
+        return {
+          value: fullText,
+          label: fullText,
+          details: mod?.details || ''
+        };
+      });
+
+      setModifiers(uniqueModifiers);
     }
   };
-
-  // Add logging for filteredData
-  useEffect(() => {
-    console.log('=== Filtered Data Update ===');
-    console.log('areFiltersApplied:', areFiltersApplied);
-    console.log('selectedState:', selectedState);
-    console.log('selectedServiceCategory:', selectedServiceCategory);
-    console.log('filteredData length:', filteredData.length);
-    if (filteredData.length > 0) {
-      console.log('Sample of filtered data:', filteredData.slice(0, 3));
-    }
-  }, [filteredData, areFiltersApplied, selectedState, selectedServiceCategory]);
 
   const handleServiceCodeChange = (code: string) => {
     console.log('=== Service Code Change ===');
@@ -880,27 +1010,25 @@ export default function Dashboard() {
     console.log('Current category:', selectedServiceCategory);
     
     setSelectedServiceCode(code);
+    setSelectedServiceDescription("");
+    setSelectedProgram("");
+    setSelectedLocationRegion("");
+    setSelectedModifier("");
+    setSelectedProviderType("");
     setFilterStep(4);
+
+    // Reset dependent filter options
+    setServiceDescriptions([]);
+    setPrograms([]);
+    setLocationRegions([]);
+    setModifiers([]);
+    setProviderTypes([]);
 
     // Get all data for this state and category
     const stateCategoryData = data.filter(item => 
       item.service_category?.trim().toUpperCase() === selectedServiceCategory.trim().toUpperCase() &&
       item.state_name?.trim().toUpperCase() === selectedState.trim().toUpperCase()
     );
-
-    // Get all service codes for this state and category
-    const serviceCodes = [...new Set(stateCategoryData
-      .map(item => item.service_code?.trim())
-      .filter((code): code is string => !!code)
-    )].sort((a, b) => a.localeCompare(b));
-
-    console.log('Available service codes:', {
-      total: serviceCodes.length,
-      codes: serviceCodes
-    });
-
-    // Update service codes list
-    setServiceCodes(serviceCodes);
 
     // Get filtered data for selected code
     const filteredData = stateCategoryData.filter(item => 
@@ -912,6 +1040,13 @@ export default function Dashboard() {
       totalItems: filteredData.length,
       sampleItems: filteredData.slice(0, 3)
     });
+
+    // Update service descriptions
+    const serviceDescriptions = [...new Set(filteredData
+      .map(item => item.service_description?.trim())
+      .filter((desc): desc is string => !!desc)
+    )].sort((a, b) => a.localeCompare(b));
+    setServiceDescriptions(serviceDescriptions);
 
     // Update programs
     const programs = [...new Set(filteredData
@@ -933,7 +1068,7 @@ export default function Dashboard() {
       .filter((type): type is string => !!type)
     )].sort((a, b) => a.localeCompare(b));
     setProviderTypes(types);
-    
+
     // Update modifiers
     const allModifiers = filteredData.flatMap(item => {
       const modifiers = [];
@@ -987,27 +1122,25 @@ export default function Dashboard() {
     console.log('Current category:', selectedServiceCategory);
     
     setSelectedServiceDescription(desc);
+    setSelectedServiceCode("");
+    setSelectedProgram("");
+    setSelectedLocationRegion("");
+    setSelectedModifier("");
+    setSelectedProviderType("");
     setFilterStep(4);
+
+    // Reset dependent filter options
+    setServiceCodes([]);
+    setPrograms([]);
+    setLocationRegions([]);
+    setModifiers([]);
+    setProviderTypes([]);
 
     // Get all data for this state and category
     const stateCategoryData = data.filter(item => 
       item.service_category?.trim().toUpperCase() === selectedServiceCategory.trim().toUpperCase() &&
       item.state_name?.trim().toUpperCase() === selectedState.trim().toUpperCase()
     );
-
-    // Get all service descriptions for this state and category
-    const serviceDescriptions = [...new Set(stateCategoryData
-      .map(item => item.service_description?.trim())
-      .filter((desc): desc is string => !!desc)
-    )].sort((a, b) => a.localeCompare(b));
-
-    console.log('Available service descriptions:', {
-      total: serviceDescriptions.length,
-      descriptions: serviceDescriptions
-    });
-
-    // Update service descriptions list
-    setServiceDescriptions(serviceDescriptions);
 
     // Get filtered data for selected description
     const filteredData = stateCategoryData.filter(item => 
@@ -1019,6 +1152,13 @@ export default function Dashboard() {
       totalItems: filteredData.length,
       sampleItems: filteredData.slice(0, 3)
     });
+
+    // Update service codes
+    const serviceCodes = [...new Set(filteredData
+      .map(item => item.service_code?.trim())
+      .filter((code): code is string => !!code)
+    )].sort((a, b) => a.localeCompare(b));
+    setServiceCodes(serviceCodes);
 
     // Update programs
     const programs = [...new Set(filteredData
@@ -1040,7 +1180,7 @@ export default function Dashboard() {
       .filter((type): type is string => !!type)
     )].sort((a, b) => a.localeCompare(b));
     setProviderTypes(types);
-    
+
     // Update modifiers
     const allModifiers = filteredData.flatMap(item => {
       const modifiers = [];

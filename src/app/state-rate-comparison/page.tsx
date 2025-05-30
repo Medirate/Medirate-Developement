@@ -227,80 +227,42 @@ export default function StatePaymentComparison() {
 
   // Update filter handlers to remove URL updates
   const handleServiceCategoryChange = (index: number, category: string) => {
-    console.log('=== Service Category Change ===');
-    console.log('Selected category:', category);
-    console.log('Category details:', {
-      original: category,
-      trimmed: category.trim(),
-      upperCase: category.trim().toUpperCase(),
-      length: category.length,
-      charCodes: Array.from(category).map(c => c.charCodeAt(0))
-    });
-    
     const newFilters = [...filterSets];
     newFilters[index] = {
       ...newFilters[index],
       serviceCategory: category,
       states: [],
       serviceCode: "",
-      stateOptions: [],
-      serviceCodeOptions: []
+      serviceCodeOptions: [],
+      stateOptions: []
     };
     setFilterSets(newFilters);
 
-    // Ensure data is an array, fallback to an empty array if it's not
-    const safeData = Array.isArray(data) ? data : [];
-    console.log('Total data items:', safeData.length);
+    // Reset all dependent filter options
+    setPrograms([]);
+    setLocationRegions([]);
+    setModifiers([]);
+    setProviderTypes([]);
+    setServiceDescriptions([]);
 
     // Filter data based on selected category - make it case insensitive and trim whitespace
-    const filteredData = safeData.filter(item => {
+    const filteredData = data.filter(item => {
       const itemCategory = item.service_category?.trim().toUpperCase();
       const selectedCategory = category.trim().toUpperCase();
-      
-      if (itemCategory === selectedCategory) {
-        console.log('Match found:', {
-          itemCategory,
-          selectedCategory,
-          state: item.state_name,
-          serviceCode: item.service_code
-        });
-      }
-      
       return itemCategory === selectedCategory;
     });
-
-    console.log('Filtered data items for category:', filteredData.length);
-    console.log('Sample of filtered items:', filteredData.slice(0, 3));
-    
-    // Update all filter options based on filtered data
-    const uniqueStates = [...new Set(filteredData
-      .map(item => item.state_name?.trim().toUpperCase())
-      .filter((state): state is string => !!state)
-    )].sort((a, b) => a.localeCompare(b));
-    
-    console.log('Unique states found for category:', uniqueStates);
-    
-    // Update state options
-    newFilters[index].stateOptions = uniqueStates.map(state => ({
-      value: state,
-      label: state
-    }));
-    
-    // Update service codes
-    const codes = filteredData
-      .map(item => item.service_code?.trim())
-      .filter((code): code is string => !!code);
-    console.log('Service codes found:', codes);
-    newFilters[index].serviceCodeOptions = [...new Set(codes)].sort((a, b) => a.localeCompare(b));
-    
+    newFilters[index].stateOptions = [...new Set(filteredData.map(item => item.state_name?.trim().toUpperCase()).filter((v): v is string => !!v))].sort().map(state => ({ value: state, label: state }));
+    newFilters[index].serviceCodeOptions = [...new Set(filteredData.map(item => item.service_code?.trim()).filter((v): v is string => !!v))].sort();
     setFilterSets(newFilters);
+    setPrograms([...new Set(filteredData.map(item => item.program?.trim()).filter((v): v is string => !!v))].sort());
+    setLocationRegions([...new Set(filteredData.map(item => item.location_region?.trim()).filter((v): v is string => !!v))].sort());
+    setProviderTypes([...new Set(filteredData.map(item => item.provider_type?.trim()).filter((v): v is string => !!v))].sort());
+    setServiceDescriptions([...new Set(filteredData.map(item => item.service_description?.trim()).filter((v): v is string => !!v))].sort());
+    const allModifiers = filteredData.flatMap(item => [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].filter((v): v is string => !!v));
+    setModifiers([...new Set(allModifiers)].map(value => ({ value, label: value })));
   };
 
   const handleStateChange = (index: number, option: { value: string; label: string } | null) => {
-    console.log('=== State Change ===');
-    console.log('Selected state:', option?.value);
-    console.log('Current service category:', filterSets[index].serviceCategory);
-    
     const newFilters = [...filterSets];
     newFilters[index] = {
       ...newFilters[index],
@@ -310,46 +272,32 @@ export default function StatePaymentComparison() {
     };
     setFilterSets(newFilters);
 
-    if (option && filterSets[index].serviceCategory) {
-      const filteredData = data.filter(item => {
-        const itemState = item.state_name?.trim().toUpperCase();
+    setPrograms([]);
+    setLocationRegions([]);
+    setModifiers([]);
+    setProviderTypes([]);
+    setServiceDescriptions([]);
+
+    if (option && newFilters[index].serviceCategory) {
+      const stateFilteredData = data.filter(item => {
         const itemCategory = item.service_category?.trim().toUpperCase();
-        const selectedCategory = filterSets[index].serviceCategory.trim().toUpperCase();
+        const selectedCategory = newFilters[index].serviceCategory.trim().toUpperCase();
+        const itemState = item.state_name?.trim().toUpperCase();
         const selectedState = option.value.trim().toUpperCase();
-        
-        return itemState === selectedState && itemCategory === selectedCategory;
+        return itemCategory === selectedCategory && itemState === selectedState;
       });
-      
-      console.log('Filtered data summary:', {
-        state: option.value,
-        category: filterSets[index].serviceCategory,
-        totalMatches: filteredData.length,
-        uniqueServiceCodes: [...new Set(filteredData.map(item => item.service_code))].length
-      });
-
-      // Update service codes
-      const serviceCodes = [...new Set(filteredData
-        .map(item => item.service_code?.trim())
-        .filter((code): code is string => !!code)
-      )].sort((a, b) => a.localeCompare(b));
-
-      console.log('Available service codes:', {
-        total: serviceCodes.length,
-        codes: serviceCodes
-      });
-
-      // Update the filter set with new service code options
-      newFilters[index].serviceCodeOptions = serviceCodes;
+      newFilters[index].serviceCodeOptions = [...new Set(stateFilteredData.map(item => item.service_code?.trim()).filter((v): v is string => !!v))].sort();
       setFilterSets(newFilters);
+      setPrograms([...new Set(stateFilteredData.map(item => item.program?.trim()).filter((v): v is string => !!v))].sort());
+      setLocationRegions([...new Set(stateFilteredData.map(item => item.location_region?.trim()).filter((v): v is string => !!v))].sort());
+      setProviderTypes([...new Set(stateFilteredData.map(item => item.provider_type?.trim()).filter((v): v is string => !!v))].sort());
+      setServiceDescriptions([...new Set(stateFilteredData.map(item => item.service_description?.trim()).filter((v): v is string => !!v))].sort());
+      const allModifiers = stateFilteredData.flatMap(item => [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].filter((v): v is string => !!v));
+      setModifiers([...new Set(allModifiers)].map(value => ({ value, label: value })));
     }
   };
 
   const handleServiceCodeChange = (index: number, code: string) => {
-    console.log('=== Service Code Change ===');
-    console.log('Selected code:', code);
-    console.log('Current state:', filterSets[index].states[0]);
-    console.log('Current category:', filterSets[index].serviceCategory);
-    
     const newFilters = [...filterSets];
     newFilters[index] = {
       ...newFilters[index],
@@ -357,96 +305,51 @@ export default function StatePaymentComparison() {
     };
     setFilterSets(newFilters);
 
-    // Get all data for this state and category
-    const stateCategoryData = data.filter(item => 
-      item.service_category?.trim().toUpperCase() === filterSets[index].serviceCategory.trim().toUpperCase() &&
-      item.state_name?.trim().toUpperCase() === filterSets[index].states[0].trim().toUpperCase()
-    );
+    setPrograms([]);
+    setLocationRegions([]);
+    setModifiers([]);
+    setProviderTypes([]);
+    setServiceDescriptions([]);
 
-    // Get filtered data for selected code
-    const filteredData = stateCategoryData.filter(item => 
-      item.service_code?.trim() === code.trim()
-    );
-
-    console.log('Filtered data for service code:', {
-      code,
-      totalItems: filteredData.length,
-      sampleItems: filteredData.slice(0, 3)
+    const filterSet = newFilters[index];
+    const codeFilteredData = data.filter(item => {
+      const itemCategory = item.service_category?.trim().toUpperCase();
+      const selectedCategory = filterSet.serviceCategory.trim().toUpperCase();
+      const itemState = item.state_name?.trim().toUpperCase();
+      const selectedState = filterSet.states[0]?.trim().toUpperCase();
+      const itemCode = item.service_code?.trim();
+      const selectedCode = code.trim();
+      return itemCategory === selectedCategory && itemState === selectedState && itemCode === selectedCode;
     });
+    setPrograms([...new Set(codeFilteredData.map(item => item.program?.trim()).filter((v): v is string => !!v))].sort());
+    setLocationRegions([...new Set(codeFilteredData.map(item => item.location_region?.trim()).filter((v): v is string => !!v))].sort());
+    setProviderTypes([...new Set(codeFilteredData.map(item => item.provider_type?.trim()).filter((v): v is string => !!v))].sort());
+    setServiceDescriptions([...new Set(codeFilteredData.map(item => item.service_description?.trim()).filter((v): v is string => !!v))].sort());
+    const allModifiers = codeFilteredData.flatMap(item => [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].filter((v): v is string => !!v));
+    setModifiers([...new Set(allModifiers)].map(value => ({ value, label: value })));
+  };
 
-    // Update programs
-    const programs = [...new Set(filteredData
-      .map(item => item.program?.trim())
-      .filter((program): program is string => !!program)
-    )].sort((a, b) => a.localeCompare(b));
-    setPrograms(programs);
+  const handleServiceDescriptionChange = (index: number, desc: string) => {
+    setServiceDescriptions([]);
+    setPrograms([]);
+    setLocationRegions([]);
+    setModifiers([]);
+    setProviderTypes([]);
 
-    // Update location regions
-    const regions = [...new Set(filteredData
-      .map(item => item.location_region?.trim())
-      .filter((region): region is string => !!region)
-    )].sort((a, b) => a.localeCompare(b));
-    setLocationRegions(regions);
-
-    // Update provider types
-    const types = [...new Set(filteredData
-      .map(item => item.provider_type?.trim())
-      .filter((type): type is string => !!type)
-    )].sort((a, b) => a.localeCompare(b));
-    setProviderTypes(types);
-
-    // Update modifiers
-    const allModifiers = filteredData.flatMap(item => {
-      const modifiers = [];
-      if (item.modifier_1) {
-        modifiers.push({
-          value: item.modifier_1.trim(),
-          details: item.modifier_1_details?.trim() || '',
-          fullText: `${item.modifier_1.trim()}${item.modifier_1_details ? ` - ${item.modifier_1_details.trim()}` : ''}`
-        });
-      }
-      if (item.modifier_2) {
-        modifiers.push({
-          value: item.modifier_2.trim(),
-          details: item.modifier_2_details?.trim() || '',
-          fullText: `${item.modifier_2.trim()}${item.modifier_2_details ? ` - ${item.modifier_2_details.trim()}` : ''}`
-        });
-      }
-      if (item.modifier_3) {
-        modifiers.push({
-          value: item.modifier_3.trim(),
-          details: item.modifier_3_details?.trim() || '',
-          fullText: `${item.modifier_3.trim()}${item.modifier_3_details ? ` - ${item.modifier_3_details.trim()}` : ''}`
-        });
-      }
-      if (item.modifier_4) {
-        modifiers.push({
-          value: item.modifier_4.trim(),
-          details: item.modifier_4_details?.trim() || '',
-          fullText: `${item.modifier_4.trim()}${item.modifier_4_details ? ` - ${item.modifier_4_details.trim()}` : ''}`
-        });
-      }
-      return modifiers;
+    const filterSet = filterSets[index];
+    const descFilteredData = data.filter(item => {
+      const itemCategory = item.service_category?.trim().toUpperCase();
+      const selectedCategory = filterSet.serviceCategory.trim().toUpperCase();
+      const itemState = item.state_name?.trim().toUpperCase();
+      const selectedState = filterSet.states[0]?.trim().toUpperCase();
+      const itemDesc = item.service_description?.trim();
+      return itemCategory === selectedCategory && itemState === selectedState && itemDesc === desc.trim();
     });
-
-    const uniqueModifiers = [...new Set(allModifiers.map(mod => mod.fullText))].map(fullText => {
-      const mod = allModifiers.find(m => m.fullText === fullText);
-      return {
-        value: fullText,
-        label: fullText,
-        details: mod?.details || ''
-      };
-    });
-
-    setModifiers(uniqueModifiers);
-
-    // Log available options for debugging
-    console.log('Available options after service code selection:', {
-      programs: programs.length,
-      regions: regions.length,
-      types: types.length,
-      modifiers: uniqueModifiers.length
-    });
+    setPrograms([...new Set(descFilteredData.map(item => item.program?.trim()).filter((v): v is string => !!v))].sort());
+    setLocationRegions([...new Set(descFilteredData.map(item => item.location_region?.trim()).filter((v): v is string => !!v))].sort());
+    setProviderTypes([...new Set(descFilteredData.map(item => item.provider_type?.trim()).filter((v): v is string => !!v))].sort());
+    const allModifiers = descFilteredData.flatMap(item => [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].filter((v): v is string => !!v));
+    setModifiers([...new Set(allModifiers)].map(value => ({ value, label: value })));
   };
 
   // Update the latestRatesMap creation to include program and location_region
@@ -469,14 +372,14 @@ export default function StatePaymentComparison() {
   const filteredData = useMemo(() => {
     return latestRates.filter((item) => {
       return filterSets.some(filterSet => (
-        (!filterSet.serviceCategory || item.service_category === filterSet.serviceCategory) &&
-        (!filterSet.states.length || filterSet.states.includes(item.state_name)) &&
-        (!filterSet.serviceCode || item.service_code === filterSet.serviceCode) &&
-        (!selectedProgram || item.program === selectedProgram) &&
-        (!selectedLocationRegion || item.location_region === selectedLocationRegion) &&
+        (!filterSet.serviceCategory || item.service_category?.trim().toUpperCase() === filterSet.serviceCategory.trim().toUpperCase()) &&
+        (!filterSet.states.length || filterSet.states.map(s => s.trim().toUpperCase()).includes(item.state_name?.trim().toUpperCase())) &&
+        (!filterSet.serviceCode || item.service_code?.trim() === filterSet.serviceCode.trim()) &&
+        (!selectedProgram || item.program?.trim() === selectedProgram.trim()) &&
+        (!selectedLocationRegion || item.location_region?.trim() === selectedLocationRegion.trim()) &&
         (!selectedModifier || [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].includes(selectedModifier)) &&
-        (!selectedServiceDescription || item.service_description === selectedServiceDescription) &&
-        (!selectedProviderType || item.provider_type === selectedProviderType)
+        (!selectedServiceDescription || item.service_description?.trim() === selectedServiceDescription.trim()) &&
+        (!selectedProviderType || item.provider_type?.trim() === selectedProviderType.trim())
       ));
     });
   }, [latestRates, filterSets, selectedProgram, selectedLocationRegion, selectedModifier, selectedServiceDescription, selectedProviderType]);
@@ -500,7 +403,7 @@ export default function StatePaymentComparison() {
     filterSets.forEach(filterSet => {
       const filteredDataForSet = latestRates.filter((item) => (
         item.service_category === filterSet.serviceCategory &&
-        filterSet.states.includes(item.state_name?.toUpperCase()) &&
+        filterSet.states.includes(item.state_name?.trim().toUpperCase()) &&
         item.service_code === filterSet.serviceCode &&
         (!selectedProgram || item.program === selectedProgram) &&
         (!selectedLocationRegion || item.location_region === selectedLocationRegion) &&
@@ -557,14 +460,22 @@ export default function StatePaymentComparison() {
               })()
             : Math.round(parseFloat(item.rate?.replace("$", "") || "0") * 100) / 100;
 
-          const currentModifier = `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}|${item.program}|${item.location_region}`;
-          const stateSelections = selectedTableRows[item.state_name] || [];
+          const currentModifier = [
+            item.modifier_1?.trim().toUpperCase() || '',
+            item.modifier_2?.trim().toUpperCase() || '',
+            item.modifier_3?.trim().toUpperCase() || '',
+            item.modifier_4?.trim().toUpperCase() || '',
+            item.program?.trim().toUpperCase() || '',
+            item.location_region?.trim().toUpperCase() || ''
+          ].join('|');
+          const stateKey = item.state_name?.trim().toUpperCase();
+          const stateSelections = selectedTableRows[stateKey] || [];
 
           if (stateSelections.includes(currentModifier)) {
-            if (!newProcessedData[item.state_name]) {
-              newProcessedData[item.state_name] = {};
+            if (!newProcessedData[stateKey]) {
+              newProcessedData[stateKey] = {};
             }
-            newProcessedData[item.state_name][currentModifier] = rate;
+            newProcessedData[stateKey][currentModifier] = rate;
           }
         });
       }
@@ -591,13 +502,13 @@ export default function StatePaymentComparison() {
       // Create an array of state-rate pairs for sorting
       let sortedData = statesList.map(state => ({
         state,
-        rate: processedData[state]['average'] || 0
+        rate: processedData[state] && processedData[state]['average'] ? processedData[state]['average'] : null
       }));
 
       // Sort the data if needed
       if (sortOrder !== 'default') {
         sortedData.sort((a, b) => 
-          sortOrder === 'asc' ? a.rate - b.rate : b.rate - a.rate
+          sortOrder === 'asc' ? (a.rate ?? 0) - (b.rate ?? 0) : (b.rate ?? 0) - (a.rate ?? 0)
         );
       }
 
@@ -610,7 +521,7 @@ export default function StatePaymentComparison() {
         type: 'bar',
         barGap: '20%',
         barCategoryGap: '20%',
-        data: sortedData.map(item => item.rate || null),
+        data: sortedData.map(item => item.rate !== undefined && item.rate !== null ? item.rate : null),
         label: {
           show: true,
           position: 'insideTop',
@@ -631,21 +542,21 @@ export default function StatePaymentComparison() {
       });
     } else {
       // For manual state selection, create sorted array of selections
-      const allSelections: { state: string, modifierKey: string, rate: number }[] = [];
+      const allSelections: Array<{ state: string, modifierKey: string, rate: number }> = [];
       
       Object.entries(selectedTableRows).forEach(([state, selections]) => {
         selections.forEach(modifierKey => {
-          const rate = processedData[state][modifierKey] || 0;
+          let rate = 0;
+          if (processedData[state] && typeof processedData[state][modifierKey] === 'number' && !isNaN(processedData[state][modifierKey])) {
+            rate = processedData[state][modifierKey];
+          }
           allSelections.push({ state, modifierKey, rate });
         });
       });
 
       // Sort selections if needed
       if (sortOrder !== 'default') {
-        allSelections.sort((a, b) => 
-          sortOrder === 'asc' ? a.rate - b.rate : b.rate - a.rate
-        );
-
+        allSelections.sort((a, b) => sortOrder === 'asc' ? a.rate - b.rate : b.rate - a.rate);
         // Update statesList to match the sorted order
         statesList = Array.from(new Set(allSelections.map(item => item.state)));
       }
@@ -694,12 +605,14 @@ export default function StatePaymentComparison() {
             const modifierKey = seriesName.split(' - ')[1];
             const rate = params.value;
 
+            // Use robust key generation for lookup
             const item = filteredData.find(d => 
               d.state_name === state && 
-              `${d.modifier_1}|${d.modifier_2}|${d.modifier_3}|${d.modifier_4}|${d.program}|${d.location_region}` === modifierKey
+              [d.modifier_1?.trim().toUpperCase() || '', d.modifier_2?.trim().toUpperCase() || '', d.modifier_3?.trim().toUpperCase() || '', d.modifier_4?.trim().toUpperCase() || '', d.program?.trim().toUpperCase() || '', d.location_region?.trim().toUpperCase() || ''].join('|') === modifierKey
             );
 
             if (!item) {
+              console.warn('No item found for key:', modifierKey, 'in state:', state);
               return `State: ${state}<br>${showRatePerHour ? 'Hourly' : 'Base'} Rate: $${rate?.toFixed(2) || '0.00'}`;
             }
 
@@ -763,7 +676,12 @@ export default function StatePaymentComparison() {
           if (isAllStatesSelected && params.componentType === 'series') {
             const state = params.name;
             const stateData = filteredData.filter(item => item.state_name === state);
+            if (!stateData || stateData.length === 0) {
+              console.warn('No stateData found for state:', state);
+              return;
+            }
             const sum = stateData.reduce((acc, item) => {
+              if (!item) return acc;
               const rate = showRatePerHour 
                 ? (() => {
                     let rateValue = parseFloat(item.rate?.replace('$', '') || '0');
@@ -777,18 +695,9 @@ export default function StatePaymentComparison() {
                     return Math.round(rateValue * 100) / 100;
                   })()
                 : parseFloat((parseFloat(item.rate?.replace("$", "") || "0").toFixed(2)));
-              console.log(`Rate for ${item.program} - ${item.location_region}:`, rate);
               return acc + rate;
             }, 0);
             const average = sum / stateData.length;
-            console.log("Sum:", sum, "Average:", average);
-
-            console.log("State:", state);
-            console.log("Sum:", sum);
-            console.log("Entries:", stateData);
-
-            console.log("Filtered Data for State:", state, stateData);
-
             setSelectedStateDetails({
               state,
               average,
@@ -798,6 +707,11 @@ export default function StatePaymentComparison() {
         }
       }
     };
+
+    // Debug logging for chart data
+    console.log('processedData:', processedData);
+    console.log('selectedTableRows:', selectedTableRows);
+    console.log('series:', series);
 
     return option;
   }, [processedData, filteredData, isAllStatesSelected, showRatePerHour, selectedTableRows, sortOrder]);
@@ -817,7 +731,12 @@ export default function StatePaymentComparison() {
               if (isAllStatesSelected && params.componentType === 'series') {
                 const state = params.name;
                 const stateData = filteredData.filter(item => item.state_name === state);
+                if (!stateData || stateData.length === 0) {
+                  console.warn('No stateData found for state:', state);
+                  return;
+                }
                 const sum = stateData.reduce((acc, item) => {
+                  if (!item) return acc;
                   const rate = showRatePerHour 
                     ? (() => {
                         let rateValue = parseFloat(item.rate?.replace('$', '') || '0');
@@ -831,18 +750,9 @@ export default function StatePaymentComparison() {
                         return Math.round(rateValue * 100) / 100;
                       })()
                     : parseFloat((parseFloat(item.rate?.replace("$", "") || "0").toFixed(2)));
-                  console.log(`Rate for ${item.program} - ${item.location_region}:`, rate);
                   return acc + rate;
                 }, 0);
                 const average = sum / stateData.length;
-                console.log("Sum:", sum, "Average:", average);
-
-                console.log("State:", state);
-                console.log("Sum:", sum);
-                console.log("Entries:", stateData);
-
-                console.log("Filtered Data for State:", state, stateData);
-
                 setSelectedStateDetails({
                   state,
                   average,
@@ -938,17 +848,23 @@ export default function StatePaymentComparison() {
   }, [data, selectedServiceCategory, selectedServiceCode, showRatePerHour]);
 
   const handleTableRowSelection = (state: string, item: ServiceData) => {
-    const currentModifierKey = `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}|${item.program}|${item.location_region}`;
-    
+    const currentModifierKey = [
+      item.modifier_1?.trim().toUpperCase() || '',
+      item.modifier_2?.trim().toUpperCase() || '',
+      item.modifier_3?.trim().toUpperCase() || '',
+      item.modifier_4?.trim().toUpperCase() || '',
+      item.program?.trim().toUpperCase() || '',
+      item.location_region?.trim().toUpperCase() || ''
+    ].join('|');
+    const stateKey = item.state_name?.trim().toUpperCase();
     setSelectedTableRows(prev => {
-      const stateSelections = prev[state] || [];
+      const stateSelections = prev[stateKey] || [];
       const newSelections = stateSelections.includes(currentModifierKey)
         ? stateSelections.filter(key => key !== currentModifierKey)
         : [...stateSelections, currentModifierKey];
-      
       return {
         ...prev,
-        [state]: newSelections
+        [stateKey]: newSelections
       };
     });
 
@@ -1212,7 +1128,17 @@ export default function StatePaymentComparison() {
             {/* Filters */}
             <div className="mb-6 sm:mb-8">
               {filterSets.map((filterSet, index) => (
-                <div key={index} className="p-4 sm:p-6 bg-white rounded-xl shadow-lg mb-4">
+                <div key={index} className="p-4 sm:p-6 bg-white rounded-xl shadow-lg mb-4 relative">
+                  {/* Remove button for extra filter sets */}
+                  {index > 0 && (
+                    <button
+                      onClick={() => deleteFilterSet(index)}
+                      className="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-xl font-bold focus:outline-none"
+                      title="Remove this filter set"
+                    >
+                      ×
+                    </button>
+                  )}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                     {/* Service Category Selector */}
                     <div className="space-y-2">
@@ -1564,18 +1490,23 @@ export default function StatePaymentComparison() {
 
             {/* Data Table - Show when filters are active and "All States" is not selected */}
             {useMemo(() => {
-              return filterSets.every(filterSet => 
-                filterSet.serviceCategory && 
-                filterSet.states.length > 0 && 
-                filterSet.serviceCode
-              );
-            }, [filterSets]) && !isAllStatesSelected && (
-              <>
-                {Object.entries(groupedByState).map(([state, stateData]) => {
+              return filterSets.map((filterSet, filterIndex) => {
+                // Add a heading for each filter set
+                const filterSetHeading = (
+                  <h3 className="text-lg font-bold text-blue-900 mb-2">
+                    Results for Filter Set #{filterIndex + 1}
+                  </h3>
+                );
+                // Filter the groupedByState for this filter set
+                if (!filterSet.serviceCategory || filterSet.states.length === 0 || !filterSet.serviceCode) return null;
+                const relevantStates = filterSet.states;
+                return relevantStates.map((state, stateIdx) => {
+                  const stateData = groupedByState[state] || [];
                   const selectedModifierKeys = selectedTableRows[state] || [];
-                  
+                  if (stateData.length === 0) return null;
                   return (
-                    <div key={state} className="mb-8 p-6 bg-white rounded-xl shadow-lg">
+                    <div key={filterIndex + '-' + state} className="mb-8 p-6 bg-white rounded-xl shadow-lg">
+                      {stateIdx === 0 && filterSetHeading}
                       <div className="flex justify-between items-center mb-4">
                         <h2 className="text-xl font-semibold text-gray-800">{state}</h2>
                         <div className="flex items-center space-x-2">
@@ -1583,7 +1514,14 @@ export default function StatePaymentComparison() {
                             onClick={() => {
                               // Select all rows for this state
                               const allModifierKeys = stateData.map(item => 
-                                `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}|${item.program}|${item.location_region}`
+                                [
+                                  item.modifier_1?.trim().toUpperCase() || '',
+                                  item.modifier_2?.trim().toUpperCase() || '',
+                                  item.modifier_3?.trim().toUpperCase() || '',
+                                  item.modifier_4?.trim().toUpperCase() || '',
+                                  item.program?.trim().toUpperCase() || '',
+                                  item.location_region?.trim().toUpperCase() || ''
+                                ].join('|')
                               );
                               setSelectedTableRows(prev => ({
                                 ...prev,
@@ -1667,7 +1605,14 @@ export default function StatePaymentComparison() {
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                               {stateData.map((item, index) => {
-                                const currentModifierKey = `${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}|${item.program}|${item.location_region}`;
+                                const currentModifierKey = [
+                                  item.modifier_1?.trim().toUpperCase() || '',
+                                  item.modifier_2?.trim().toUpperCase() || '',
+                                  item.modifier_3?.trim().toUpperCase() || '',
+                                  item.modifier_4?.trim().toUpperCase() || '',
+                                  item.program?.trim().toUpperCase() || '',
+                                  item.location_region?.trim().toUpperCase() || ''
+                                ].join('|');
                                 const isSelected = selectedModifierKeys.includes(currentModifierKey);
 
                                 return (
@@ -1676,10 +1621,10 @@ export default function StatePaymentComparison() {
                                       <div className="flex items-center space-x-2">
                                         {isSelected && (
                                           <button
-                                    onClick={() => handleTableRowSelection(state, item)}
+                                            onClick={() => handleTableRowSelection(state, item)}
                                             className="text-gray-400 hover:text-red-500 transition-colors"
                                             title="Deselect"
-                                  >
+                                          >
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                               <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                                             </svg>
@@ -1792,9 +1737,9 @@ export default function StatePaymentComparison() {
                       )}
                     </div>
                   );
-                })}
-              </>
-            )}
+                });
+              });
+            }, [filterSets, groupedByState, selectedTableRows, getVisibleColumns, handleTableRowSelection, formatText])}
           </>
         )}
       </div>
