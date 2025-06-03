@@ -279,6 +279,23 @@ export default function StatePaymentComparison() {
     setServiceDescriptions([]);
 
     if (option && newFilters[index].serviceCategory) {
+      if (option.value === "ALL_STATES") {
+        // All States selected: show all service codes for the selected category
+        const allCodes = data
+          .filter(item => item.service_category?.trim().toUpperCase() === newFilters[index].serviceCategory.trim().toUpperCase())
+          .map(item => item.service_code?.trim())
+          .filter((v): v is string => !!v);
+        newFilters[index].serviceCodeOptions = [...new Set(allCodes)].sort();
+        setFilterSets(newFilters);
+        setPrograms([...new Set(data.filter(item => item.service_category?.trim().toUpperCase() === newFilters[index].serviceCategory.trim().toUpperCase()).map(item => item.program?.trim()).filter((v): v is string => !!v))].sort());
+        setLocationRegions([...new Set(data.filter(item => item.service_category?.trim().toUpperCase() === newFilters[index].serviceCategory.trim().toUpperCase()).map(item => item.location_region?.trim()).filter((v): v is string => !!v))].sort());
+        setProviderTypes([...new Set(data.filter(item => item.service_category?.trim().toUpperCase() === newFilters[index].serviceCategory.trim().toUpperCase()).map(item => item.provider_type?.trim()).filter((v): v is string => !!v))].sort());
+        setServiceDescriptions([...new Set(data.filter(item => item.service_category?.trim().toUpperCase() === newFilters[index].serviceCategory.trim().toUpperCase()).map(item => item.service_description?.trim()).filter((v): v is string => !!v))].sort());
+        const allModifiers = data.filter(item => item.service_category?.trim().toUpperCase() === newFilters[index].serviceCategory.trim().toUpperCase()).flatMap(item => [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].filter((v): v is string => !!v));
+        setModifiers([...new Set(allModifiers)].map(value => ({ value, label: value })));
+        return;
+      }
+      // ...existing logic for single state selection...
       const stateFilteredData = data.filter(item => {
         const itemCategory = item.service_category?.trim().toUpperCase();
         const selectedCategory = newFilters[index].serviceCategory.trim().toUpperCase();
@@ -1621,7 +1638,7 @@ export default function StatePaymentComparison() {
                                       <div className="flex items-center space-x-2">
                                         {isSelected && (
                                           <button
-                                            onClick={() => handleTableRowSelection(state, item)}
+                                    onClick={() => handleTableRowSelection(state, item)}
                                             className="text-gray-400 hover:text-red-500 transition-colors"
                                             title="Deselect"
                                           >

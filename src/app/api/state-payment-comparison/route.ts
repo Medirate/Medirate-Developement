@@ -7,11 +7,11 @@ export async function GET(request: Request) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
-    let query = "SELECT * FROM master_data_may_30_cleaned";
+    let query = "SELECT * FROM master_data_may_30_cleaned WHERE service_category = 'APPLIED BEHAVIORAL ANALYSIS (ABA)'";
     const params = [];
 
     if (startDate && endDate) {
-      query += " WHERE rate_effective_date BETWEEN $1 AND $2";
+      query += " AND rate_effective_date BETWEEN $1 AND $2";
       params.push(startDate, endDate);
     }
 

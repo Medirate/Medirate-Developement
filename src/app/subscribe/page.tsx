@@ -300,7 +300,7 @@ const StripePricingTableWithFooter = () => {
                         </>
                       ) : feature}
                     </span>
-                  </li>
+                </li>
                 ))}
               </ul>
             </div>
