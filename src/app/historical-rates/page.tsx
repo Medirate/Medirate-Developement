@@ -638,7 +638,7 @@ export default function HistoricalRates() {
         {/* Heading */}
         <div className="flex flex-col items-start mb-6 sm:mb-8">
           <h1 className="text-3xl sm:text-5xl md:text-6xl text-[#012C61] font-lemonMilkRegular uppercase mb-3 sm:mb-4">
-            Historical Rates
+            Rate History
           </h1>
           <button
             onClick={resetFilters}

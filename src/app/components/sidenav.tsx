@@ -146,7 +146,7 @@ const SideNav = ({
                 }`}
                 style={{ whiteSpace: "nowrap" }}
               >
-                Historical Rates
+                Rate History
               </span>
             </Link>
           </li>
