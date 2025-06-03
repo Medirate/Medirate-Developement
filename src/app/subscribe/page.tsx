@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Footer from "@/app/components/footer";
-import { CreditCard } from "lucide-react"; // Using Lucide icon
+import { CreditCard, CheckCircle } from "lucide-react"; // Using Lucide icons
 import SubscriptionTermsModal from '@/app/components/SubscriptionTermsModal';
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import { useRouter } from "next/navigation";
@@ -278,52 +278,30 @@ const StripePricingTableWithFooter = () => {
         <div className="w-full max-w-4xl mb-8 p-8 bg-white rounded-xl shadow-2xl border border-gray-100">
           <h2 className="text-3xl font-bold mb-6 text-[#012C61] text-center font-lemonMilkRegular">Subscription Models</h2>
           <p className="text-lg mb-10 text-gray-600 text-center">
-            MediRate offers flexible subscription models designed to meet your company's needs:
+            MediRate offers a comprehensive subscription plan designed to meet your company's needs:
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Annual Subscription Card */}
-            <div className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-lg border border-gray-100 transform transition-all duration-300 hover:scale-105 hover:shadow-xl">
-              <h3 className="text-2xl font-bold mb-6 text-[#012C61] font-lemonMilkRegular">Annual Subscription</h3>
-              <ul className="space-y-4">
-                <li className="flex items-center">
-                  <span className="text-green-600 mr-3">✔</span>
-                  <span className="text-gray-700">Three user accounts included</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-600 mr-3">✔</span>
-                  <span className="text-gray-700">Ability to add up to ten users on one subscription <span className="text-sm text-gray-500">(In Development)</span></span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-600 mr-3">✔</span>
-                  <span className="text-gray-700">Access to MediRate's comprehensive reimbursement rate database and tracking tools</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-600 mr-3">✔</span>
-                  <span className="text-gray-700">Customizable email alerts for real-time updates on topics and states of your choice <span className="text-sm text-gray-500">(In Development)</span></span>
-                </li>
-              </ul>
-            </div>
-
-            {/* 3-Month Subscription Card */}
-            <div className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-lg border border-gray-100 transform transition-all duration-300 hover:scale-105 hover:shadow-xl">
-              <h3 className="text-2xl font-bold mb-6 text-[#012C61] font-lemonMilkRegular">3-Month Subscription</h3>
-              <ul className="space-y-4">
-                <li className="flex items-center">
-                  <span className="text-green-600 mr-3">✔</span>
-                  <span className="text-gray-700">Designed for users with short-term, project-based needs</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-600 mr-3">✔</span>
-                  <span className="text-gray-700">Two user accounts included</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-600 mr-3">✔</span>
-                  <span className="text-gray-700">Access to MediRate's comprehensive reimbursement rate database and tracking tools</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-600 mr-3">✔</span>
-                  <span className="text-gray-700">Customizable email alerts for real-time updates on topics and states of your choice <span className="text-sm text-gray-500">(In Development)</span></span>
-                </li>
+          <div className="max-w-xl mx-auto">
+            <div className="p-8 bg-white rounded-2xl shadow-md border border-gray-200 flex flex-col items-center">
+              <h3 className="text-2xl font-bold mb-6 text-[#012C61] font-lemonMilkRegular tracking-wide text-center">Professional Plan</h3>
+              <ul className="space-y-5 w-full max-w-md">
+                {[
+                  "Three user accounts included",
+                  "Ability to add up to ten users on one subscription (In Development)",
+                  "Access to MediRate's comprehensive reimbursement rate database and tracking tools",
+                  "Customizable email alerts for real-time updates on topics and states of your choice (In Development)"
+                ].map((feature, idx) => (
+                  <li key={idx} className="flex items-start gap-3 text-base text-gray-800">
+                    <CheckCircle className="text-blue-600 w-5 h-5 flex-shrink-0 mt-0.5" />
+                    <span className="text-left">
+                      {feature.includes("(In Development)") ? (
+                        <>
+                          {feature.replace(" (In Development)", "")}
+                          <span className="text-sm text-gray-400"> (In Development)</span>
+                        </>
+                      ) : feature}
+                    </span>
+                  </li>
+                ))}
               </ul>
             </div>
           </div>
