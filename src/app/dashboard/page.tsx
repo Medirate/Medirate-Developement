@@ -343,12 +343,12 @@ export default function Dashboard() {
       filtered = filtered.filter(item => item.provider_type?.trim() === selectedProviderType.trim());
     }
 
-    if (selectedModifier) {
-      const selectedModifierCode = selectedModifier.split(' - ')[0];
+      if (selectedModifier) {
+        const selectedModifierCode = selectedModifier.split(' - ')[0];
       filtered = filtered.filter(item => 
-        (item.modifier_1 && item.modifier_1.split(' - ')[0] === selectedModifierCode) ||
-        (item.modifier_2 && item.modifier_2.split(' - ')[0] === selectedModifierCode) ||
-        (item.modifier_3 && item.modifier_3.split(' - ')[0] === selectedModifierCode) ||
+          (item.modifier_1 && item.modifier_1.split(' - ')[0] === selectedModifierCode) ||
+          (item.modifier_2 && item.modifier_2.split(' - ')[0] === selectedModifierCode) ||
+          (item.modifier_3 && item.modifier_3.split(' - ')[0] === selectedModifierCode) ||
         (item.modifier_4 && item.modifier_4.split(' - ')[0] === selectedModifierCode)
       );
     }
@@ -734,9 +734,9 @@ export default function Dashboard() {
     // Reset dependent filter options
     setServiceCodes([]);
     setServiceDescriptions([]);
-    setPrograms([]);
-    setLocationRegions([]);
-    setModifiers([]);
+      setPrograms([]);
+      setLocationRegions([]);
+      setModifiers([]);
     setProviderTypes([]);
 
     try {
@@ -1398,231 +1398,231 @@ export default function Dashboard() {
         {/* Data Table */}
         {!loading && areFiltersApplied && (
           <>
-            <div 
-              className="rounded-lg shadow-lg bg-white relative z-30 overflow-x-auto"
-              style={{ 
-                maxHeight: 'calc(100vh - 5.5rem)', 
-                overflow: 'auto'
-              }}
-            >
-              <table className="min-w-full">
-                <thead className="bg-gray-50 sticky top-[5.5rem] z-20">
-                  <tr>
-                    {getVisibleColumns.state_name && (
-                      <th
-                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                        onClick={(e) => handleSort('state_name', e)}
-                      >
-                        State
-                        <SortIndicator sortKey="state_name" />
-                      </th>
-                    )}
-                    {getVisibleColumns.service_category && (
-                      <th
-                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                        onClick={(e) => handleSort('service_category', e)}
-                      >
-                        Service Category
-                        <SortIndicator sortKey="service_category" />
-                      </th>
-                    )}
-                    {getVisibleColumns.service_code && (
-                      <th
-                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                        onClick={(e) => handleSort('service_code', e)}
-                      >
-                        Service Code
-                        <SortIndicator sortKey="service_code" />
-                      </th>
-                    )}
-                    {getVisibleColumns.service_description && (
-                      <th
-                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                        onClick={(e) => handleSort('service_description', e)}
-                      >
-                        Service Description
-                        <SortIndicator sortKey="service_description" />
-                      </th>
-                    )}
-                    {getVisibleColumns.duration_unit && (
-                      <th
-                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                        onClick={(e) => handleSort('duration_unit', e)}
-                      >
-                        Duration Unit
-                        <SortIndicator sortKey="duration_unit" />
-                      </th>
-                    )}
-                    {getVisibleColumns.rate && (
-                      <th
-                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                        onClick={(e) => handleSort('rate', e)}
-                      >
-                        Rate per Base Unit
-                        <SortIndicator sortKey="rate" />
-                      </th>
-                    )}
-                    {getVisibleColumns.rate_per_hour && (
-                      <th
-                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                        onClick={(e) => handleSort('rate_per_hour', e)}
-                      >
-                        Hourly Equivalent Rate
-                        <SortIndicator sortKey="rate_per_hour" />
-                      </th>
-                    )}
-                    {getVisibleColumns.rate_effective_date && (
-                      <th
-                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                        onClick={(e) => handleSort('rate_effective_date', e)}
-                      >
-                        Effective Date
-                        <SortIndicator sortKey="rate_effective_date" />
-                      </th>
-                    )}
-                    {getVisibleColumns.modifier_1 && (
-                      <th
-                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                        onClick={(e) => handleSort('modifier_1', e)}
-                      >
-                        Modifier 1
-                        <SortIndicator sortKey="modifier_1" />
-                      </th>
-                    )}
-                    {getVisibleColumns.modifier_2 && (
-                      <th
-                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                        onClick={(e) => handleSort('modifier_2', e)}
-                      >
-                        Modifier 2
-                        <SortIndicator sortKey="modifier_2" />
-                      </th>
-                    )}
-                    {getVisibleColumns.modifier_3 && (
-                      <th
-                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                        onClick={(e) => handleSort('modifier_3', e)}
-                      >
-                        Modifier 3
-                        <SortIndicator sortKey="modifier_3" />
-                      </th>
-                    )}
-                    {getVisibleColumns.modifier_4 && (
-                      <th
-                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                        onClick={(e) => handleSort('modifier_4', e)}
-                      >
-                        Modifier 4
-                        <SortIndicator sortKey="modifier_4" />
-                      </th>
-                    )}
-                    {getVisibleColumns.program && (
-                      <th
-                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                        onClick={(e) => handleSort('program', e)}
-                      >
-                        Program
-                        <SortIndicator sortKey="program" />
-                      </th>
-                    )}
-                    {getVisibleColumns.location_region && (
-                      <th
-                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                        onClick={(e) => handleSort('location_region', e)}
-                      >
-                        Location/Region
-                        <SortIndicator sortKey="location_region" />
-                      </th>
-                    )}
-                    {getVisibleColumns.provider_type && (
+          <div 
+            className="rounded-lg shadow-lg bg-white relative z-30 overflow-x-auto"
+            style={{ 
+              maxHeight: 'calc(100vh - 5.5rem)', 
+              overflow: 'auto'
+            }}
+          >
+            <table className="min-w-full">
+              <thead className="bg-gray-50 sticky top-[5.5rem] z-20">
+                <tr>
+                  {getVisibleColumns.state_name && (
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('state_name', e)}
+                    >
+                      State
+                      <SortIndicator sortKey="state_name" />
+                    </th>
+                  )}
+                  {getVisibleColumns.service_category && (
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('service_category', e)}
+                    >
+                      Service Category
+                      <SortIndicator sortKey="service_category" />
+                    </th>
+                  )}
+                  {getVisibleColumns.service_code && (
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('service_code', e)}
+                    >
+                      Service Code
+                      <SortIndicator sortKey="service_code" />
+                    </th>
+                  )}
+                  {getVisibleColumns.service_description && (
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('service_description', e)}
+                    >
+                      Service Description
+                      <SortIndicator sortKey="service_description" />
+                    </th>
+                  )}
+                  {getVisibleColumns.duration_unit && (
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('duration_unit', e)}
+                    >
+                      Duration Unit
+                      <SortIndicator sortKey="duration_unit" />
+                    </th>
+                  )}
+                  {getVisibleColumns.rate && (
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('rate', e)}
+                    >
+                      Rate per Base Unit
+                      <SortIndicator sortKey="rate" />
+                    </th>
+                  )}
+                  {getVisibleColumns.rate_per_hour && (
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('rate_per_hour', e)}
+                    >
+                      Hourly Equivalent Rate
+                      <SortIndicator sortKey="rate_per_hour" />
+                    </th>
+                  )}
+                  {getVisibleColumns.rate_effective_date && (
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('rate_effective_date', e)}
+                    >
+                      Effective Date
+                      <SortIndicator sortKey="rate_effective_date" />
+                    </th>
+                  )}
+                  {getVisibleColumns.modifier_1 && (
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('modifier_1', e)}
+                    >
+                      Modifier 1
+                      <SortIndicator sortKey="modifier_1" />
+                    </th>
+                  )}
+                  {getVisibleColumns.modifier_2 && (
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('modifier_2', e)}
+                    >
+                      Modifier 2
+                      <SortIndicator sortKey="modifier_2" />
+                    </th>
+                  )}
+                  {getVisibleColumns.modifier_3 && (
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('modifier_3', e)}
+                    >
+                      Modifier 3
+                      <SortIndicator sortKey="modifier_3" />
+                    </th>
+                  )}
+                  {getVisibleColumns.modifier_4 && (
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('modifier_4', e)}
+                    >
+                      Modifier 4
+                      <SortIndicator sortKey="modifier_4" />
+                    </th>
+                  )}
+                  {getVisibleColumns.program && (
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('program', e)}
+                    >
+                      Program
+                      <SortIndicator sortKey="program" />
+                    </th>
+                  )}
+                  {getVisibleColumns.location_region && (
+                    <th
+                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      onClick={(e) => handleSort('location_region', e)}
+                    >
+                      Location/Region
+                      <SortIndicator sortKey="location_region" />
+                    </th>
+                  )}
+                  {getVisibleColumns.provider_type && (
                       <th
                         className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                         onClick={(e) => handleSort('provider_type', e)}
                       >
-                        Provider Type
+                      Provider Type
                         <SortIndicator sortKey="provider_type" />
-                      </th>
+                    </th>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {sortedData.map((item, index) => (
+                  <tr key={index} className="hover:bg-gray-50 transition-colors">
+                    {getVisibleColumns.state_name && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.state_name || '-'}</td>
+                    )}
+                    {getVisibleColumns.service_category && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_category || '-'}</td>
+                    )}
+                    {getVisibleColumns.service_code && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code || '-'}</td>
+                    )}
+                    {getVisibleColumns.service_description && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_description || '-'}</td>
+                    )}
+                    {getVisibleColumns.duration_unit && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.duration_unit || '-'}</td>
+                    )}
+                    {getVisibleColumns.rate && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate || '-'}</td>
+                    )}
+                    {getVisibleColumns.rate_per_hour && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {(() => {
+                          const rateStr = (item.rate || '').replace('$', '');
+                          const rate = parseFloat(rateStr);
+                          const durationUnit = item.duration_unit?.toUpperCase();
+                          
+                          if (isNaN(rate)) return '-';
+                          
+                          if (durationUnit === '15 MINUTES') {
+                            return `$${(rate * 4).toFixed(2)}`;
+                          } else if (durationUnit === '30 MINUTES') {
+                            return `$${(rate * 2).toFixed(2)}`;
+                          } else if (durationUnit === 'PER HOUR') {
+                            return `$${rate.toFixed(2)}`;
+                          }
+                          return 'N/A';
+                        })()}
+                      </td>
+                    )}
+                    {getVisibleColumns.rate_effective_date && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate_effective_date || '-'}</td>
+                    )}
+                    {getVisibleColumns.modifier_1 && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {item.modifier_1 ? `${item.modifier_1}${item.modifier_1_details ? ` - ${item.modifier_1_details}` : ''}` : '-'}
+                      </td>
+                    )}
+                    {getVisibleColumns.modifier_2 && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {item.modifier_2 ? `${item.modifier_2}${item.modifier_2_details ? ` - ${item.modifier_2_details}` : ''}` : '-'}
+                      </td>
+                    )}
+                    {getVisibleColumns.modifier_3 && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {item.modifier_3 ? `${item.modifier_3}${item.modifier_3_details ? ` - ${item.modifier_3_details}` : ''}` : '-'}
+                      </td>
+                    )}
+                    {getVisibleColumns.modifier_4 && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {item.modifier_4 ? `${item.modifier_4}${item.modifier_4_details ? ` - ${item.modifier_4_details}` : ''}` : '-'}
+                      </td>
+                    )}
+                    {getVisibleColumns.program && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.program || '-'}</td>
+                    )}
+                    {getVisibleColumns.location_region && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.location_region || '-'}</td>
+                    )}
+                    {getVisibleColumns.provider_type && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.provider_type || '-'}</td>
                     )}
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {sortedData.map((item, index) => (
-                    <tr key={index} className="hover:bg-gray-50 transition-colors">
-                      {getVisibleColumns.state_name && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.state_name || '-'}</td>
-                      )}
-                      {getVisibleColumns.service_category && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_category || '-'}</td>
-                      )}
-                      {getVisibleColumns.service_code && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code || '-'}</td>
-                      )}
-                      {getVisibleColumns.service_description && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_description || '-'}</td>
-                      )}
-                      {getVisibleColumns.duration_unit && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.duration_unit || '-'}</td>
-                      )}
-                      {getVisibleColumns.rate && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate || '-'}</td>
-                      )}
-                      {getVisibleColumns.rate_per_hour && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {(() => {
-                            const rateStr = (item.rate || '').replace('$', '');
-                            const rate = parseFloat(rateStr);
-                            const durationUnit = item.duration_unit?.toUpperCase();
-                            
-                            if (isNaN(rate)) return '-';
-                            
-                            if (durationUnit === '15 MINUTES') {
-                              return `$${(rate * 4).toFixed(2)}`;
-                            } else if (durationUnit === '30 MINUTES') {
-                              return `$${(rate * 2).toFixed(2)}`;
-                            } else if (durationUnit === 'PER HOUR') {
-                              return `$${rate.toFixed(2)}`;
-                            }
-                            return 'N/A';
-                          })()}
-                        </td>
-                      )}
-                      {getVisibleColumns.rate_effective_date && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate_effective_date || '-'}</td>
-                      )}
-                      {getVisibleColumns.modifier_1 && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.modifier_1 ? `${item.modifier_1}${item.modifier_1_details ? ` - ${item.modifier_1_details}` : ''}` : '-'}
-                        </td>
-                      )}
-                      {getVisibleColumns.modifier_2 && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.modifier_2 ? `${item.modifier_2}${item.modifier_2_details ? ` - ${item.modifier_2_details}` : ''}` : '-'}
-                        </td>
-                      )}
-                      {getVisibleColumns.modifier_3 && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.modifier_3 ? `${item.modifier_3}${item.modifier_3_details ? ` - ${item.modifier_3_details}` : ''}` : '-'}
-                        </td>
-                      )}
-                      {getVisibleColumns.modifier_4 && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.modifier_4 ? `${item.modifier_4}${item.modifier_4_details ? ` - ${item.modifier_4_details}` : ''}` : '-'}
-                        </td>
-                      )}
-                      {getVisibleColumns.program && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.program || '-'}</td>
-                      )}
-                      {getVisibleColumns.location_region && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.location_region || '-'}</td>
-                      )}
-                      {getVisibleColumns.provider_type && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.provider_type || '-'}</td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
             {/* Loading State for Initial Load */}
             {loading && !data.length && (
@@ -1636,7 +1636,7 @@ export default function Dashboard() {
             {localError && (
               <div className="text-center py-4 text-sm text-red-500">
                 {localError}
-              </div>
+            </div>
             )}
           </>
         )}

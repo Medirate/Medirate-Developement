@@ -379,7 +379,7 @@ export default function HistoricalRates() {
     return <div>Error: {error}</div>;
   }
 
-  const ErrorMessage = ({ error }: { error: string }) => {
+  const ErrorMessage = ({ error }: { error: string | null }) => {
     if (!error) return null;
     
     return (
