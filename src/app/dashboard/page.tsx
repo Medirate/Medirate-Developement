@@ -174,8 +174,8 @@ export default function Dashboard() {
     }
   };
 
-  // Always call hooks at the top level
-  const { data, loading, error } = useData();
+  // Update useData destructuring to include refreshFilters
+  const { data, loading, error, filterOptions, refreshData, refreshFilters } = useData();
 
   // Filter states
   const [selectedServiceCategory, setSelectedServiceCategory] = useState("");
@@ -185,8 +185,10 @@ export default function Dashboard() {
   const [selectedProgram, setSelectedProgram] = useState("");
   const [selectedLocationRegion, setSelectedLocationRegion] = useState("");
   const [selectedModifier, setSelectedModifier] = useState("");
+  const [selectedProviderType, setSelectedProviderType] = useState("");
   const [startDate, setStartDate] = useState<Date | null>(new Date(2017, 0, 1));
   const [endDate, setEndDate] = useState<Date | null>(new Date());
+  const [localError, setLocalError] = useState<string | null>(null);
 
   // Visibility states for dropdowns
   const [showServiceCategoryDropdown, setShowServiceCategoryDropdown] = useState(false);
@@ -204,6 +206,7 @@ export default function Dashboard() {
   const [serviceDescriptions, setServiceDescriptions] = useState<string[]>([]);
   const [programs, setPrograms] = useState<string[]>([]);
   const [locationRegions, setLocationRegions] = useState<string[]>([]);
+  const [providerTypes, setProviderTypes] = useState<string[]>([]);
   const [modifiers, setModifiers] = useState<{ value: string; label: string }[]>([]);
 
   // Calculate dynamic height based on window size
@@ -239,11 +242,42 @@ export default function Dashboard() {
   const [selectedFeeScheduleDate, setSelectedFeeScheduleDate] = useState("");
   const [feeScheduleDates, setFeeScheduleDates] = useState<string[]>([]);
 
-  // Add new state for selected provider type
-  const [selectedProviderType, setSelectedProviderType] = useState("");
+  // Update useEffect to handle initial filter options
+  useEffect(() => {
+    if (filterOptions?.serviceCategories) {
+      // Deduplicate and sort service categories, but do not change case
+      const normalizedCategories = Array.from(
+        new Set(
+          filterOptions.serviceCategories
+            .map(cat => cat?.trim())
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b));
+      setServiceCategories(normalizedCategories);
+    }
+    if (filterOptions?.states) {
+      // Deduplicate and sort states, but do not change case
+      const normalizedStates = Array.from(
+        new Set(
+          filterOptions.states
+            .map(state => state?.trim())
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b));
+      setStates(normalizedStates);
+    }
+  }, [filterOptions]);
 
-  // Add provider types state
-  const [providerTypes, setProviderTypes] = useState<string[]>([]);
+  // Place this useEffect immediately after all useState declarations
+  useEffect(() => {
+    if (filterOptions) {
+      setServiceCodes(filterOptions.serviceCodes || []);
+      setServiceDescriptions(filterOptions.serviceDescriptions || []);
+      setPrograms(filterOptions.programs || []);
+      setLocationRegions(filterOptions.locationRegions || []);
+      setProviderTypes(filterOptions.providerTypes || []);
+    }
+  }, [filterOptions]);
 
   // Move the parseDate function here, before filteredData
   const parseDate = (dateString: string | null) => {
@@ -281,134 +315,45 @@ export default function Dashboard() {
 
   // Now the filteredData useMemo hook can safely use parseDate
   const filteredData = useMemo(() => {
-    if (!areFiltersApplied) return [];
+    if (!selectedState) return [];
     
     console.log('=== Filtering Data ===');
     console.log('Initial data length:', data.length);
 
     let filtered = data;
 
-    // First filter by service category if selected
-    if (selectedServiceCategory) {
-      const beforeCount = filtered.length;
-      filtered = filtered.filter(item => {
-        const itemCategory = item.service_category?.trim().toUpperCase();
-        const selectedCategoryUpper = selectedServiceCategory.trim().toUpperCase();
-        return itemCategory === selectedCategoryUpper;
-      });
-      console.log('After category filter:', {
-        before: beforeCount,
-        after: filtered.length,
-        category: selectedServiceCategory
-      });
-    }
-
-    // Then filter by state
-    if (selectedState) {
-      const beforeCount = filtered.length;
-      filtered = filtered.filter(item => {
-        const itemState = item.state_name?.trim().toUpperCase();
-        const selectedStateUpper = selectedState.trim().toUpperCase();
-        return itemState === selectedStateUpper;
-      });
-      console.log('After state filter:', {
-        before: beforeCount,
-        after: filtered.length,
-        state: selectedState
-      });
-    }
-
-    // Then apply additional filters if they are selected
+    // Apply additional filters if they are selected
     if (selectedServiceCode) {
-      const beforeCount = filtered.length;
-      filtered = filtered.filter(item => {
-        const itemCode = item.service_code?.trim();
-        const selectedCode = selectedServiceCode.trim();
-        return itemCode === selectedCode;
-      });
-      console.log('After service code filter:', {
-        before: beforeCount,
-        after: filtered.length,
-        code: selectedServiceCode
-      });
+      filtered = filtered.filter(item => item.service_code?.trim() === selectedServiceCode.trim());
     }
 
     if (selectedServiceDescription) {
-      const beforeCount = filtered.length;
-      filtered = filtered.filter(item => {
-        const itemDesc = item.service_description?.trim();
-        const selectedDesc = selectedServiceDescription.trim();
-        return itemDesc === selectedDesc;
-      });
-      console.log('After service description filter:', {
-        before: beforeCount,
-        after: filtered.length,
-        description: selectedServiceDescription
-      });
+      filtered = filtered.filter(item => item.service_description?.trim() === selectedServiceDescription.trim());
     }
 
     if (selectedProgram) {
-      const beforeCount = filtered.length;
-      filtered = filtered.filter(item => {
-        const itemProgram = item.program?.trim();
-        const selectedProgramUpper = selectedProgram.trim();
-        return itemProgram === selectedProgramUpper;
-      });
-      console.log('After program filter:', {
-        before: beforeCount,
-        after: filtered.length,
-        program: selectedProgram
-      });
+      filtered = filtered.filter(item => item.program?.trim() === selectedProgram.trim());
     }
 
     if (selectedLocationRegion) {
-      const beforeCount = filtered.length;
-      filtered = filtered.filter(item => {
-        const itemRegion = item.location_region?.trim().toUpperCase();
-        const selectedRegionUpper = selectedLocationRegion.trim().toUpperCase();
-        return itemRegion === selectedRegionUpper;
-      });
-      console.log('After location/region filter:', {
-        before: beforeCount,
-        after: filtered.length,
-        region: selectedLocationRegion
-      });
+      filtered = filtered.filter(item => item.location_region?.trim() === selectedLocationRegion.trim());
     }
 
-      if (selectedModifier) {
-      const beforeCount = filtered.length;
-        const selectedModifierCode = selectedModifier.split(' - ')[0];
-      filtered = filtered.filter(item => {
-        const hasModifier = 
-          (item.modifier_1 && item.modifier_1.split(' - ')[0] === selectedModifierCode) ||
-          (item.modifier_2 && item.modifier_2.split(' - ')[0] === selectedModifierCode) ||
-          (item.modifier_3 && item.modifier_3.split(' - ')[0] === selectedModifierCode) ||
-          (item.modifier_4 && item.modifier_4.split(' - ')[0] === selectedModifierCode);
-        return hasModifier;
-      });
-      console.log('After modifier filter:', {
-        before: beforeCount,
-        after: filtered.length,
-        modifier: selectedModifier
-      });
-      }
-
     if (selectedProviderType) {
-      const beforeCount = filtered.length;
-      filtered = filtered.filter(item => {
-        const itemType = item.provider_type?.trim().toUpperCase();
-        const selectedTypeUpper = selectedProviderType.trim().toUpperCase();
-        return itemType === selectedTypeUpper;
-      });
-      console.log('After provider type filter:', {
-        before: beforeCount,
-        after: filtered.length,
-        type: selectedProviderType
-      });
+      filtered = filtered.filter(item => item.provider_type?.trim() === selectedProviderType.trim());
+    }
+
+    if (selectedModifier) {
+      const selectedModifierCode = selectedModifier.split(' - ')[0];
+      filtered = filtered.filter(item => 
+        (item.modifier_1 && item.modifier_1.split(' - ')[0] === selectedModifierCode) ||
+        (item.modifier_2 && item.modifier_2.split(' - ')[0] === selectedModifierCode) ||
+        (item.modifier_3 && item.modifier_3.split(' - ')[0] === selectedModifierCode) ||
+        (item.modifier_4 && item.modifier_4.split(' - ')[0] === selectedModifierCode)
+      );
     }
 
     // Apply date filters
-    const beforeCount = filtered.length;
     filtered = filtered.filter(item => {
       const parsedDate = parseDate(item.rate_effective_date);
       if (!parsedDate) return true;
@@ -428,123 +373,21 @@ export default function Dashboard() {
 
       return true;
     });
-    console.log('After date filter:', {
-      before: beforeCount,
-      after: filtered.length,
-      feeScheduleDate: selectedFeeScheduleDate,
-      year: selectedYear,
-      startDate,
-      endDate,
-      hasDateFilters: !!(selectedFeeScheduleDate || selectedYear || (startDate && endDate))
-    });
-
-    // Update all filter options based on the current filtered data
-    const updateFilterOptions = () => {
-      // Update service codes
-      const serviceCodes = [...new Set(filtered
-        .map(item => item.service_code?.trim())
-        .filter((code): code is string => !!code)
-      )].sort((a, b) => a.localeCompare(b));
-      setServiceCodes(serviceCodes);
-
-      // Update service descriptions
-      const serviceDescriptions = [...new Set(filtered
-        .map(item => item.service_description?.trim())
-        .filter((desc): desc is string => !!desc)
-      )].sort((a, b) => a.localeCompare(b));
-      setServiceDescriptions(serviceDescriptions);
-
-      // Update programs
-      const programs = [...new Set(filtered
-        .map(item => item.program?.trim())
-        .filter((program): program is string => !!program)
-      )].sort((a, b) => a.localeCompare(b));
-      setPrograms(programs);
-
-      // Update location regions
-      const regions = [...new Set(filtered
-        .map(item => item.location_region?.trim())
-        .filter((region): region is string => !!region)
-      )].sort((a, b) => a.localeCompare(b));
-      setLocationRegions(regions);
-
-      // Update provider types
-      const types = [...new Set(filtered
-        .map(item => item.provider_type?.trim())
-        .filter((type): type is string => !!type)
-      )].sort((a, b) => a.localeCompare(b));
-      setProviderTypes(types);
-
-      // Update modifiers
-      const allModifiers = filtered.flatMap(item => {
-        const modifiers = [];
-        if (item.modifier_1) {
-          modifiers.push({
-            value: item.modifier_1.trim(),
-            details: item.modifier_1_details?.trim() || '',
-            fullText: `${item.modifier_1.trim()}${item.modifier_1_details ? ` - ${item.modifier_1_details.trim()}` : ''}`
-          });
-        }
-        if (item.modifier_2) {
-          modifiers.push({
-            value: item.modifier_2.trim(),
-            details: item.modifier_2_details?.trim() || '',
-            fullText: `${item.modifier_2.trim()}${item.modifier_2_details ? ` - ${item.modifier_2_details.trim()}` : ''}`
-          });
-        }
-        if (item.modifier_3) {
-          modifiers.push({
-            value: item.modifier_3.trim(),
-            details: item.modifier_3_details?.trim() || '',
-            fullText: `${item.modifier_3.trim()}${item.modifier_3_details ? ` - ${item.modifier_3_details.trim()}` : ''}`
-          });
-        }
-        if (item.modifier_4) {
-          modifiers.push({
-            value: item.modifier_4.trim(),
-            details: item.modifier_4_details?.trim() || '',
-            fullText: `${item.modifier_4.trim()}${item.modifier_4_details ? ` - ${item.modifier_4_details.trim()}` : ''}`
-          });
-        }
-        return modifiers;
-      });
-
-      const uniqueModifiers = [...new Set(allModifiers.map(mod => mod.fullText))].map(fullText => {
-        const mod = allModifiers.find(m => m.fullText === fullText);
-        return {
-          value: fullText,
-          label: fullText,
-          details: mod?.details || ''
-        };
-      });
-
-      setModifiers(uniqueModifiers);
-    };
-
-    // Call updateFilterOptions after all filtering is done
-    updateFilterOptions();
-
-    console.log('Final filtered data summary:', {
-      totalItems: filtered.length,
-      uniqueServiceCodes: [...new Set(filtered.map(item => item.service_code))].length,
-      uniqueDescriptions: [...new Set(filtered.map(item => item.service_description))].length
-    });
 
     return filtered;
   }, [
     data,
-    startDate,
-    endDate,
-    selectedYear,
     selectedState,
-    selectedServiceCategory,
     selectedServiceCode,
     selectedServiceDescription,
     selectedProgram,
     selectedLocationRegion,
     selectedModifier,
+    selectedProviderType,
     selectedFeeScheduleDate,
-    selectedProviderType
+    selectedYear,
+    startDate,
+    endDate
   ]);
 
   // Update the sortConfig state initialization
@@ -713,7 +556,8 @@ export default function Dashboard() {
     console.log('Filtered data:', filteredData.length);
   }, [data, filteredData]);
 
-  const ErrorMessage = ({ error }: { error: string }) => {
+  // Update ErrorMessage component to handle null
+  const ErrorMessage = ({ error }: { error: string | null }) => {
     if (!error) return null;
     
     return (
@@ -761,7 +605,7 @@ export default function Dashboard() {
     dropdownSetter(prev => !prev);
   };
 
-  const handleServiceCategoryChange = (category: string) => {
+  const handleServiceCategoryChange = async (category: string) => {
     console.log('=== Service Category Change ===');
     console.log('Selected category:', category);
     
@@ -784,60 +628,52 @@ export default function Dashboard() {
     setModifiers([]);
     setProviderTypes([]);
 
-    // Ensure data is an array, fallback to an empty array if it's not
-    const safeData = Array.isArray(data) ? data : [];
-    console.log('Total data items:', safeData.length);
-
-    // Filter data based on selected category - make it case insensitive and trim whitespace
-    const filteredData = safeData.filter(item => {
-      const itemCategory = item.service_category?.trim().toUpperCase();
-      const selectedCategory = category.trim().toUpperCase();
-      return itemCategory === selectedCategory;
-    });
-
-    console.log('Filtered data items for category:', filteredData.length);
+    // Get states for this category
+    await refreshFilters(category);
     
-    // Update all filter options based on filtered data
-    const uniqueStates = [...new Set(filteredData
-      .map(item => item.state_name?.trim().toUpperCase())
-      .filter((state): state is string => !!state)
-    )].sort((a, b) => a.localeCompare(b));
-    
-    console.log('Unique states found for category:', uniqueStates);
-    setStates(uniqueStates);
+    // Update states dropdown
+    setStates(filterOptions.states);
+  };
 
-    // Update service codes
-    const codes = filteredData
+  // Add a function to extract filter options from data
+  const extractFilterOptionsFromData = (data: ServiceData[]) => {
+    // Get unique service codes
+    const uniqueServiceCodes = [...new Set(data
       .map(item => item.service_code?.trim())
-      .filter((code): code is string => !!code);
-    setServiceCodes([...new Set(codes)].sort((a, b) => a.localeCompare(b)));
-    
-    // Update service descriptions
-    const descriptions = filteredData
+      .filter((code): code is string => typeof code === 'string' && code.length > 0)
+    )].sort() as string[];
+    setServiceCodes(uniqueServiceCodes);
+
+    // Get unique service descriptions
+    const uniqueDescriptions = [...new Set(data
       .map(item => item.service_description?.trim())
-      .filter((desc): desc is string => !!desc);
-    setServiceDescriptions([...new Set(descriptions)].sort((a, b) => a.localeCompare(b)));
-    
-    // Update programs
-    const programs = filteredData
+      .filter((desc): desc is string => typeof desc === 'string' && desc.length > 0)
+    )].sort() as string[];
+    setServiceDescriptions(uniqueDescriptions);
+
+    // Get unique programs
+    const uniquePrograms = [...new Set(data
       .map(item => item.program?.trim())
-      .filter((program): program is string => !!program);
-    setPrograms([...new Set(programs)].sort((a, b) => a.localeCompare(b)));
-    
-    // Update location regions
-    const regions = filteredData
+      .filter((program): program is string => typeof program === 'string' && program.length > 0)
+    )].sort() as string[];
+    setPrograms(uniquePrograms);
+
+    // Get unique location regions
+    const uniqueRegions = [...new Set(data
       .map(item => item.location_region?.trim())
-      .filter((region): region is string => !!region);
-    setLocationRegions([...new Set(regions)].sort((a, b) => a.localeCompare(b)));
-    
-    // Update provider types
-    const types = filteredData
+      .filter((region): region is string => typeof region === 'string' && region.length > 0)
+    )].sort() as string[];
+    setLocationRegions(uniqueRegions);
+
+    // Get unique provider types
+    const uniqueProviderTypes = [...new Set(data
       .map(item => item.provider_type?.trim())
-      .filter((type): type is string => !!type);
-    setProviderTypes([...new Set(types)].sort((a, b) => a.localeCompare(b)));
-    
-    // Update modifiers
-    const allModifiers = filteredData.flatMap(item => {
+      .filter((type): type is string => typeof type === 'string' && type.length > 0)
+    )].sort() as string[];
+    setProviderTypes(uniqueProviderTypes);
+
+    // Get unique modifiers
+    const allModifiers = data.flatMap(item => {
       const modifiers = [];
       if (item.modifier_1) {
         modifiers.push({
@@ -878,16 +714,15 @@ export default function Dashboard() {
         details: mod?.details || ''
       };
     });
-
     setModifiers(uniqueModifiers);
   };
 
-  const handleStateChange = (state: string) => {
+  // Update the handleStateChange function
+  const handleStateChange = async (state: string) => {
     console.log('=== State Change ===');
     console.log('Selected state:', state);
-    console.log('Current service category:', selectedServiceCategory);
     
-    setSelectedState(state.toUpperCase());
+    setSelectedState(state);
     setSelectedServiceCode("");
     setSelectedServiceDescription("");
     setSelectedProgram("");
@@ -904,110 +739,26 @@ export default function Dashboard() {
     setModifiers([]);
     setProviderTypes([]);
 
-    if (selectedServiceCategory) {
-      const filteredData = data.filter(item => {
-        const itemState = item.state_name?.trim().toUpperCase();
-        const itemCategory = item.service_category?.trim().toUpperCase();
-        const selectedCategory = selectedServiceCategory.trim().toUpperCase();
-        const selectedState = state.trim().toUpperCase();
-        
-        return itemState === selectedState && itemCategory === selectedCategory;
-      });
-      
-      console.log('Filtered data summary:', {
-        state,
-        category: selectedServiceCategory,
-        totalMatches: filteredData.length,
-        uniqueServiceCodes: [...new Set(filteredData.map(item => item.service_code))].length
+    try {
+      // Load all data for this category + state combination
+      await refreshData({
+        serviceCategory: selectedServiceCategory,
+        state: state
       });
 
-      // Update service codes
-      const serviceCodes = [...new Set(filteredData
-        .map(item => item.service_code?.trim())
-        .filter((code): code is string => !!code)
-      )].sort((a, b) => a.localeCompare(b));
-      setServiceCodes(serviceCodes);
-
-      // Update service descriptions
-      const serviceDescriptions = [...new Set(filteredData
-        .map(item => item.service_description?.trim())
-        .filter((desc): desc is string => !!desc)
-      )].sort((a, b) => a.localeCompare(b));
-      setServiceDescriptions(serviceDescriptions);
-
-      // Update programs
-      const programs = [...new Set(filteredData
-        .map(item => item.program?.trim())
-        .filter((program): program is string => !!program)
-      )].sort((a, b) => a.localeCompare(b));
-      setPrograms(programs);
-
-      // Update location regions
-      const regions = [...new Set(filteredData
-        .map(item => item.location_region?.trim())
-        .filter((region): region is string => !!region)
-      )].sort((a, b) => a.localeCompare(b));
-      setLocationRegions(regions);
-
-      // Update provider types
-      const types = [...new Set(filteredData
-        .map(item => item.provider_type?.trim())
-        .filter((type): type is string => !!type)
-      )].sort((a, b) => a.localeCompare(b));
-      setProviderTypes(types);
-
-      // Update modifiers
-      const allModifiers = filteredData.flatMap(item => {
-        const modifiers = [];
-        if (item.modifier_1) {
-          modifiers.push({
-            value: item.modifier_1.trim(),
-            details: item.modifier_1_details?.trim() || '',
-            fullText: `${item.modifier_1.trim()}${item.modifier_1_details ? ` - ${item.modifier_1_details.trim()}` : ''}`
-          });
-        }
-        if (item.modifier_2) {
-          modifiers.push({
-            value: item.modifier_2.trim(),
-            details: item.modifier_2_details?.trim() || '',
-            fullText: `${item.modifier_2.trim()}${item.modifier_2_details ? ` - ${item.modifier_2_details.trim()}` : ''}`
-          });
-        }
-        if (item.modifier_3) {
-          modifiers.push({
-            value: item.modifier_3.trim(),
-            details: item.modifier_3_details?.trim() || '',
-            fullText: `${item.modifier_3.trim()}${item.modifier_3_details ? ` - ${item.modifier_3_details.trim()}` : ''}`
-          });
-        }
-        if (item.modifier_4) {
-          modifiers.push({
-            value: item.modifier_4.trim(),
-            details: item.modifier_4_details?.trim() || '',
-            fullText: `${item.modifier_4.trim()}${item.modifier_4_details ? ` - ${item.modifier_4_details.trim()}` : ''}`
-          });
-        }
-        return modifiers;
-      });
-
-      const uniqueModifiers = [...new Set(allModifiers.map(mod => mod.fullText))].map(fullText => {
-        const mod = allModifiers.find(m => m.fullText === fullText);
-        return {
-          value: fullText,
-          label: fullText,
-          details: mod?.details || ''
-        };
-      });
-
-      setModifiers(uniqueModifiers);
+      // Optionally, extract modifiers from the loaded data
+      if (data.length > 0) {
+        extractFilterOptionsFromData(data);
+      }
+    } catch (error) {
+      console.error('Error loading state data:', error);
+      setLocalError('Failed to load state data. Please try again.');
     }
   };
 
-  const handleServiceCodeChange = (code: string) => {
+  const handleServiceCodeChange = async (code: string) => {
     console.log('=== Service Code Change ===');
     console.log('Selected code:', code);
-    console.log('Current state:', selectedState);
-    console.log('Current category:', selectedServiceCategory);
     
     setSelectedServiceCode(code);
     setSelectedServiceDescription("");
@@ -1024,102 +775,25 @@ export default function Dashboard() {
     setModifiers([]);
     setProviderTypes([]);
 
-    // Get all data for this state and category
-    const stateCategoryData = data.filter(item => 
-      item.service_category?.trim().toUpperCase() === selectedServiceCategory.trim().toUpperCase() &&
-      item.state_name?.trim().toUpperCase() === selectedState.trim().toUpperCase()
-    );
-
-    // Get filtered data for selected code
-    const filteredData = stateCategoryData.filter(item => 
-      item.service_code?.trim() === code.trim()
-    );
-
-    console.log('Filtered data for service code:', {
-      code,
-      totalItems: filteredData.length,
-      sampleItems: filteredData.slice(0, 3)
+    // Refresh data with new filters
+    await refreshData({
+      serviceCategory: selectedServiceCategory,
+      state: selectedState,
+      serviceCode: code
     });
 
-    // Update service descriptions
-    const serviceDescriptions = [...new Set(filteredData
-      .map(item => item.service_description?.trim())
-      .filter((desc): desc is string => !!desc)
-    )].sort((a, b) => a.localeCompare(b));
-    setServiceDescriptions(serviceDescriptions);
-
-    // Update programs
-    const programs = [...new Set(filteredData
-      .map(item => item.program?.trim())
-      .filter((program): program is string => !!program)
-    )].sort((a, b) => a.localeCompare(b));
-    setPrograms(programs);
-
-    // Update location regions
-    const regions = [...new Set(filteredData
-      .map(item => item.location_region?.trim())
-      .filter((region): region is string => !!region)
-    )].sort((a, b) => a.localeCompare(b));
-    setLocationRegions(regions);
-
-    // Update provider types
-    const types = [...new Set(filteredData
-      .map(item => item.provider_type?.trim())
-      .filter((type): type is string => !!type)
-    )].sort((a, b) => a.localeCompare(b));
-    setProviderTypes(types);
-
-    // Update modifiers
-    const allModifiers = filteredData.flatMap(item => {
-      const modifiers = [];
-      if (item.modifier_1) {
-        modifiers.push({
-          value: item.modifier_1.trim(),
-          details: item.modifier_1_details?.trim() || '',
-          fullText: `${item.modifier_1.trim()}${item.modifier_1_details ? ` - ${item.modifier_1_details.trim()}` : ''}`
-        });
-      }
-      if (item.modifier_2) {
-        modifiers.push({
-          value: item.modifier_2.trim(),
-          details: item.modifier_2_details?.trim() || '',
-          fullText: `${item.modifier_2.trim()}${item.modifier_2_details ? ` - ${item.modifier_2_details.trim()}` : ''}`
-        });
-      }
-      if (item.modifier_3) {
-        modifiers.push({
-          value: item.modifier_3.trim(),
-          details: item.modifier_3_details?.trim() || '',
-          fullText: `${item.modifier_3.trim()}${item.modifier_3_details ? ` - ${item.modifier_3_details.trim()}` : ''}`
-        });
-      }
-      if (item.modifier_4) {
-        modifiers.push({
-          value: item.modifier_4.trim(),
-          details: item.modifier_4_details?.trim() || '',
-          fullText: `${item.modifier_4.trim()}${item.modifier_4_details ? ` - ${item.modifier_4_details.trim()}` : ''}`
-        });
-      }
-      return modifiers;
-    });
-
-    const uniqueModifiers = [...new Set(allModifiers.map(mod => mod.fullText))].map(fullText => {
-      const mod = allModifiers.find(m => m.fullText === fullText);
-      return {
-        value: fullText,
-        label: fullText,
-        details: mod?.details || ''
-      };
-    });
-
-    setModifiers(uniqueModifiers);
+    // Update filter options from the response
+    if (filterOptions) {
+      setServiceDescriptions(filterOptions.serviceDescriptions);
+      setPrograms(filterOptions.programs);
+      setLocationRegions(filterOptions.locationRegions);
+      setProviderTypes(filterOptions.providerTypes);
+    }
   };
 
-  const handleServiceDescriptionChange = (desc: string) => {
+  const handleServiceDescriptionChange = async (desc: string) => {
     console.log('=== Service Description Change ===');
     console.log('Selected description:', desc);
-    console.log('Current state:', selectedState);
-    console.log('Current category:', selectedServiceCategory);
     
     setSelectedServiceDescription(desc);
     setSelectedServiceCode("");
@@ -1136,95 +810,20 @@ export default function Dashboard() {
     setModifiers([]);
     setProviderTypes([]);
 
-    // Get all data for this state and category
-    const stateCategoryData = data.filter(item => 
-      item.service_category?.trim().toUpperCase() === selectedServiceCategory.trim().toUpperCase() &&
-      item.state_name?.trim().toUpperCase() === selectedState.trim().toUpperCase()
-    );
-
-    // Get filtered data for selected description
-    const filteredData = stateCategoryData.filter(item => 
-      item.service_description?.trim() === desc.trim()
-    );
-
-    console.log('Filtered data for service description:', {
-      description: desc,
-      totalItems: filteredData.length,
-      sampleItems: filteredData.slice(0, 3)
+    // Refresh data with new filters
+    await refreshData({
+      serviceCategory: selectedServiceCategory,
+      state: selectedState,
+      serviceDescription: desc
     });
 
-    // Update service codes
-    const serviceCodes = [...new Set(filteredData
-      .map(item => item.service_code?.trim())
-      .filter((code): code is string => !!code)
-    )].sort((a, b) => a.localeCompare(b));
-    setServiceCodes(serviceCodes);
-
-    // Update programs
-    const programs = [...new Set(filteredData
-      .map(item => item.program?.trim())
-      .filter((program): program is string => !!program)
-    )].sort((a, b) => a.localeCompare(b));
-    setPrograms(programs);
-
-    // Update location regions
-    const regions = [...new Set(filteredData
-      .map(item => item.location_region?.trim())
-      .filter((region): region is string => !!region)
-    )].sort((a, b) => a.localeCompare(b));
-    setLocationRegions(regions);
-
-    // Update provider types
-    const types = [...new Set(filteredData
-      .map(item => item.provider_type?.trim())
-      .filter((type): type is string => !!type)
-    )].sort((a, b) => a.localeCompare(b));
-    setProviderTypes(types);
-
-    // Update modifiers
-    const allModifiers = filteredData.flatMap(item => {
-      const modifiers = [];
-      if (item.modifier_1) {
-        modifiers.push({
-          value: item.modifier_1.trim(),
-          details: item.modifier_1_details?.trim() || '',
-          fullText: `${item.modifier_1.trim()}${item.modifier_1_details ? ` - ${item.modifier_1_details.trim()}` : ''}`
-        });
-      }
-      if (item.modifier_2) {
-        modifiers.push({
-          value: item.modifier_2.trim(),
-          details: item.modifier_2_details?.trim() || '',
-          fullText: `${item.modifier_2.trim()}${item.modifier_2_details ? ` - ${item.modifier_2_details.trim()}` : ''}`
-        });
-      }
-      if (item.modifier_3) {
-        modifiers.push({
-          value: item.modifier_3.trim(),
-          details: item.modifier_3_details?.trim() || '',
-          fullText: `${item.modifier_3.trim()}${item.modifier_3_details ? ` - ${item.modifier_3_details.trim()}` : ''}`
-        });
-      }
-      if (item.modifier_4) {
-        modifiers.push({
-          value: item.modifier_4.trim(),
-          details: item.modifier_4_details?.trim() || '',
-          fullText: `${item.modifier_4.trim()}${item.modifier_4_details ? ` - ${item.modifier_4_details.trim()}` : ''}`
-        });
-      }
-      return modifiers;
-    });
-
-    const uniqueModifiers = [...new Set(allModifiers.map(mod => mod.fullText))].map(fullText => {
-      const mod = allModifiers.find(m => m.fullText === fullText);
-      return {
-        value: fullText,
-        label: fullText,
-        details: mod?.details || ''
-      };
-    });
-
-    setModifiers(uniqueModifiers);
+    // Update filter options from the response
+    if (filterOptions) {
+      setServiceCodes(filterOptions.serviceCodes);
+      setPrograms(filterOptions.programs);
+      setLocationRegions(filterOptions.locationRegions);
+      setProviderTypes(filterOptions.providerTypes);
+    }
   };
 
   const ClearButton = ({ onClick }: { onClick: () => void }) => (
@@ -1236,8 +835,8 @@ export default function Dashboard() {
     </button>
   );
 
-  // Update the resetFilters function to reset the filter step
-  const resetFilters = () => {
+  // Update the resetFilters function
+  const resetFilters = async () => {
     setSelectedServiceCategory("");
     setSelectedState("");
     setSelectedServiceCode("");
@@ -1253,7 +852,14 @@ export default function Dashboard() {
     setPrograms([]);
     setLocationRegions([]);
     setModifiers([]);
-    setFilterStep(1); // Reset to the first step
+    setFilterStep(1);
+
+    // Reset to initial filter options
+    await refreshFilters();
+    
+    // Update filter options
+    setServiceCategories(filterOptions.serviceCategories);
+    setStates(filterOptions.states);
   };
 
   // Update the dropdown selection logic
@@ -1424,7 +1030,7 @@ export default function Dashboard() {
       <CodeDefinitionsIcon />
       <div className="p-4 sm:p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
         {/* Error Message */}
-        <ErrorMessage error={error} />
+        <ErrorMessage error={localError} />
 
         {/* Heading and Date Range */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8">
@@ -1792,248 +1398,246 @@ export default function Dashboard() {
         {/* Data Table */}
         {!loading && areFiltersApplied && (
           <>
-          <div 
-            className="rounded-lg shadow-lg bg-white relative z-30 overflow-x-auto"
-            style={{ 
-              maxHeight: 'calc(100vh - 5.5rem)', 
-              overflow: 'auto'
-            }}
-          >
-            <table className="min-w-full">
-              <thead className="bg-gray-50 sticky top-[5.5rem] z-20">
-                <tr>
-                  {getVisibleColumns.state_name && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('state_name', e)}
-                    >
-                      State
-                      <SortIndicator sortKey="state_name" />
-                    </th>
-                  )}
-                  {getVisibleColumns.service_category && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('service_category', e)}
-                    >
-                      Service Category
-                      <SortIndicator sortKey="service_category" />
-                    </th>
-                  )}
-                  {getVisibleColumns.service_code && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('service_code', e)}
-                    >
-                      Service Code
-                      <SortIndicator sortKey="service_code" />
-                    </th>
-                  )}
-                  {getVisibleColumns.service_description && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('service_description', e)}
-                    >
-                      Service Description
-                      <SortIndicator sortKey="service_description" />
-                    </th>
-                  )}
-                  {getVisibleColumns.duration_unit && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('duration_unit', e)}
-                    >
-                      Duration Unit
-                      <SortIndicator sortKey="duration_unit" />
-                    </th>
-                  )}
-                  {getVisibleColumns.rate && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('rate', e)}
-                    >
-                      Rate per Base Unit
-                      <SortIndicator sortKey="rate" />
-                    </th>
-                  )}
-                  {getVisibleColumns.rate_per_hour && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('rate_per_hour', e)}
-                    >
-                      Hourly Equivalent Rate
-                      <SortIndicator sortKey="rate_per_hour" />
-                    </th>
-                  )}
-                  {getVisibleColumns.rate_effective_date && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('rate_effective_date', e)}
-                    >
-                      Effective Date
-                      <SortIndicator sortKey="rate_effective_date" />
-                    </th>
-                  )}
-                  {getVisibleColumns.modifier_1 && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('modifier_1', e)}
-                    >
-                      Modifier 1
-                      <SortIndicator sortKey="modifier_1" />
-                    </th>
-                  )}
-                  {getVisibleColumns.modifier_2 && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('modifier_2', e)}
-                    >
-                      Modifier 2
-                      <SortIndicator sortKey="modifier_2" />
-                    </th>
-                  )}
-                  {getVisibleColumns.modifier_3 && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('modifier_3', e)}
-                    >
-                      Modifier 3
-                      <SortIndicator sortKey="modifier_3" />
-                    </th>
-                  )}
-                  {getVisibleColumns.modifier_4 && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('modifier_4', e)}
-                    >
-                      Modifier 4
-                      <SortIndicator sortKey="modifier_4" />
-                    </th>
-                  )}
-                  {getVisibleColumns.program && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('program', e)}
-                    >
-                      Program
-                      <SortIndicator sortKey="program" />
-                    </th>
-                  )}
-                  {getVisibleColumns.location_region && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('location_region', e)}
-                    >
-                      Location/Region
-                      <SortIndicator sortKey="location_region" />
-                    </th>
-                  )}
-                  {getVisibleColumns.provider_type && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('provider_type', e)}
-                    >
-                      Provider Type
-                      <SortIndicator sortKey="provider_type" />
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {sortedData.map((item, index) => (
-                  <tr key={index} className="hover:bg-gray-50 transition-colors">
+            <div 
+              className="rounded-lg shadow-lg bg-white relative z-30 overflow-x-auto"
+              style={{ 
+                maxHeight: 'calc(100vh - 5.5rem)', 
+                overflow: 'auto'
+              }}
+            >
+              <table className="min-w-full">
+                <thead className="bg-gray-50 sticky top-[5.5rem] z-20">
+                  <tr>
                     {getVisibleColumns.state_name && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.state_name || '-'}</td>
+                      <th
+                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={(e) => handleSort('state_name', e)}
+                      >
+                        State
+                        <SortIndicator sortKey="state_name" />
+                      </th>
                     )}
                     {getVisibleColumns.service_category && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_category || '-'}</td>
+                      <th
+                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={(e) => handleSort('service_category', e)}
+                      >
+                        Service Category
+                        <SortIndicator sortKey="service_category" />
+                      </th>
                     )}
                     {getVisibleColumns.service_code && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code || '-'}</td>
+                      <th
+                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={(e) => handleSort('service_code', e)}
+                      >
+                        Service Code
+                        <SortIndicator sortKey="service_code" />
+                      </th>
                     )}
                     {getVisibleColumns.service_description && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_description || '-'}</td>
+                      <th
+                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={(e) => handleSort('service_description', e)}
+                      >
+                        Service Description
+                        <SortIndicator sortKey="service_description" />
+                      </th>
                     )}
                     {getVisibleColumns.duration_unit && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.duration_unit || '-'}</td>
+                      <th
+                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={(e) => handleSort('duration_unit', e)}
+                      >
+                        Duration Unit
+                        <SortIndicator sortKey="duration_unit" />
+                      </th>
                     )}
                     {getVisibleColumns.rate && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate || '-'}</td>
+                      <th
+                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={(e) => handleSort('rate', e)}
+                      >
+                        Rate per Base Unit
+                        <SortIndicator sortKey="rate" />
+                      </th>
                     )}
                     {getVisibleColumns.rate_per_hour && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {(() => {
-                          const rateStr = (item.rate || '').replace('$', '');
-                          const rate = parseFloat(rateStr);
-                          const durationUnit = item.duration_unit?.toUpperCase();
-                          
-                          if (isNaN(rate)) return '-';
-                          
-                          if (durationUnit === '15 MINUTES') {
-                            return `$${(rate * 4).toFixed(2)}`;
-                          } else if (durationUnit === '30 MINUTES') {
-                            return `$${(rate * 2).toFixed(2)}`;
-                          } else if (durationUnit === 'PER HOUR') {
-                            return `$${rate.toFixed(2)}`;
-                          }
-                          return 'N/A';
-                        })()}
-                      </td>
+                      <th
+                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={(e) => handleSort('rate_per_hour', e)}
+                      >
+                        Hourly Equivalent Rate
+                        <SortIndicator sortKey="rate_per_hour" />
+                      </th>
                     )}
                     {getVisibleColumns.rate_effective_date && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate_effective_date || '-'}</td>
+                      <th
+                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={(e) => handleSort('rate_effective_date', e)}
+                      >
+                        Effective Date
+                        <SortIndicator sortKey="rate_effective_date" />
+                      </th>
                     )}
                     {getVisibleColumns.modifier_1 && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.modifier_1 ? `${item.modifier_1}${item.modifier_1_details ? ` - ${item.modifier_1_details}` : ''}` : '-'}
-                      </td>
+                      <th
+                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={(e) => handleSort('modifier_1', e)}
+                      >
+                        Modifier 1
+                        <SortIndicator sortKey="modifier_1" />
+                      </th>
                     )}
                     {getVisibleColumns.modifier_2 && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.modifier_2 ? `${item.modifier_2}${item.modifier_2_details ? ` - ${item.modifier_2_details}` : ''}` : '-'}
-                      </td>
+                      <th
+                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={(e) => handleSort('modifier_2', e)}
+                      >
+                        Modifier 2
+                        <SortIndicator sortKey="modifier_2" />
+                      </th>
                     )}
                     {getVisibleColumns.modifier_3 && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.modifier_3 ? `${item.modifier_3}${item.modifier_3_details ? ` - ${item.modifier_3_details}` : ''}` : '-'}
-                      </td>
+                      <th
+                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={(e) => handleSort('modifier_3', e)}
+                      >
+                        Modifier 3
+                        <SortIndicator sortKey="modifier_3" />
+                      </th>
                     )}
                     {getVisibleColumns.modifier_4 && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.modifier_4 ? `${item.modifier_4}${item.modifier_4_details ? ` - ${item.modifier_4_details}` : ''}` : '-'}
-                      </td>
+                      <th
+                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={(e) => handleSort('modifier_4', e)}
+                      >
+                        Modifier 4
+                        <SortIndicator sortKey="modifier_4" />
+                      </th>
                     )}
                     {getVisibleColumns.program && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.program || '-'}</td>
+                      <th
+                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={(e) => handleSort('program', e)}
+                      >
+                        Program
+                        <SortIndicator sortKey="program" />
+                      </th>
                     )}
                     {getVisibleColumns.location_region && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.location_region || '-'}</td>
+                      <th
+                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={(e) => handleSort('location_region', e)}
+                      >
+                        Location/Region
+                        <SortIndicator sortKey="location_region" />
+                      </th>
                     )}
                     {getVisibleColumns.provider_type && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.provider_type || '-'}</td>
+                      <th
+                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                        onClick={(e) => handleSort('provider_type', e)}
+                      >
+                        Provider Type
+                        <SortIndicator sortKey="provider_type" />
+                      </th>
                     )}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-            {/* Sorting Instructions - Show below table when filters are applied */}
-            <div className="bg-blue-50 p-4 rounded-lg mt-4 border border-blue-200">
-              <div className="flex items-center space-x-2 mb-2">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <h3 className="text-sm font-semibold text-blue-800">Sorting Instructions</h3>
-              </div>
-              <ul className="text-sm text-blue-700 space-y-1 pl-5 list-disc">
-                <li>Click any column header to sort the data</li>
-                <li>Click again to toggle between ascending and descending order</li>
-                <li>Click a third time to deselect the sort</li>
-                <li>Hold <kbd className="px-1.5 py-0.5 bg-white border border-gray-200 rounded text-xs">Ctrl</kbd> while clicking to apply multiple sort levels</li>
-                <li>Sort priority is indicated by numbers next to the sort arrows (1 = primary sort, 2 = secondary sort, etc.)</li>
-              </ul>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {sortedData.map((item, index) => (
+                    <tr key={index} className="hover:bg-gray-50 transition-colors">
+                      {getVisibleColumns.state_name && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.state_name || '-'}</td>
+                      )}
+                      {getVisibleColumns.service_category && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_category || '-'}</td>
+                      )}
+                      {getVisibleColumns.service_code && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code || '-'}</td>
+                      )}
+                      {getVisibleColumns.service_description && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_description || '-'}</td>
+                      )}
+                      {getVisibleColumns.duration_unit && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.duration_unit || '-'}</td>
+                      )}
+                      {getVisibleColumns.rate && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate || '-'}</td>
+                      )}
+                      {getVisibleColumns.rate_per_hour && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {(() => {
+                            const rateStr = (item.rate || '').replace('$', '');
+                            const rate = parseFloat(rateStr);
+                            const durationUnit = item.duration_unit?.toUpperCase();
+                            
+                            if (isNaN(rate)) return '-';
+                            
+                            if (durationUnit === '15 MINUTES') {
+                              return `$${(rate * 4).toFixed(2)}`;
+                            } else if (durationUnit === '30 MINUTES') {
+                              return `$${(rate * 2).toFixed(2)}`;
+                            } else if (durationUnit === 'PER HOUR') {
+                              return `$${rate.toFixed(2)}`;
+                            }
+                            return 'N/A';
+                          })()}
+                        </td>
+                      )}
+                      {getVisibleColumns.rate_effective_date && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate_effective_date || '-'}</td>
+                      )}
+                      {getVisibleColumns.modifier_1 && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.modifier_1 ? `${item.modifier_1}${item.modifier_1_details ? ` - ${item.modifier_1_details}` : ''}` : '-'}
+                        </td>
+                      )}
+                      {getVisibleColumns.modifier_2 && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.modifier_2 ? `${item.modifier_2}${item.modifier_2_details ? ` - ${item.modifier_2_details}` : ''}` : '-'}
+                        </td>
+                      )}
+                      {getVisibleColumns.modifier_3 && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.modifier_3 ? `${item.modifier_3}${item.modifier_3_details ? ` - ${item.modifier_3_details}` : ''}` : '-'}
+                        </td>
+                      )}
+                      {getVisibleColumns.modifier_4 && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {item.modifier_4 ? `${item.modifier_4}${item.modifier_4_details ? ` - ${item.modifier_4_details}` : ''}` : '-'}
+                        </td>
+                      )}
+                      {getVisibleColumns.program && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.program || '-'}</td>
+                      )}
+                      {getVisibleColumns.location_region && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.location_region || '-'}</td>
+                      )}
+                      {getVisibleColumns.provider_type && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.provider_type || '-'}</td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+
+            {/* Loading State for Initial Load */}
+            {loading && !data.length && (
+              <div className="flex justify-center items-center h-64">
+                <FaSpinner className="animate-spin h-12 w-12 text-blue-500" />
+                <p className="ml-4 text-gray-600">Loading initial data...</p>
+              </div>
+            )}
+
+            {/* Error Message */}
+            {localError && (
+              <div className="text-center py-4 text-sm text-red-500">
+                {localError}
+              </div>
+            )}
           </>
         )}
       </div>
