@@ -7,7 +7,7 @@ export async function GET(request: Request) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
-    let query = "SELECT * FROM master_data_may_30_cleaned";
+    let query = "SELECT * FROM master_data_may_27";
     const params = [];
 
     if (startDate && endDate) {
