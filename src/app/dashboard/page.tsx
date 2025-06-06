@@ -789,6 +789,11 @@ export default function Dashboard() {
       setLocationRegions(filterOptions.locationRegions);
       setProviderTypes(filterOptions.providerTypes);
     }
+
+    // Extract modifiers from the filtered data
+    if (data.length > 0) {
+      extractFilterOptionsFromData(data);
+    }
   };
 
   const handleServiceDescriptionChange = async (desc: string) => {
@@ -823,6 +828,72 @@ export default function Dashboard() {
       setPrograms(filterOptions.programs);
       setLocationRegions(filterOptions.locationRegions);
       setProviderTypes(filterOptions.providerTypes);
+    }
+
+    // Extract modifiers from the filtered data
+    if (data.length > 0) {
+      extractFilterOptionsFromData(data);
+    }
+  };
+
+  const handleProgramChange = async (program: string) => {
+    setSelectedProgram(program);
+    setSelectedLocationRegion("");
+    setSelectedModifier("");
+    setSelectedProviderType("");
+
+    // Reset dependent filter options
+    setLocationRegions([]);
+    setModifiers([]);
+    setProviderTypes([]);
+
+    try {
+      // Refresh data with new filters
+      await refreshData({
+        serviceCategory: selectedServiceCategory,
+        state: selectedState,
+        serviceCode: selectedServiceCode,
+        serviceDescription: selectedServiceDescription,
+        program: program
+      });
+
+      // Extract modifiers from the filtered data
+      if (data.length > 0) {
+        extractFilterOptionsFromData(data);
+      }
+    } catch (error) {
+      console.error('Error updating program filter:', error);
+      setLocalError('Failed to update program filter. Please try again.');
+    }
+  };
+
+  const handleLocationRegionChange = async (region: string) => {
+    setSelectedLocationRegion(region);
+    setSelectedModifier("");
+    setSelectedProviderType("");
+
+    // Reset dependent filter options
+    setModifiers([]);
+    setProviderTypes([]);
+
+    try {
+      // Refresh data with new filters
+      await refreshData({
+        serviceCategory: selectedServiceCategory,
+        state: selectedState,
+        serviceCode: selectedServiceCode,
+        serviceDescription: selectedServiceDescription,
+        program: selectedProgram,
+        locationRegion: region
+      });
+
+      // Extract modifiers from the filtered data
+      if (data.length > 0) {
+        extractFilterOptionsFromData(data);
+      }
+    } catch (error) {
+      console.error('Error updating location/region filter:', error);
+      setLocalError('Failed to update location/region filter. Please try again.');
     }
   };
 
@@ -878,10 +949,10 @@ export default function Dashboard() {
         handleServiceCodeChange(value);
         break;
       case 'program':
-        // Add program-specific logic if needed
+        handleProgramChange(value);
         break;
       case 'locationRegion':
-        // Add location/region-specific logic if needed
+        handleLocationRegionChange(value);
         break;
       case 'modifier':
         // Add modifier-specific logic if needed
@@ -1200,7 +1271,13 @@ export default function Dashboard() {
               <label className="text-sm font-medium text-gray-700">State</label>
               <Select
                 instanceId={stateId}
-                options={states.map(state => ({ value: state, label: state }))}
+                // TEMPORARY HACK: Hide CALIFORNIA when BEHAVIORAL HEALTH is selected
+                options={
+                  (selectedServiceCategory === "BEHAVIORAL HEALTH"
+                    ? states.filter(state => state.toUpperCase() !== "CALIFORNIA")
+                    : states
+                  ).map(state => ({ value: state, label: state }))
+                }
                 value={selectedState ? { value: selectedState, label: selectedState } : null}
                 onChange={(option) => handleStateChange(option?.value || "")}
                 placeholder="Select State"
@@ -1277,7 +1354,7 @@ export default function Dashboard() {
                 instanceId={programId}
                 options={programs.map(program => ({ value: program, label: program }))}
                 value={selectedProgram ? { value: selectedProgram, label: selectedProgram } : null}
-                onChange={(option) => setSelectedProgram(option?.value || "")}
+                onChange={(option) => handleProgramChange(option?.value || "")}
                 placeholder="Select Program"
                 isSearchable
                 isDisabled={!selectedServiceCode && !selectedServiceDescription}
@@ -1285,7 +1362,7 @@ export default function Dashboard() {
                 classNamePrefix="react-select"
               />
               {selectedProgram && (
-                <ClearButton onClick={() => setSelectedProgram("")} />
+                <ClearButton onClick={() => handleProgramChange("")} />
               )}
             </div>
 
@@ -1296,7 +1373,7 @@ export default function Dashboard() {
                 instanceId={locationRegionId}
                 options={locationRegions.map(region => ({ value: region, label: region }))}
                 value={selectedLocationRegion ? { value: selectedLocationRegion, label: selectedLocationRegion } : null}
-                onChange={(option) => setSelectedLocationRegion(option?.value || "")}
+                onChange={(option) => handleLocationRegionChange(option?.value || "")}
                 placeholder="Select Location/Region"
                 isSearchable
                 isDisabled={!selectedServiceCode && !selectedServiceDescription}
@@ -1304,7 +1381,7 @@ export default function Dashboard() {
                 classNamePrefix="react-select"
               />
               {selectedLocationRegion && (
-                <ClearButton onClick={() => setSelectedLocationRegion("")} />
+                <ClearButton onClick={() => handleLocationRegionChange("")} />
               )}
             </div>
 
@@ -1318,8 +1395,8 @@ export default function Dashboard() {
                 onChange={(option) => setSelectedModifier(option?.value || "")}
                 placeholder="Select Modifier"
                 isSearchable
-                isDisabled={!selectedServiceCode && !selectedServiceDescription}
-                className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                isDisabled={!selectedState}
+                className={`react-select-container ${!selectedState ? 'opacity-50' : ''}`}
                 classNamePrefix="react-select"
               />
               {selectedModifier && (
