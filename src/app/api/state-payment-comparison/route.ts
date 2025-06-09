@@ -45,6 +45,11 @@ export async function GET(request: Request) {
     const providerType = searchParams.get("providerType");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
+    const page = parseInt(searchParams.get("page") || "1");
+    const itemsPerPage = parseInt(searchParams.get("itemsPerPage") || "50");
+
+    // Debug logging
+    console.log('API received state:', state);
 
     // Build the WHERE clause for data query
     const whereClause = [];
@@ -56,7 +61,7 @@ export async function GET(request: Request) {
     }
 
     if (state) {
-      whereClause.push(`state_name = $${params.length + 1}`);
+      whereClause.push(`TRIM(UPPER(state_name)) = TRIM(UPPER($${params.length + 1}))`);
       params.push(state);
     }
 
@@ -111,6 +116,21 @@ export async function GET(request: Request) {
     // Add ordering
     dataQuery += " ORDER BY state_name ASC, service_code ASC";
 
+    // Add pagination
+    const offset = (page - 1) * itemsPerPage;
+    dataQuery += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    params.push(itemsPerPage, offset);
+
+    // Debug logging
+    console.log('Data query:', dataQuery);
+    console.log('Params:', params);
+
+    // Get total count for pagination
+    const countQuery = `SELECT COUNT(*) FROM master_data_may_30_cleaned ${
+      whereClause.length > 0 ? "WHERE " + whereClause.join(" AND ") : ""
+    }`;
+    const countResult = await pool.query(countQuery, params.slice(0, -2)); // Remove pagination params for count
+
     // Execute data query
     const dataResult = await pool.query(dataQuery, params);
 
@@ -120,25 +140,61 @@ export async function GET(request: Request) {
       serviceDescriptions: `SELECT ARRAY_AGG(DISTINCT service_description) as service_descriptions FROM master_data_may_30_cleaned ${whereClause.length > 0 ? 'WHERE ' + whereClause.join(' AND ') : ''}`,
       programs: `SELECT ARRAY_AGG(DISTINCT program) as programs FROM master_data_may_30_cleaned ${whereClause.length > 0 ? 'WHERE ' + whereClause.join(' AND ') : ''}`,
       locationRegions: `SELECT ARRAY_AGG(DISTINCT location_region) as location_regions FROM master_data_may_30_cleaned ${whereClause.length > 0 ? 'WHERE ' + whereClause.join(' AND ') : ''}`,
-      providerTypes: `SELECT ARRAY_AGG(DISTINCT provider_type) as provider_types FROM master_data_may_30_cleaned ${whereClause.length > 0 ? 'WHERE ' + whereClause.join(' AND ') : ''}`
+      providerTypes: `SELECT ARRAY_AGG(DISTINCT provider_type) as provider_types FROM master_data_may_30_cleaned ${whereClause.length > 0 ? 'WHERE ' + whereClause.join(' AND ') : ''}`,
+      modifiers: `SELECT 
+        ARRAY_AGG(DISTINCT 
+          CASE 
+            WHEN modifier_1 IS NOT NULL AND modifier_1 <> '' THEN 
+              CASE WHEN modifier_1_details IS NOT NULL AND modifier_1_details <> '' THEN modifier_1 || ' - ' || modifier_1_details ELSE modifier_1 END
+            ELSE NULL END
+        ) ||
+        ARRAY_AGG(DISTINCT 
+          CASE 
+            WHEN modifier_2 IS NOT NULL AND modifier_2 <> '' THEN 
+              CASE WHEN modifier_2_details IS NOT NULL AND modifier_2_details <> '' THEN modifier_2 || ' - ' || modifier_2_details ELSE modifier_2 END
+            ELSE NULL END
+        ) ||
+        ARRAY_AGG(DISTINCT 
+          CASE 
+            WHEN modifier_3 IS NOT NULL AND modifier_3 <> '' THEN 
+              CASE WHEN modifier_3_details IS NOT NULL AND modifier_3_details <> '' THEN modifier_3 || ' - ' || modifier_3_details ELSE modifier_3 END
+            ELSE NULL END
+        ) ||
+        ARRAY_AGG(DISTINCT 
+          CASE 
+            WHEN modifier_4 IS NOT NULL AND modifier_4 <> '' THEN 
+              CASE WHEN modifier_4_details IS NOT NULL AND modifier_4_details <> '' THEN modifier_4 || ' - ' || modifier_4_details ELSE modifier_4 END
+            ELSE NULL END
+        )
+        as modifiers
+        FROM master_data_may_30_cleaned ${whereClause.length > 0 ? 'WHERE ' + whereClause.join(' AND ') : ''}`
     };
 
     const filterResults = await Promise.all([
-      pool.query(filterQueries.serviceCodes, params),
-      pool.query(filterQueries.serviceDescriptions, params),
-      pool.query(filterQueries.programs, params),
-      pool.query(filterQueries.locationRegions, params),
-      pool.query(filterQueries.providerTypes, params)
+      pool.query(filterQueries.serviceCodes, params.slice(0, -2)),
+      pool.query(filterQueries.serviceDescriptions, params.slice(0, -2)),
+      pool.query(filterQueries.programs, params.slice(0, -2)),
+      pool.query(filterQueries.locationRegions, params.slice(0, -2)),
+      pool.query(filterQueries.providerTypes, params.slice(0, -2)),
+      pool.query(filterQueries.modifiers, params.slice(0, -2))
     ]);
+
+    // Flatten and deduplicate modifiers, remove null/empty
+    const rawModifiers: string[] = ((filterResults[5].rows[0].modifiers || []) as string[]).filter(Boolean);
+    const uniqueModifiers = Array.from(new Set(rawModifiers)).filter(Boolean).map((mod) => ({ value: mod, label: mod }));
 
     return NextResponse.json({
       data: dataResult.rows,
+      totalCount: parseInt(countResult.rows[0].count),
+      currentPage: page,
+      itemsPerPage,
       filterOptions: {
         serviceCodes: filterResults[0].rows[0].service_codes?.filter(Boolean).sort() || [],
         serviceDescriptions: filterResults[1].rows[0].service_descriptions?.filter(Boolean).sort() || [],
         programs: filterResults[2].rows[0].programs?.filter(Boolean).sort() || [],
         locationRegions: filterResults[3].rows[0].location_regions?.filter(Boolean).sort() || [],
-        providerTypes: filterResults[4].rows[0].provider_types?.filter(Boolean).sort() || []
+        providerTypes: filterResults[4].rows[0].provider_types?.filter(Boolean).sort() || [],
+        modifiers: uniqueModifiers
       }
     });
   } catch (error) {

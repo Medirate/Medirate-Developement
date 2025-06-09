@@ -53,10 +53,29 @@ const FilterNote = ({ step }: { step: number }) => {
   );
 };
 
+// Add this interface near the top of the file with other interfaces
+interface RefreshDataResponse {
+  data: ServiceData[];
+  totalCount: number;
+  currentPage: number;
+  itemsPerPage: number;
+  filterOptions: {
+    serviceCodes: string[];
+    serviceDescriptions: string[];
+    programs: string[];
+    locationRegions: string[];
+    providerTypes: string[];
+    modifiers: string[];
+  };
+}
+
 export default function Dashboard() {
   const { isAuthenticated, isLoading, user } = useKindeBrowserClient();
   const router = useRouter();
   const [isSubscriptionCheckComplete, setIsSubscriptionCheckComplete] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50; // Adjust this number based on your needs
 
   useEffect(() => {
     console.log('Auth State:', { isLoading, isAuthenticated, userEmail: user?.email });
@@ -230,7 +249,7 @@ export default function Dashboard() {
   useClickOutside(locationRegionRef, () => setShowLocationRegionDropdown(false));
   useClickOutside(modifierRef, () => setShowModifierDropdown(false));
 
-  const areFiltersApplied = selectedState;
+  const areFiltersApplied = selectedState && selectedServiceCategory;
 
   // Add new state for selected year
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
@@ -241,6 +260,67 @@ export default function Dashboard() {
   // Add Fee Schedule Dates Dropdown
   const [selectedFeeScheduleDate, setSelectedFeeScheduleDate] = useState("");
   const [feeScheduleDates, setFeeScheduleDates] = useState<string[]>([]);
+
+  // Add this after other state declarations
+  const [allFilterOptions, setAllFilterOptions] = useState<{
+    [key: string]: string[];
+  }>({});
+
+  // Add this after other useEffect hooks
+  useEffect(() => {
+    const preloadFilterOptions = async () => {
+      try {
+        const response = await fetch('/api/state-payment-comparison?mode=filters');
+        if (!response.ok) throw new Error('Failed to fetch filter options');
+        const data = await response.json();
+        
+        // Store all filter options
+        setAllFilterOptions({
+          serviceCategories: data.filterOptions.serviceCategories,
+          states: data.filterOptions.states
+        });
+        
+        // Set initial service categories
+        setServiceCategories(data.filterOptions.serviceCategories);
+      } catch (error) {
+        console.error('Error preloading filter options:', error);
+        setLocalError('Failed to load filter options. Please refresh the page.');
+      }
+    };
+
+    preloadFilterOptions();
+  }, []);
+
+  // Update handleServiceCategoryChange to use preloaded data
+  const handleServiceCategoryChange = async (category: string) => {
+    console.log('=== Service Category Change ===');
+    console.log('Selected category:', category);
+    
+    setSelectedServiceCategory(category);
+    setSelectedState("");
+    setSelectedServiceCode("");
+    setSelectedServiceDescription("");
+    setSelectedProgram("");
+    setSelectedLocationRegion("");
+    setSelectedModifier("");
+    setSelectedProviderType("");
+    setFilterStep(2);
+    setCurrentPage(1);
+
+    // Reset all dependent filter options
+    setStates([]);
+    setServiceCodes([]);
+    setServiceDescriptions([]);
+    setPrograms([]);
+    setLocationRegions([]);
+    setModifiers([]);
+    setProviderTypes([]);
+
+    // Use preloaded states
+    if (allFilterOptions.states) {
+      setStates(allFilterOptions.states);
+    }
+  };
 
   // Update useEffect to handle initial filter options
   useEffect(() => {
@@ -276,6 +356,7 @@ export default function Dashboard() {
       setPrograms(filterOptions.programs || []);
       setLocationRegions(filterOptions.locationRegions || []);
       setProviderTypes(filterOptions.providerTypes || []);
+      setModifiers(filterOptions.modifiers || []);
     }
   }, [filterOptions]);
 
@@ -605,161 +686,7 @@ export default function Dashboard() {
     dropdownSetter(prev => !prev);
   };
 
-  const handleServiceCategoryChange = async (category: string) => {
-    console.log('=== Service Category Change ===');
-    console.log('Selected category:', category);
-    
-    setSelectedServiceCategory(category);
-    setSelectedState("");
-    setSelectedServiceCode("");
-    setSelectedServiceDescription("");
-    setSelectedProgram("");
-    setSelectedLocationRegion("");
-    setSelectedModifier("");
-    setSelectedProviderType("");
-    setFilterStep(2);
-
-    // Reset all dependent filter options
-    setStates([]);
-    setServiceCodes([]);
-    setServiceDescriptions([]);
-    setPrograms([]);
-    setLocationRegions([]);
-    setModifiers([]);
-    setProviderTypes([]);
-
-    // Get states for this category
-    await refreshFilters(category);
-    
-    // Update states dropdown
-    setStates(filterOptions.states);
-  };
-
-  // Add a function to extract filter options from data
-  const extractFilterOptionsFromData = (data: ServiceData[]) => {
-    // Get unique service codes
-    const uniqueServiceCodes = [...new Set(data
-      .map(item => item.service_code?.trim())
-      .filter((code): code is string => typeof code === 'string' && code.length > 0)
-    )].sort() as string[];
-    setServiceCodes(uniqueServiceCodes);
-
-    // Get unique service descriptions
-    const uniqueDescriptions = [...new Set(data
-      .map(item => item.service_description?.trim())
-      .filter((desc): desc is string => typeof desc === 'string' && desc.length > 0)
-    )].sort() as string[];
-    setServiceDescriptions(uniqueDescriptions);
-
-    // Get unique programs
-    const uniquePrograms = [...new Set(data
-      .map(item => item.program?.trim())
-      .filter((program): program is string => typeof program === 'string' && program.length > 0)
-    )].sort() as string[];
-    setPrograms(uniquePrograms);
-
-    // Get unique location regions
-    const uniqueRegions = [...new Set(data
-      .map(item => item.location_region?.trim())
-      .filter((region): region is string => typeof region === 'string' && region.length > 0)
-    )].sort() as string[];
-    setLocationRegions(uniqueRegions);
-
-    // Get unique provider types
-    const uniqueProviderTypes = [...new Set(data
-      .map(item => item.provider_type?.trim())
-      .filter((type): type is string => typeof type === 'string' && type.length > 0)
-    )].sort() as string[];
-    setProviderTypes(uniqueProviderTypes);
-
-    // Get unique modifiers
-    const allModifiers = data.flatMap(item => {
-      const modifiers = [];
-      if (item.modifier_1) {
-        modifiers.push({
-          value: item.modifier_1.trim(),
-          details: item.modifier_1_details?.trim() || '',
-          fullText: `${item.modifier_1.trim()}${item.modifier_1_details ? ` - ${item.modifier_1_details.trim()}` : ''}`
-        });
-      }
-      if (item.modifier_2) {
-        modifiers.push({
-          value: item.modifier_2.trim(),
-          details: item.modifier_2_details?.trim() || '',
-          fullText: `${item.modifier_2.trim()}${item.modifier_2_details ? ` - ${item.modifier_2_details.trim()}` : ''}`
-        });
-      }
-      if (item.modifier_3) {
-        modifiers.push({
-          value: item.modifier_3.trim(),
-          details: item.modifier_3_details?.trim() || '',
-          fullText: `${item.modifier_3.trim()}${item.modifier_3_details ? ` - ${item.modifier_3_details.trim()}` : ''}`
-        });
-      }
-      if (item.modifier_4) {
-        modifiers.push({
-          value: item.modifier_4.trim(),
-          details: item.modifier_4_details?.trim() || '',
-          fullText: `${item.modifier_4.trim()}${item.modifier_4_details ? ` - ${item.modifier_4_details.trim()}` : ''}`
-        });
-      }
-      return modifiers;
-    });
-
-    const uniqueModifiers = [...new Set(allModifiers.map(mod => mod.fullText))].map(fullText => {
-      const mod = allModifiers.find(m => m.fullText === fullText);
-      return {
-        value: fullText,
-        label: fullText,
-        details: mod?.details || ''
-      };
-    });
-    setModifiers(uniqueModifiers);
-  };
-
-  // Update the handleStateChange function
-  const handleStateChange = async (state: string) => {
-    console.log('=== State Change ===');
-    console.log('Selected state:', state);
-    
-    setSelectedState(state);
-    setSelectedServiceCode("");
-    setSelectedServiceDescription("");
-    setSelectedProgram("");
-    setSelectedLocationRegion("");
-    setSelectedModifier("");
-    setSelectedProviderType("");
-    setFilterStep(3);
-
-    // Reset dependent filter options
-    setServiceCodes([]);
-    setServiceDescriptions([]);
-      setPrograms([]);
-      setLocationRegions([]);
-      setModifiers([]);
-    setProviderTypes([]);
-
-    try {
-      // Load all data for this category + state combination
-      await refreshData({
-        serviceCategory: selectedServiceCategory,
-        state: state
-      });
-
-      // Optionally, extract modifiers from the loaded data
-      if (data.length > 0) {
-        extractFilterOptionsFromData(data);
-      }
-    } catch (error) {
-      console.error('Error loading state data:', error);
-      setLocalError('Failed to load state data. Please try again.');
-    }
-  };
-
   const handleServiceCodeChange = async (code: string) => {
-    console.log('=== Service Code Change ===');
-    console.log('Selected code:', code);
-    
     setSelectedServiceCode(code);
     setSelectedServiceDescription("");
     setSelectedProgram("");
@@ -775,31 +702,14 @@ export default function Dashboard() {
     setModifiers([]);
     setProviderTypes([]);
 
-    // Refresh data with new filters
     await refreshData({
       serviceCategory: selectedServiceCategory,
       state: selectedState,
       serviceCode: code
     });
-
-    // Update filter options from the response
-    if (filterOptions) {
-      setServiceDescriptions(filterOptions.serviceDescriptions);
-      setPrograms(filterOptions.programs);
-      setLocationRegions(filterOptions.locationRegions);
-      setProviderTypes(filterOptions.providerTypes);
-    }
-
-    // Extract modifiers from the filtered data
-    if (data.length > 0) {
-      extractFilterOptionsFromData(data);
-    }
   };
 
   const handleServiceDescriptionChange = async (desc: string) => {
-    console.log('=== Service Description Change ===');
-    console.log('Selected description:', desc);
-    
     setSelectedServiceDescription(desc);
     setSelectedServiceCode("");
     setSelectedProgram("");
@@ -815,25 +725,11 @@ export default function Dashboard() {
     setModifiers([]);
     setProviderTypes([]);
 
-    // Refresh data with new filters
     await refreshData({
       serviceCategory: selectedServiceCategory,
       state: selectedState,
       serviceDescription: desc
     });
-
-    // Update filter options from the response
-    if (filterOptions) {
-      setServiceCodes(filterOptions.serviceCodes);
-      setPrograms(filterOptions.programs);
-      setLocationRegions(filterOptions.locationRegions);
-      setProviderTypes(filterOptions.providerTypes);
-    }
-
-    // Extract modifiers from the filtered data
-    if (data.length > 0) {
-      extractFilterOptionsFromData(data);
-    }
   };
 
   const handleProgramChange = async (program: string) => {
@@ -848,7 +744,6 @@ export default function Dashboard() {
     setProviderTypes([]);
 
     try {
-      // Refresh data with new filters
       await refreshData({
         serviceCategory: selectedServiceCategory,
         state: selectedState,
@@ -856,11 +751,6 @@ export default function Dashboard() {
         serviceDescription: selectedServiceDescription,
         program: program
       });
-
-      // Extract modifiers from the filtered data
-      if (data.length > 0) {
-        extractFilterOptionsFromData(data);
-      }
     } catch (error) {
       console.error('Error updating program filter:', error);
       setLocalError('Failed to update program filter. Please try again.');
@@ -877,7 +767,6 @@ export default function Dashboard() {
     setProviderTypes([]);
 
     try {
-      // Refresh data with new filters
       await refreshData({
         serviceCategory: selectedServiceCategory,
         state: selectedState,
@@ -886,11 +775,6 @@ export default function Dashboard() {
         program: selectedProgram,
         locationRegion: region
       });
-
-      // Extract modifiers from the filtered data
-      if (data.length > 0) {
-        extractFilterOptionsFromData(data);
-      }
     } catch (error) {
       console.error('Error updating location/region filter:', error);
       setLocalError('Failed to update location/region filter. Please try again.');
@@ -931,6 +815,59 @@ export default function Dashboard() {
     // Update filter options
     setServiceCategories(filterOptions.serviceCategories);
     setStates(filterOptions.states);
+  };
+
+  // Update the handleStateChange function
+  const handleStateChange = async (state: string) => {
+    console.log('=== State Change ===');
+    console.log('Selected state:', state);
+    
+    // First update the UI state
+    setSelectedState(state);
+    setSelectedServiceCode("");
+    setSelectedServiceDescription("");
+    setSelectedProgram("");
+    setSelectedLocationRegion("");
+    setSelectedModifier("");
+    setSelectedProviderType("");
+    setFilterStep(3);
+    setCurrentPage(1);
+
+    // Reset dependent filter options
+    setServiceCodes([]);
+    setServiceDescriptions([]);
+    setPrograms([]);
+    setLocationRegions([]);
+    setModifiers([]);
+    setProviderTypes([]);
+
+    try {
+      // Load filter options for this state
+      await refreshFilters(selectedServiceCategory);
+      
+      // Then fetch the data with the new state filter
+      const filters = {
+        serviceCategory: selectedServiceCategory,
+        state: state,
+        page: "1",
+        itemsPerPage: String(itemsPerPage)
+      };
+      
+      console.log('Fetching data with filters:', filters);
+      const result = await refreshData(filters);
+      
+      if (result?.data && Array.isArray(result.data)) {
+        console.log('State filter applied successfully. Data length:', result.data.length);
+        setTotalCount(result.totalCount);
+        setHasSearched(true);
+      } else {
+        console.error('Invalid response format from refreshData:', result);
+        setLocalError('Failed to apply state filter. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error applying state filter:', error);
+      setLocalError('Failed to apply state filter. Please try again.');
+    }
   };
 
   // Update the dropdown selection logic
@@ -986,7 +923,7 @@ export default function Dashboard() {
     }
   };
 
-  // Update the getVisibleColumns function
+  // Update getVisibleColumns to use the backend data array (data) instead of filteredData
   const getVisibleColumns = useMemo(() => {
     const columns = {
       state_name: false,
@@ -1006,8 +943,8 @@ export default function Dashboard() {
       provider_type: false
     };
 
-    if (filteredData.length > 0) {
-      filteredData.forEach(item => {
+    if (data.length > 0) {
+      data.forEach(item => {
         const rateStr = (item.rate || '').replace('$', '');
         const rate = parseFloat(rateStr);
         const durationUnit = item.duration_unit?.toUpperCase();
@@ -1029,7 +966,7 @@ export default function Dashboard() {
     }
 
     return columns;
-  }, [filteredData]);
+  }, [data]);
 
   // Create a utility function to format text
   const formatText = (text: string | null | undefined) => {
@@ -1082,6 +1019,165 @@ export default function Dashboard() {
   // Update the Date Range fields to disable them when a Fee Schedule Date is selected
   const isDateRangeDisabled = !!selectedFeeScheduleDate;
 
+  // Add this after other state declarations
+  const [hasSearched, setHasSearched] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const handleSearch = async () => {
+    setIsSearching(true);
+    try {
+      console.log('handleSearch called. currentPage:', currentPage);
+      const filters = {
+        serviceCategory: selectedServiceCategory,
+        state: selectedState,
+        serviceCode: selectedServiceCode,
+        serviceDescription: selectedServiceDescription,
+        program: selectedProgram,
+        locationRegion: selectedLocationRegion,
+        modifier: selectedModifier,
+        providerType: selectedProviderType,
+        page: String(currentPage),
+        itemsPerPage: String(itemsPerPage)
+      };
+      
+      // Log the filters being sent
+      console.log('Filters sent to refreshData:', filters);
+      
+      // Ensure state filter is included
+      if (!filters.state) {
+        console.warn('No state selected for search');
+        setLocalError('Please select a state to search');
+        return;
+      }
+      
+      const result = await refreshData(filters) as RefreshDataResponse | null;
+      console.log('Result received from refreshData:', result);
+      
+      if (result?.data && Array.isArray(result.data)) {
+        console.log('Search successful. Data length:', result.data.length);
+        setTotalCount(result.totalCount);
+        setHasSearched(true);
+      } else {
+        console.error('Invalid response format:', result);
+        setLocalError('Received invalid data format from server');
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      setLocalError('Failed to fetch data. Please try again.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Fetch new data when the page changes (after a search)
+  useEffect(() => {
+    if (hasSearched) {
+      handleSearch();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage]);
+
+  // Add pagination controls component
+  const PaginationControls = () => {
+    const totalPages = Math.ceil(totalCount / itemsPerPage);
+    const maxPageButtons = 7;
+    const pageNumbers = [];
+    let startPage = Math.max(1, currentPage - Math.floor(maxPageButtons / 2));
+    let endPage = startPage + maxPageButtons - 1;
+    if (endPage > totalPages) {
+      endPage = totalPages;
+      startPage = Math.max(1, endPage - maxPageButtons + 1);
+    }
+    for (let i = startPage; i <= endPage; i++) {
+      pageNumbers.push(i);
+    }
+    const startItem = (currentPage - 1) * itemsPerPage + 1;
+    const endItem = Math.min(currentPage * itemsPerPage, totalCount);
+    return (
+      <div className="flex flex-col items-center justify-center mt-4">
+        <div className="mb-2 text-sm text-gray-700">
+          Showing <span className="font-medium">{startItem}</span> to <span className="font-medium">{endItem}</span> of <span className="font-medium">{totalCount}</span> results
+        </div>
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-1">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className="px-2 py-1 rounded hover:bg-blue-100 disabled:opacity-50"
+            >
+              {'<<'}
+            </button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-2 py-1 rounded hover:bg-blue-100 disabled:opacity-50"
+            >
+              {'<'}
+            </button>
+            {startPage > 1 && <span className="px-2">...</span>}
+            {pageNumbers.map(page => (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`px-3 py-1 rounded ${currentPage === page ? 'bg-blue-600 text-white' : 'hover:bg-blue-100'}`}
+              >
+                {page}
+              </button>
+            ))}
+            {endPage < totalPages && <span className="px-2">...</span>}
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="px-2 py-1 rounded hover:bg-blue-100 disabled:opacity-50"
+            >
+              {'>'}
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className="px-2 py-1 rounded hover:bg-blue-100 disabled:opacity-50"
+            >
+              {'>>'}
+            </button>
+          </div>
+          {/* Searchable page number input */}
+          <form
+            onSubmit={e => {
+              e.preventDefault();
+              const page = Number(e.currentTarget.pageInput.value);
+              if (!isNaN(page) && page >= 1 && page <= totalPages) {
+                setCurrentPage(page);
+              }
+            }}
+            className="flex items-center space-x-2"
+          >
+            <span>Go to</span>
+            <input
+              name="pageInput"
+              type="number"
+              min={1}
+              max={totalPages}
+              defaultValue={currentPage}
+              className="w-16 px-2 py-1 border rounded text-center"
+            />
+            <span>of {totalPages}</span>
+            <button
+              type="submit"
+              className="ml-2 px-2 py-1 rounded bg-blue-500 text-white hover:bg-blue-600"
+            >
+              Go
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
+  // Add this before the return statement
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return sortedData.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedData, currentPage, itemsPerPage]);
+
   // Don't render anything until the subscription check is complete
   if (isLoading || !isAuthenticated || !isSubscriptionCheckComplete) {
     return (
@@ -1095,6 +1191,91 @@ export default function Dashboard() {
     const date = new Date(dateString);
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   };
+
+  // Add a function to extract filter options from data
+  function extractFilterOptionsFromData(data: ServiceData[]) {
+    const isValidString = (value: any): value is string => 
+      typeof value === 'string' && value.length > 0;
+
+    // Get unique service codes
+    const uniqueServiceCodes = [...new Set(data
+      .map(item => item.service_code?.trim())
+      .filter(isValidString)
+    )].sort() as string[];
+    setServiceCodes(uniqueServiceCodes);
+
+    // Get unique service descriptions
+    const uniqueDescriptions = [...new Set(data
+      .map(item => item.service_description?.trim())
+      .filter(isValidString)
+    )].sort() as string[];
+    setServiceDescriptions(uniqueDescriptions);
+
+    // Get unique programs
+    const uniquePrograms = [...new Set(data
+      .map(item => item.program?.trim())
+      .filter(isValidString)
+    )].sort() as string[];
+    setPrograms(uniquePrograms);
+
+    // Get unique location regions
+    const uniqueRegions = [...new Set(data
+      .map(item => item.location_region?.trim())
+      .filter(isValidString)
+    )].sort() as string[];
+    setLocationRegions(uniqueRegions);
+
+    // Get unique provider types
+    const uniqueProviderTypes = [...new Set(data
+      .map(item => item.provider_type?.trim())
+      .filter(isValidString)
+    )].sort() as string[];
+    setProviderTypes(uniqueProviderTypes);
+
+    // Get unique modifiers
+    const allModifiers = data.flatMap(item => {
+      const modifiers = [];
+      if (item.modifier_1) {
+        modifiers.push({
+          value: item.modifier_1.trim(),
+          details: item.modifier_1_details?.trim() || '',
+          fullText: `${item.modifier_1.trim()}${item.modifier_1_details ? ` - ${item.modifier_1_details.trim()}` : ''}`
+        });
+      }
+      if (item.modifier_2) {
+        modifiers.push({
+          value: item.modifier_2.trim(),
+          details: item.modifier_2_details?.trim() || '',
+          fullText: `${item.modifier_2.trim()}${item.modifier_2_details ? ` - ${item.modifier_2_details.trim()}` : ''}`
+        });
+      }
+      if (item.modifier_3) {
+        modifiers.push({
+          value: item.modifier_3.trim(),
+          details: item.modifier_3_details?.trim() || '',
+          fullText: `${item.modifier_3.trim()}${item.modifier_3_details ? ` - ${item.modifier_3_details.trim()}` : ''}`
+        });
+      }
+      if (item.modifier_4) {
+        modifiers.push({
+          value: item.modifier_4.trim(),
+          details: item.modifier_4_details?.trim() || '',
+          fullText: `${item.modifier_4.trim()}${item.modifier_4_details ? ` - ${item.modifier_4_details.trim()}` : ''}`
+        });
+      }
+      return modifiers;
+    });
+
+    const uniqueModifiers = [...new Set(allModifiers.map(mod => mod.fullText))].map(fullText => {
+      const mod = allModifiers.find(m => m.fullText === fullText);
+      return {
+        value: fullText,
+        label: fullText,
+        details: mod?.details || ''
+      };
+    });
+    setModifiers(uniqueModifiers);
+  }
 
   return (
     <AppLayout activeTab="dashboard">
@@ -1271,13 +1452,7 @@ export default function Dashboard() {
               <label className="text-sm font-medium text-gray-700">State</label>
               <Select
                 instanceId={stateId}
-                // TEMPORARY HACK: Hide CALIFORNIA when BEHAVIORAL HEALTH is selected
-                options={
-                  (selectedServiceCategory === "BEHAVIORAL HEALTH"
-                    ? states.filter(state => state.toUpperCase() !== "CALIFORNIA")
-                    : states
-                  ).map(state => ({ value: state, label: state }))
-                }
+                options={states.map(state => ({ value: state, label: state }))}
                 value={selectedState ? { value: selectedState, label: selectedState } : null}
                 onChange={(option) => handleStateChange(option?.value || "")}
                 placeholder="Select State"
@@ -1395,8 +1570,8 @@ export default function Dashboard() {
                 onChange={(option) => setSelectedModifier(option?.value || "")}
                 placeholder="Select Modifier"
                 isSearchable
-                isDisabled={!selectedState}
-                className={`react-select-container ${!selectedState ? 'opacity-50' : ''}`}
+                isDisabled={!selectedServiceCode && !selectedServiceDescription}
+                className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
                 classNamePrefix="react-select"
               />
               {selectedModifier && (
@@ -1472,8 +1647,8 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Data Table */}
-        {!loading && areFiltersApplied && (
+        {/* Only show the table after Search has been clicked and data is loaded */}
+        {!loading && areFiltersApplied && hasSearched && (
           <>
           <div 
             className="rounded-lg shadow-lg bg-white relative z-30 overflow-x-auto"
@@ -1623,7 +1798,7 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {sortedData.map((item, index) => (
+                {data.map((item, index) => (
                   <tr key={index} className="hover:bg-gray-50 transition-colors">
                     {getVisibleColumns.state_name && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.state_name || '-'}</td>
@@ -1701,20 +1876,8 @@ export default function Dashboard() {
             </table>
           </div>
 
-            {/* Loading State for Initial Load */}
-            {loading && !data.length && (
-              <div className="flex justify-center items-center h-64">
-                <FaSpinner className="animate-spin h-12 w-12 text-blue-500" />
-                <p className="ml-4 text-gray-600">Loading initial data...</p>
-              </div>
-            )}
-
-            {/* Error Message */}
-            {localError && (
-              <div className="text-center py-4 text-sm text-red-500">
-                {localError}
-            </div>
-            )}
+            {/* Add pagination controls */}
+            <PaginationControls />
           </>
         )}
       </div>

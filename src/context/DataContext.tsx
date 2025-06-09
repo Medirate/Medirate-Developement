@@ -33,6 +33,7 @@ interface FilterOptions {
   programs: string[];
   locationRegions: string[];
   providerTypes: string[];
+  modifiers: { value: string; label: string }[];
 }
 
 interface DataContextType {
@@ -40,7 +41,19 @@ interface DataContextType {
   loading: boolean;
   error: string | null;
   filterOptions: FilterOptions;
-  refreshData: (filters?: Record<string, string>) => Promise<void>;
+  refreshData: (filters?: Record<string, string>) => Promise<{
+    data: ServiceData[];
+    totalCount: number;
+    currentPage: number;
+    itemsPerPage: number;
+    filterOptions: {
+      serviceCodes: string[];
+      serviceDescriptions: string[];
+      programs: string[];
+      locationRegions: string[];
+      providerTypes: string[];
+    };
+  } | null>;
   refreshFilters: (serviceCategory?: string) => Promise<void>;
 }
 
@@ -57,7 +70,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     serviceDescriptions: [],
     programs: [],
     locationRegions: [],
-    providerTypes: []
+    providerTypes: [],
+    modifiers: []
   });
   const { isAuthenticated } = useKindeBrowserClient();
 
@@ -112,15 +126,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
 
       const result = await response.json();
-      setData(result.data);
-      setFilterOptions(prev => ({
-        ...prev,
-        ...result.filterOptions
-      }));
-      setError(null);
+      // Only update data if we got a valid response
+      if (result && Array.isArray(result.data)) {
+        setData(result.data);
+        setFilterOptions(prev => ({
+          ...prev,
+          ...result.filterOptions
+        }));
+        setError(null);
+      } else {
+        throw new Error('Invalid data format received');
+      }
+      return result;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
       console.error('Error fetching data:', err);
+      // Don't clear the data on error, just return null
+      return null;
     } finally {
       setLoading(false);
     }
