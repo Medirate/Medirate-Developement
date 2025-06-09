@@ -17,6 +17,7 @@
     "@stripe/stripe-js": "^5.5.0",
     "@supabase/supabase-js": "^2.48.1",
     "@tailwindcss/typography": "^0.5.15",
+    "@tanstack/react-query": "^5.80.6",
     "@types/react-datepicker": "^7.0.0",
     "@types/react-resizable": "^3.0.8",
     "antd": "^5.24.0",
