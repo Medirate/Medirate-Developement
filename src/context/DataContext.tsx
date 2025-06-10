@@ -128,12 +128,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const result = await response.json();
       // Only update data if we got a valid response
       if (result && Array.isArray(result.data)) {
-        setData(result.data);
-        setFilterOptions(prev => ({
-          ...prev,
-          ...result.filterOptions
-        }));
-        setError(null);
+      setData(result.data);
+      setFilterOptions(prev => ({
+        ...prev,
+        ...result.filterOptions
+      }));
+      setError(null);
       } else {
         throw new Error('Invalid data format received');
       }

@@ -69,6 +69,71 @@ interface RefreshDataResponse {
   };
 }
 
+// Add these mappings near the top, after imports and before the Dashboard component
+const SERVICE_CATEGORY_ABBREVIATIONS: Record<string, string> = {
+  "APPLIED BEHAVIOR ANALYSIS": "ABA",
+  "BEHAVIORAL HEALTH": "BH",
+  "HOME AND COMMUNITY BASED SERVICES": "HCBS",
+  // Add more as needed
+};
+
+const STATE_ABBREVIATIONS: Record<string, string> = {
+  "ALABAMA": "AL",
+  "ALASKA": "AK",
+  "ARIZONA": "AZ",
+  "ARKANSAS": "AR",
+  "CALIFORNIA": "CA",
+  "COLORADO": "CO",
+  "CONNECTICUT": "CT",
+  "DELAWARE": "DE",
+  "FLORIDA": "FL",
+  "GEORGIA": "GA",
+  "HAWAII": "HI",
+  "IDAHO": "ID",
+  "ILLINOIS": "IL",
+  "INDIANA": "IN",
+  "IOWA": "IA",
+  "KANSAS": "KS",
+  "KENTUCKY": "KY",
+  "LOUISIANA": "LA",
+  "MAINE": "ME",
+  "MARYLAND": "MD",
+  "MASSACHUSETTS": "MA",
+  "MICHIGAN": "MI",
+  "MINNESOTA": "MN",
+  "MISSISSIPPI": "MS",
+  "MISSOURI": "MO",
+  "MONTANA": "MT",
+  "NEBRASKA": "NE",
+  "NEVADA": "NV",
+  "NEW HAMPSHIRE": "NH",
+  "NEW JERSEY": "NJ",
+  "NEW MEXICO": "NM",
+  "NEW YORK": "NY",
+  "NORTH CAROLINA": "NC",
+  "NORTH DAKOTA": "ND",
+  "OHIO": "OH",
+  "OKLAHOMA": "OK",
+  "OREGON": "OR",
+  "PENNSYLVANIA": "PA",
+  "RHODE ISLAND": "RI",
+  "SOUTH CAROLINA": "SC",
+  "SOUTH DAKOTA": "SD",
+  "TENNESSEE": "TN",
+  "TEXAS": "TX",
+  "UTAH": "UT",
+  "VERMONT": "VT",
+  "VIRGINIA": "VA",
+  "WASHINGTON": "WA",
+  "WEST VIRGINIA": "WV",
+  "WISCONSIN": "WI",
+  "WYOMING": "WY",
+  // Add more if needed
+};
+
+// Insert a type alias (Option) near the top (e.g. after imports)
+type Option = { value: string; label: string };
+
 export default function Dashboard() {
   const { isAuthenticated, isLoading, user } = useKindeBrowserClient();
   const router = useRouter();
@@ -412,24 +477,37 @@ export default function Dashboard() {
       filtered = filtered.filter(item => item.service_description?.trim() === selectedServiceDescription.trim());
     }
 
-    if (selectedProgram) {
+    if (selectedProgram === '-') {
+      filtered = filtered.filter(item => !item.program || item.program.trim() === '');
+    } else if (selectedProgram) {
       filtered = filtered.filter(item => item.program?.trim() === selectedProgram.trim());
     }
 
-    if (selectedLocationRegion) {
+    if (selectedLocationRegion === '-') {
+      filtered = filtered.filter(item => !item.location_region || item.location_region.trim() === '');
+    } else if (selectedLocationRegion) {
       filtered = filtered.filter(item => item.location_region?.trim() === selectedLocationRegion.trim());
     }
 
-    if (selectedProviderType) {
+    if (selectedProviderType === '-') {
+      filtered = filtered.filter(item => !item.provider_type || item.provider_type.trim() === '');
+    } else if (selectedProviderType) {
       filtered = filtered.filter(item => item.provider_type?.trim() === selectedProviderType.trim());
     }
 
-      if (selectedModifier) {
-        const selectedModifierCode = selectedModifier.split(' - ')[0];
-      filtered = filtered.filter(item => 
-          (item.modifier_1 && item.modifier_1.split(' - ')[0] === selectedModifierCode) ||
-          (item.modifier_2 && item.modifier_2.split(' - ')[0] === selectedModifierCode) ||
-          (item.modifier_3 && item.modifier_3.split(' - ')[0] === selectedModifierCode) ||
+    if (selectedModifier === '-') {
+      filtered = filtered.filter(item =>
+        (!item.modifier_1 || item.modifier_1.trim() === '') &&
+        (!item.modifier_2 || item.modifier_2.trim() === '') &&
+        (!item.modifier_3 || item.modifier_3.trim() === '') &&
+        (!item.modifier_4 || item.modifier_4.trim() === '')
+      );
+    } else if (selectedModifier) {
+      const selectedModifierCode = selectedModifier.split(' - ')[0];
+      filtered = filtered.filter(item =>
+        (item.modifier_1 && item.modifier_1.split(' - ')[0] === selectedModifierCode) ||
+        (item.modifier_2 && item.modifier_2.split(' - ')[0] === selectedModifierCode) ||
+        (item.modifier_3 && item.modifier_3.split(' - ')[0] === selectedModifierCode) ||
         (item.modifier_4 && item.modifier_4.split(' - ')[0] === selectedModifierCode)
       );
     }
@@ -688,20 +766,19 @@ export default function Dashboard() {
 
   const handleServiceCodeChange = async (code: string) => {
     setSelectedServiceCode(code);
-    setSelectedServiceDescription("");
+    // Auto-select matching description
+    const desc = data.find(item => item.service_code === code)?.service_description || '';
+    setSelectedServiceDescription(desc);
     setSelectedProgram("");
     setSelectedLocationRegion("");
     setSelectedModifier("");
     setSelectedProviderType("");
     setFilterStep(4);
-
-    // Reset dependent filter options
     setServiceDescriptions([]);
     setPrograms([]);
     setLocationRegions([]);
     setModifiers([]);
     setProviderTypes([]);
-
     await refreshData({
       serviceCategory: selectedServiceCategory,
       state: selectedState,
@@ -711,20 +788,19 @@ export default function Dashboard() {
 
   const handleServiceDescriptionChange = async (desc: string) => {
     setSelectedServiceDescription(desc);
-    setSelectedServiceCode("");
+    // Auto-select matching code
+    const code = data.find(item => item.service_description === desc)?.service_code || '';
+    setSelectedServiceCode(code);
     setSelectedProgram("");
     setSelectedLocationRegion("");
     setSelectedModifier("");
     setSelectedProviderType("");
     setFilterStep(4);
-
-    // Reset dependent filter options
     setServiceCodes([]);
     setPrograms([]);
     setLocationRegions([]);
     setModifiers([]);
     setProviderTypes([]);
-
     await refreshData({
       serviceCategory: selectedServiceCategory,
       state: selectedState,
@@ -938,7 +1014,6 @@ export default function Dashboard() {
       modifier_4: false,
       duration_unit: false,
       rate: false,
-      rate_per_hour: false,
       rate_effective_date: false,
       provider_type: false
     };
@@ -948,13 +1023,6 @@ export default function Dashboard() {
         const rateStr = (item.rate || '').replace('$', '');
         const rate = parseFloat(rateStr);
         const durationUnit = item.duration_unit?.toUpperCase();
-        
-        if (!isNaN(rate) && 
-            (durationUnit === '15 MINUTES' || 
-             durationUnit === '30 MINUTES' || 
-             durationUnit === 'PER HOUR')) {
-          columns.rate_per_hour = true;
-        }
         
         Object.keys(columns).forEach((key) => {
           const columnKey = key as keyof typeof columns;
@@ -1277,6 +1345,12 @@ export default function Dashboard() {
     setModifiers(uniqueModifiers);
   }
 
+  // Replace the getDropdownOptions function with the following:
+  const getDropdownOptions = (options: (Option | string)[], isMandatory: boolean): readonly Option[] => {
+    const opts: Option[] = options.map(opt => (typeof opt === 'string' ? { value: opt, label: opt } : opt));
+    return isMandatory ? opts : [{ value: '-', label: '-' }, ...opts] as const;
+  };
+
   return (
     <AppLayout activeTab="dashboard">
       <CodeDefinitionsIcon />
@@ -1527,9 +1601,9 @@ export default function Dashboard() {
               <label className="text-sm font-medium text-gray-700">Program</label>
               <Select
                 instanceId={programId}
-                options={programs.map(program => ({ value: program, label: program }))}
+                options={getDropdownOptions(programs, false)}
                 value={selectedProgram ? { value: selectedProgram, label: selectedProgram } : null}
-                onChange={(option) => handleProgramChange(option?.value || "")}
+                onChange={(option) => handleProgramChange(option?.value || '')}
                 placeholder="Select Program"
                 isSearchable
                 isDisabled={!selectedServiceCode && !selectedServiceDescription}
@@ -1537,7 +1611,7 @@ export default function Dashboard() {
                 classNamePrefix="react-select"
               />
               {selectedProgram && (
-                <ClearButton onClick={() => handleProgramChange("")} />
+                <ClearButton onClick={() => handleProgramChange('')} />
               )}
             </div>
 
@@ -1546,9 +1620,9 @@ export default function Dashboard() {
               <label className="text-sm font-medium text-gray-700">Location/Region</label>
               <Select
                 instanceId={locationRegionId}
-                options={locationRegions.map(region => ({ value: region, label: region }))}
+                options={getDropdownOptions(locationRegions, false)}
                 value={selectedLocationRegion ? { value: selectedLocationRegion, label: selectedLocationRegion } : null}
-                onChange={(option) => handleLocationRegionChange(option?.value || "")}
+                onChange={(option) => handleLocationRegionChange(option?.value || '')}
                 placeholder="Select Location/Region"
                 isSearchable
                 isDisabled={!selectedServiceCode && !selectedServiceDescription}
@@ -1556,7 +1630,7 @@ export default function Dashboard() {
                 classNamePrefix="react-select"
               />
               {selectedLocationRegion && (
-                <ClearButton onClick={() => handleLocationRegionChange("")} />
+                <ClearButton onClick={() => handleLocationRegionChange('')} />
               )}
             </div>
 
@@ -1565,9 +1639,9 @@ export default function Dashboard() {
               <label className="text-sm font-medium text-gray-700">Modifier</label>
               <Select
                 instanceId={modifierId}
-                options={modifiers}
+                options={getDropdownOptions(modifiers, false)}
                 value={selectedModifier ? { value: selectedModifier, label: selectedModifier } : null}
-                onChange={(option) => setSelectedModifier(option?.value || "")}
+                onChange={(option) => setSelectedModifier(option?.value || '')}
                 placeholder="Select Modifier"
                 isSearchable
                 isDisabled={!selectedServiceCode && !selectedServiceDescription}
@@ -1575,7 +1649,7 @@ export default function Dashboard() {
                 classNamePrefix="react-select"
               />
               {selectedModifier && (
-                <ClearButton onClick={() => setSelectedModifier("")} />
+                <ClearButton onClick={() => setSelectedModifier('')} />
               )}
             </div>
 
@@ -1584,9 +1658,9 @@ export default function Dashboard() {
               <label className="text-sm font-medium text-gray-700">Provider Type</label>
               <Select
                 instanceId="providerTypeId"
-                options={providerTypes.map(type => ({ value: type, label: type }))}
+                options={getDropdownOptions(providerTypes, false)}
                 value={selectedProviderType ? { value: selectedProviderType, label: selectedProviderType } : null}
-                onChange={(option) => setSelectedProviderType(option?.value || "")}
+                onChange={(option) => setSelectedProviderType(option?.value || '')}
                 placeholder="Select Provider Type"
                 isSearchable
                 isDisabled={!selectedServiceCode && !selectedServiceDescription}
@@ -1595,7 +1669,7 @@ export default function Dashboard() {
               />
               {selectedProviderType && (
                 <button
-                  onClick={() => setSelectedProviderType("")}
+                  onClick={() => setSelectedProviderType('')}
                   className="text-xs text-blue-500 hover:underline mt-1"
                 >
                   Clear
@@ -1714,15 +1788,6 @@ export default function Dashboard() {
                       <SortIndicator sortKey="rate" />
                     </th>
                   )}
-                  {getVisibleColumns.rate_per_hour && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('rate_per_hour', e)}
-                    >
-                      Hourly Equivalent Rate
-                      <SortIndicator sortKey="rate_per_hour" />
-                    </th>
-                  )}
                   {getVisibleColumns.rate_effective_date && (
                     <th
                       className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
@@ -1801,10 +1866,14 @@ export default function Dashboard() {
                 {data.map((item, index) => (
                   <tr key={index} className="hover:bg-gray-50 transition-colors">
                     {getVisibleColumns.state_name && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.state_name || '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {STATE_ABBREVIATIONS[item.state_name?.toUpperCase() || ""] || item.state_name || '-'}
+                        </td>
                     )}
                     {getVisibleColumns.service_category && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_category || '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {SERVICE_CATEGORY_ABBREVIATIONS[item.service_category?.trim().toUpperCase() || ""] || item.service_category || '-'}
+                        </td>
                     )}
                     {getVisibleColumns.service_code && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code || '-'}</td>
@@ -1816,26 +1885,8 @@ export default function Dashboard() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.duration_unit || '-'}</td>
                     )}
                     {getVisibleColumns.rate && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate || '-'}</td>
-                    )}
-                    {getVisibleColumns.rate_per_hour && (
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {(() => {
-                          const rateStr = (item.rate || '').replace('$', '');
-                          const rate = parseFloat(rateStr);
-                          const durationUnit = item.duration_unit?.toUpperCase();
-                          
-                          if (isNaN(rate)) return '-';
-                          
-                          if (durationUnit === '15 MINUTES') {
-                            return `$${(rate * 4).toFixed(2)}`;
-                          } else if (durationUnit === '30 MINUTES') {
-                            return `$${(rate * 2).toFixed(2)}`;
-                          } else if (durationUnit === 'PER HOUR') {
-                            return `$${rate.toFixed(2)}`;
-                          }
-                          return 'N/A';
-                        })()}
+                        {item.rate ? (item.rate.startsWith('$') ? item.rate : ('$' + item.rate)) : '-'}
                       </td>
                     )}
                     {getVisibleColumns.rate_effective_date && (
