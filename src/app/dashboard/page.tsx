@@ -808,7 +808,7 @@ export default function Dashboard() {
     // If the current code already matches this description, do nothing
     const currentItem = data.find(item => item.service_code?.trim() === selectedServiceCode?.trim());
     if (currentItem && currentItem.service_description?.trim() === desc) {
-      setSelectedServiceDescription(desc);
+    setSelectedServiceDescription(desc);
       return;
     }
     // Otherwise, find the first item with this description
@@ -1275,8 +1275,12 @@ export default function Dashboard() {
   // Don't render anything until the subscription check is complete
   if (isLoading || !isAuthenticated || !isSubscriptionCheckComplete) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <FaSpinner className="animate-spin h-12 w-12 text-blue-500" />
+      <div className="loader-overlay">
+        <div className="cssloader">
+          <div className="sh1"></div>
+          <div className="sh2"></div>
+          <h4 className="lt">loading</h4>
+        </div>
       </div>
     );
   }
@@ -1992,7 +1996,7 @@ export default function Dashboard() {
         select {
           appearance: none;
           background-color: white;
-          background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%233b82f6%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+          background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%233b82f6%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
           background-repeat: no-repeat;
           background-position: right 0.75rem center;
           background-size: 0.75rem;
