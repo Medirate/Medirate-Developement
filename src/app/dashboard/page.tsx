@@ -6,7 +6,6 @@ import { FaSpinner, FaExclamationCircle, FaChevronDown, FaFilter } from 'react-i
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useData, ServiceData } from "@/context/DataContext";
-import CodeDefinitionsIcon from '@/app/components/CodeDefinitionsIcon';
 import Select from 'react-select';
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import { useRouter } from "next/navigation";
@@ -72,7 +71,9 @@ interface RefreshDataResponse {
 // Add these mappings near the top, after imports and before the Dashboard component
 const SERVICE_CATEGORY_ABBREVIATIONS: Record<string, string> = {
   "APPLIED BEHAVIOR ANALYSIS": "ABA",
+  "APPLIED BEHAVIORAL ANALYSIS (ABA)": "ABA",
   "BEHAVIORAL HEALTH": "BH",
+  "BEHAVIORAL HEALTH AND/OR SUBSTANCE USE DISORDER SERVICES": "BH/SUD",
   "HOME AND COMMUNITY BASED SERVICES": "HCBS",
   // Add more as needed
 };
@@ -133,6 +134,20 @@ const STATE_ABBREVIATIONS: Record<string, string> = {
 
 // Insert a type alias (Option) near the top (e.g. after imports)
 type Option = { value: string; label: string };
+
+// Add this custom filter function before the Dashboard component
+const customFilterOption = (option: any, inputValue: string) => {
+  const label = option.label.toLowerCase();
+  const searchTerm = inputValue.toLowerCase();
+  
+  // First check if the label starts with the search term
+  if (label.startsWith(searchTerm)) {
+    return true;
+  }
+  
+  // If no match at start, check if the label contains the search term
+  return label.includes(searchTerm);
+};
 
 export default function Dashboard() {
   const { isAuthenticated, isLoading, user } = useKindeBrowserClient();
@@ -503,11 +518,11 @@ export default function Dashboard() {
         (!item.modifier_4 || item.modifier_4.trim() === '')
       );
     } else if (selectedModifier) {
-      const selectedModifierCode = selectedModifier.split(' - ')[0];
-      filtered = filtered.filter(item =>
-        (item.modifier_1 && item.modifier_1.split(' - ')[0] === selectedModifierCode) ||
-        (item.modifier_2 && item.modifier_2.split(' - ')[0] === selectedModifierCode) ||
-        (item.modifier_3 && item.modifier_3.split(' - ')[0] === selectedModifierCode) ||
+        const selectedModifierCode = selectedModifier.split(' - ')[0];
+      filtered = filtered.filter(item => 
+          (item.modifier_1 && item.modifier_1.split(' - ')[0] === selectedModifierCode) ||
+          (item.modifier_2 && item.modifier_2.split(' - ')[0] === selectedModifierCode) ||
+          (item.modifier_3 && item.modifier_3.split(' - ')[0] === selectedModifierCode) ||
         (item.modifier_4 && item.modifier_4.split(' - ')[0] === selectedModifierCode)
       );
     }
@@ -1075,7 +1090,9 @@ export default function Dashboard() {
 
     // Comment out or remove this line
     // console.log("Extracted Fee Schedule Dates:", filteredDates); // Log the extracted dates
-    setFeeScheduleDates([...new Set(filteredDates)].sort((a, b) => a.localeCompare(b)));
+    setFeeScheduleDates(
+      [...new Set(filteredDates)].sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+    );
   };
 
   useEffect(() => {
@@ -1353,7 +1370,6 @@ export default function Dashboard() {
 
   return (
     <AppLayout activeTab="dashboard">
-      <CodeDefinitionsIcon />
       <div className="p-4 sm:p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
         {/* Error Message */}
         <ErrorMessage error={localError} />
@@ -1513,6 +1529,7 @@ export default function Dashboard() {
                 onChange={(option) => handleServiceCategoryChange(option?.value || "")}
                 placeholder="Select Service Line"
                 isSearchable
+                filterOption={customFilterOption}
                 className="react-select-container"
                 classNamePrefix="react-select"
               />
@@ -1531,6 +1548,7 @@ export default function Dashboard() {
                 onChange={(option) => handleStateChange(option?.value || "")}
                 placeholder="Select State"
                 isSearchable
+                filterOption={customFilterOption}
                 isDisabled={!selectedServiceCategory}
                 className={`react-select-container ${!selectedServiceCategory ? 'opacity-50' : ''}`}
                 classNamePrefix="react-select"
@@ -1556,6 +1574,7 @@ export default function Dashboard() {
                 }}
                 placeholder="Select Service Code"
                 isSearchable
+                filterOption={customFilterOption}
                 isDisabled={!selectedState}
                 className={`react-select-container ${!selectedState ? 'opacity-50' : ''}`}
                 classNamePrefix="react-select"
@@ -1879,14 +1898,25 @@ export default function Dashboard() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code || '-'}</td>
                     )}
                     {getVisibleColumns.service_description && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_description || '-'}</td>
+                      <td
+                        className="px-6 py-4 text-sm text-gray-900 max-w-[220px] truncate"
+                        title={item.service_description || '-'}
+                      >
+                        {item.service_description || '-'}
+                      </td>
                     )}
                     {getVisibleColumns.duration_unit && (
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.duration_unit || '-'}</td>
                     )}
                     {getVisibleColumns.rate && (
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.rate ? (item.rate.startsWith('$') ? item.rate : ('$' + item.rate)) : '-'}
+                        {item.rate
+                          ? (() => {
+                              const num = Number(item.rate.replace(/[^0-9.]/g, ""));
+                              if (isNaN(num)) return item.rate.startsWith('$') ? item.rate : ('$' + item.rate);
+                              return `$${num.toFixed(2)}`;
+                            })()
+                          : '-'}
                       </td>
                     )}
                     {getVisibleColumns.rate_effective_date && (

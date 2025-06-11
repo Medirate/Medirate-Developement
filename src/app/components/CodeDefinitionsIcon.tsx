@@ -15,9 +15,10 @@ const CodeDefinitionsIcon = () => {
   const [topPosition, setTopPosition] = useState('4rem');
   const [showTooltip, setShowTooltip] = useState(true);
   const [data, setData] = useState<CodeDefinition[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
   const navbarRef = useRef<HTMLElement | null>(null);
 
   // Filtered data based on search term
@@ -31,6 +32,14 @@ const CodeDefinitionsIcon = () => {
       return code.includes(lowerCaseSearch) || description.includes(lowerCaseSearch);
     });
   }, [data, searchTerm]);
+
+  // Add useEffect for initial data fetch
+  useEffect(() => {
+    if (!hasAttemptedFetch && isOpen) {
+      fetchData();
+      setHasAttemptedFetch(true);
+    }
+  }, [isOpen, hasAttemptedFetch]);
 
   useEffect(() => {
     const updatePosition = () => {
@@ -58,22 +67,29 @@ const CodeDefinitionsIcon = () => {
       setLoading(true);
       setError(null);
       
+      console.log('Fetching code definitions...');
       const response = await fetch('/api/code-definations');
       if (!response.ok) {
-        throw new Error('Failed to fetch data');
+        throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
       }
       
       const result = await response.json();
+      console.log('Received data:', result?.length || 0, 'items');
       
-      // Ensure the data is an array
-      if (Array.isArray(result)) {
-        setData(result);
+      // Ensure the data is an array and not empty
+      if (Array.isArray(result) && result.length > 0) {
+        // Remove duplicates based on service_code
+        const uniqueData = result.filter((item, index, self) =>
+          index === self.findIndex((t) => t.service_code === item.service_code)
+        );
+        console.log('Unique items:', uniqueData.length);
+        setData(uniqueData);
       } else {
-        throw new Error('Invalid data format received from API');
+        throw new Error('No data received from API');
       }
     } catch (error) {
       console.error('Error fetching data:', error);
-      setError('Failed to load code definitions. Please try again later.');
+      setError(error instanceof Error ? error.message : 'Failed to load code definitions. Please try again later.');
       setData([]); // Reset data to empty array
     } finally {
       setLoading(false);
@@ -82,20 +98,16 @@ const CodeDefinitionsIcon = () => {
 
   const handleIconInteraction = () => {
     setShowTooltip(false);
-    if (!isOpen) {
-      fetchData();
-    }
+    setIsOpen(true);
   };
 
   return (
     <>
       <button
-        onClick={() => {
-          handleIconInteraction();
-          setIsOpen(true);
-        }}
+        onClick={handleIconInteraction}
         style={{ top: topPosition }}
-        className="fixed right-4 z-50 px-4 py-2 bg-[#012C61] text-white rounded-lg shadow-lg hover:bg-[#001a3d] transition-colors flex items-center space-x-2"
+        className="fixed right-4 z-[1000] px-4 py-2 bg-[#012C61] text-white rounded-lg shadow-lg hover:bg-[#001a3d] transition-colors flex items-center space-x-2"
+        aria-label="View Code Definitions"
       >
         <FaInfoCircle className="h-5 w-5" />
         <span>Code Definitions</span>
@@ -103,7 +115,10 @@ const CodeDefinitionsIcon = () => {
 
       <Modal 
         isOpen={isOpen} 
-        onClose={() => setIsOpen(false)} 
+        onClose={() => {
+          setIsOpen(false);
+          setSearchTerm(''); // Reset search when closing
+        }} 
         width="max-w-4xl"
         className="z-[1001]"
       >
@@ -141,18 +156,27 @@ const CodeDefinitionsIcon = () => {
             {loading ? (
               <div className="flex justify-center items-center h-full">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                <span className="ml-3 text-gray-600">Loading code definitions...</span>
               </div>
             ) : error ? (
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-red-700">{error}</p>
+                <button 
+                  onClick={fetchData}
+                  className="mt-2 px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                >
+                  Try Again
+                </button>
               </div>
             ) : filteredData.length === 0 ? (
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-yellow-700">No matching code definitions found</p>
+                <p className="text-yellow-700">
+                  {searchTerm ? 'No matching code definitions found' : 'No code definitions available'}
+                </p>
               </div>
             ) : (
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50 sticky top-0">
+                <thead className="bg-gray-50 sticky top-0 z-10">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       State Name (CPT Codes)
@@ -167,15 +191,15 @@ const CodeDefinitionsIcon = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredData.map((item, index) => (
-                    <tr key={index}>
+                    <tr key={`${item.service_code}-${index}`} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {item.state_name_cpt_codes}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">
                         {item.service_code}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
-                        {item.service_description}
+                        {item.service_description?.trim()}
                       </td>
                     </tr>
                   ))}
