@@ -95,6 +95,20 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+// Add this custom filter function before the StatePaymentComparison component
+const customFilterOption = (option: any, inputValue: string) => {
+  const label = option.label.toLowerCase();
+  const searchTerm = inputValue.toLowerCase();
+  
+  // First check if the label starts with the search term
+  if (label.startsWith(searchTerm)) {
+    return true;
+  }
+  
+  // If no match at start, check if the label contains the search term
+  return label.includes(searchTerm);
+};
+
 export default function StatePaymentComparison() {
   // Call all hooks at the top, unconditionally
   const { data, loading: dataLoading, error: dataError } = useData();
@@ -1173,6 +1187,7 @@ export default function StatePaymentComparison() {
                         onChange={(option) => handleServiceCategoryChange(index, option?.value || "")}
                         placeholder="Select Service Line"
                         isSearchable
+                        filterOption={customFilterOption}
                         className="react-select-container"
                         classNamePrefix="react-select"
                       />
@@ -1198,6 +1213,7 @@ export default function StatePaymentComparison() {
                           onChange={(option) => handleStateChange(index, option)}
                           placeholder="Select State"
                           isSearchable
+                          filterOption={customFilterOption}
                           className="react-select-container"
                           classNamePrefix="react-select"
                         />
@@ -1222,6 +1238,7 @@ export default function StatePaymentComparison() {
                           onChange={(option) => handleServiceCodeChange(index, option?.value || "")}
                           placeholder="Select Service Code"
                           isSearchable
+                          filterOption={customFilterOption}
                           className="react-select-container"
                           classNamePrefix="react-select"
                         />
@@ -1254,6 +1271,7 @@ export default function StatePaymentComparison() {
                           onChange={(option) => setSelectedProgram(option?.value || "")}
                           placeholder="Select Program"
                           isSearchable
+                          filterOption={customFilterOption}
                           isDisabled={programs.length === 0}
                           className={`react-select-container ${programs.length === 0 ? 'opacity-50' : ''}`}
                           classNamePrefix="react-select"
@@ -1280,6 +1298,7 @@ export default function StatePaymentComparison() {
                           onChange={(option) => setSelectedLocationRegion(option?.value || "")}
                           placeholder="Select Location/Region"
                           isSearchable
+                          filterOption={customFilterOption}
                           isDisabled={locationRegions.length === 0}
                           className={`react-select-container ${locationRegions.length === 0 ? 'opacity-50' : ''}`}
                           classNamePrefix="react-select"
@@ -1306,6 +1325,7 @@ export default function StatePaymentComparison() {
                           onChange={(option) => setSelectedModifier(option?.value || "")}
                           placeholder="Select Modifier"
                           isSearchable
+                          filterOption={customFilterOption}
                           isDisabled={modifiers.length === 0}
                           className={`react-select-container ${modifiers.length === 0 ? 'opacity-50' : ''}`}
                           classNamePrefix="react-select"
@@ -1332,6 +1352,7 @@ export default function StatePaymentComparison() {
                           onChange={(option) => setSelectedProviderType(option?.value || "")}
                           placeholder="Select Provider Type"
                           isSearchable
+                          filterOption={customFilterOption}
                           isDisabled={providerTypes.length === 0}
                           className={`react-select-container ${providerTypes.length === 0 ? 'opacity-50' : ''}`}
                           classNamePrefix="react-select"

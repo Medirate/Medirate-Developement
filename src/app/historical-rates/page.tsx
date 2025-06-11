@@ -20,6 +20,7 @@ import { useData } from "@/context/DataContext";
 import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import type { Dispatch, SetStateAction } from 'react';
 
 interface ServiceData {
   state_name: string;
@@ -60,12 +61,320 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+// Add this custom filter function before the HistoricalRates component
+const customFilterOption = (option: any, inputValue: string) => {
+  const label = option.label.toLowerCase();
+  const searchTerm = inputValue.toLowerCase();
+  
+  // First check if the label starts with the search term
+  if (label.startsWith(searchTerm)) {
+    return true;
+  }
+  
+  // If no match at start, check if the label contains the search term
+  return label.includes(searchTerm);
+};
+
+// Move extractFilters above the component definition to avoid linter error
+function extractFilters(
+  data: ServiceData[],
+  setServiceCategories: Dispatch<SetStateAction<string[]>>,
+  setStates: Dispatch<SetStateAction<string[]>>,
+  setPrograms: Dispatch<SetStateAction<string[]>>,
+  setLocationRegions: Dispatch<SetStateAction<string[]>>,
+  setModifiers: Dispatch<SetStateAction<{ value: string; label: string; details?: string }[]>>,
+  setProviderTypes: Dispatch<SetStateAction<string[]>>
+) {
+  const categories = data
+    .map((item) => item.service_category?.trim())
+    .filter((category): category is string => Boolean(category));
+  setServiceCategories([...new Set(categories)].sort((a, b) => a.localeCompare(b)));
+
+  const states = data
+    .map((item) => item.state_name?.trim().toUpperCase())
+    .filter((state): state is string => Boolean(state));
+  setStates([...new Set(states)].sort((a, b) => a.localeCompare(b)));
+
+  const programs = data
+    .map((item) => item.program?.trim())
+    .filter((program): program is string => Boolean(program));
+  setPrograms([...new Set(programs)].sort((a, b) => a.localeCompare(b)));
+
+  const locationRegions = data
+    .map((item) => item.location_region?.trim())
+    .filter((region): region is string => Boolean(region));
+  setLocationRegions([...new Set(locationRegions)].sort((a, b) => a.localeCompare(b)));
+
+  const allModifiers = data.flatMap(item => [
+    item.modifier_1 ? { value: item.modifier_1, details: item.modifier_1_details } : null,
+    item.modifier_2 ? { value: item.modifier_2, details: item.modifier_2_details } : null,
+    item.modifier_3 ? { value: item.modifier_3, details: item.modifier_3_details } : null,
+    item.modifier_4 ? { value: item.modifier_4, details: item.modifier_4_details } : null
+  ]).filter(Boolean);
+  setModifiers([...new Set(allModifiers.map(mod => mod?.value).filter(Boolean))].map(value => {
+    const mod = allModifiers.find(mod => mod?.value === value);
+    return { value: value as string, label: value as string, details: mod?.details || '' };
+  }));
+
+  const types = data
+    .map((item) => item.provider_type?.trim())
+    .filter((type): type is string => Boolean(type));
+  setProviderTypes([...new Set(types)].sort((a, b) => a.localeCompare(b)));
+}
+
+// Define ErrorMessage component at the top level
+const ErrorMessage = ({ error }: { error: string | null }) => {
+  if (!error) return null;
+  
+  return (
+    <div className="p-4 bg-red-50 border border-red-200 rounded-lg mb-4">
+      <div className="flex items-center">
+        <FaExclamationCircle className="h-5 w-5 text-red-500 mr-2" />
+        <p className="text-red-700">{error}</p>
+      </div>
+    </div>
+  );
+};
+
+// Add PaginationControls component before the main component
+const PaginationControls = ({ 
+  currentPage, 
+  setCurrentPage, 
+  totalCount, 
+  itemsPerPage 
+}: { 
+  currentPage: number; 
+  setCurrentPage: (page: number) => void; 
+  totalCount: number; 
+  itemsPerPage: number; 
+}) => {
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
+  const maxVisiblePages = 5;
+  const halfVisible = Math.floor(maxVisiblePages / 2);
+  
+  let startPage = Math.max(1, currentPage - halfVisible);
+  let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+  
+  if (endPage - startPage + 1 < maxVisiblePages) {
+    startPage = Math.max(1, endPage - maxVisiblePages + 1);
+  }
+
+  const pages = [];
+  for (let i = startPage; i <= endPage; i++) {
+    pages.push(i);
+  }
+
+  return (
+    <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
+      <div className="flex justify-between flex-1 sm:hidden">
+        <button
+          onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+          disabled={currentPage === 1}
+          className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Previous
+        </button>
+        <button
+          onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+          disabled={currentPage === totalPages}
+          className="relative inline-flex items-center px-4 py-2 ml-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Next
+        </button>
+      </div>
+      <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm text-gray-700">
+            Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{" "}
+            <span className="font-medium">
+              {Math.min(currentPage * itemsPerPage, totalCount)}
+            </span>{" "}
+            of <span className="font-medium">{totalCount}</span> results
+          </p>
+        </div>
+        <div>
+          <nav className="inline-flex -space-x-px rounded-md shadow-sm isolate" aria-label="Pagination">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="sr-only">First</span>
+              <FaChevronLeft className="h-5 w-5" />
+              <FaChevronLeft className="h-5 w-5 -ml-2" />
+            </button>
+            <button
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="sr-only">Previous</span>
+              <FaChevronLeft className="h-5 w-5" />
+            </button>
+            
+            {startPage > 1 && (
+              <>
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
+                >
+                  1
+                </button>
+                {startPage > 2 && (
+                  <span className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300 focus:outline-offset-0">
+                    ...
+                  </span>
+                )}
+              </>
+            )}
+
+            {pages.map((page) => (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                  currentPage === page
+                    ? "z-10 bg-blue-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                    : "text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+
+            {endPage < totalPages && (
+              <>
+                {endPage < totalPages - 1 && (
+                  <span className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300 focus:outline-offset-0">
+                    ...
+                  </span>
+                )}
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
+                >
+                  {totalPages}
+                </button>
+              </>
+            )}
+
+            <button
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+              className="relative inline-flex items-center px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="sr-only">Next</span>
+              <FaChevronRight className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="sr-only">Last</span>
+              <FaChevronRight className="h-5 w-5" />
+              <FaChevronRight className="h-5 w-5 -ml-2" />
+            </button>
+          </nav>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Utility to parse MM/DD/YYYY date strings
+function parseDateString(dateStr: string): Date {
+  const [month, day, year] = dateStr.split(/[/-]/).map(Number);
+  return new Date(year, month - 1, day);
+}
+
+// Add a helper for formatting currency
+function formatCurrency(value: string | number | undefined): string {
+  if (typeof value === 'number') {
+    return `$${value.toFixed(2)}`;
+  }
+  if (typeof value === 'string') {
+    const num = parseFloat(value.replace(/[^0-9.\-]/g, ''));
+    if (isNaN(num)) return value;
+    return `$${num.toFixed(2)}`;
+  }
+  return '-';
+}
+
+// Add abbreviations mappings (copy from dashboard)
+const SERVICE_CATEGORY_ABBREVIATIONS: Record<string, string> = {
+  "APPLIED BEHAVIOR ANALYSIS": "ABA",
+  "APPLIED BEHAVIORAL ANALYSIS (ABA)": "ABA",
+  "BEHAVIORAL HEALTH": "BH",
+  "BEHAVIORAL HEALTH AND/OR SUBSTANCE USE DISORDER SERVICES": "BH/SUD",
+  "HOME AND COMMUNITY BASED SERVICES": "HCBS",
+  // Add more as needed
+};
+
+const STATE_ABBREVIATIONS: Record<string, string> = {
+  "ALABAMA": "AL",
+  "ALASKA": "AK",
+  "ARIZONA": "AZ",
+  "ARKANSAS": "AR",
+  "CALIFORNIA": "CA",
+  "COLORADO": "CO",
+  "CONNECTICUT": "CT",
+  "DELAWARE": "DE",
+  "FLORIDA": "FL",
+  "GEORGIA": "GA",
+  "HAWAII": "HI",
+  "IDAHO": "ID",
+  "ILLINOIS": "IL",
+  "INDIANA": "IN",
+  "IOWA": "IA",
+  "KANSAS": "KS",
+  "KENTUCKY": "KY",
+  "LOUISIANA": "LA",
+  "MAINE": "ME",
+  "MARYLAND": "MD",
+  "MASSACHUSETTS": "MA",
+  "MICHIGAN": "MI",
+  "MINNESOTA": "MN",
+  "MISSISSIPPI": "MS",
+  "MISSOURI": "MO",
+  "MONTANA": "MT",
+  "NEBRASKA": "NE",
+  "NEVADA": "NV",
+  "NEW HAMPSHIRE": "NH",
+  "NEW JERSEY": "NJ",
+  "NEW MEXICO": "NM",
+  "NEW YORK": "NY",
+  "NORTH CAROLINA": "NC",
+  "NORTH DAKOTA": "ND",
+  "OHIO": "OH",
+  "OKLAHOMA": "OK",
+  "OREGON": "OR",
+  "PENNSYLVANIA": "PA",
+  "RHODE ISLAND": "RI",
+  "SOUTH CAROLINA": "SC",
+  "SOUTH DAKOTA": "SD",
+  "TENNESSEE": "TN",
+  "TEXAS": "TX",
+  "UTAH": "UT",
+  "VERMONT": "VT",
+  "VIRGINIA": "VA",
+  "WASHINGTON": "WA",
+  "WEST VIRGINIA": "WV",
+  "WISCONSIN": "WI",
+  "WYOMING": "WY",
+  // Add more if needed
+};
+
 export default function HistoricalRates() {
-  const { data, loading, error } = useData();
+  const { data, loading, error, filterOptions, refreshData, refreshFilters } = useData();
   const router = useRouter();
   const { user } = useKindeBrowserClient();
 
-  // State hooks
+  // Add pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const itemsPerPage: number = 50;
+
   const [selectedServiceCategory, setSelectedServiceCategory] = useState("");
   const [selectedState, setSelectedState] = useState("");
   const [selectedServiceCode, setSelectedServiceCode] = useState("");
@@ -87,8 +396,9 @@ export default function HistoricalRates() {
   const [selectedProviderType, setSelectedProviderType] = useState("");
   const [providerTypes, setProviderTypes] = useState<string[]>([]);
   const [filterStep, setFilterStep] = useState(1);
+  const [shouldExtractFilters, setShouldExtractFilters] = useState(false);
 
-  // Move useMemo declarations to the top
+  // Update areFiltersApplied to include pagination
   const areFiltersApplied = selectedServiceCategory && selectedState && selectedServiceCode;
 
   const filteredData = useMemo(() => {
@@ -115,7 +425,7 @@ export default function HistoricalRates() {
       return true;
     });
 
-    // Group entries by all fields except rate_effective_date
+    // Group entries by all fields except rate_effective_date and rate
     const groupedEntries = allMatchingEntries.reduce((acc, entry) => {
       const key = JSON.stringify({
         state_name: entry.state_name,
@@ -133,10 +443,8 @@ export default function HistoricalRates() {
         modifier_4: entry.modifier_4,
         modifier_4_details: entry.modifier_4_details,
         duration_unit: entry.duration_unit,
-        rate: entry.rate,
         provider_type: entry.provider_type
       });
-
       if (!acc[key]) {
         acc[key] = [];
       }
@@ -147,8 +455,8 @@ export default function HistoricalRates() {
     // For each group, get the entry with the latest rate_effective_date
     const latestEntries = Object.values(groupedEntries).map(entries => {
       return entries.reduce((latest, current) => {
-        const latestDate = new Date(latest.rate_effective_date);
-        const currentDate = new Date(current.rate_effective_date);
+        const latestDate = parseDateString(latest.rate_effective_date);
+        const currentDate = parseDateString(current.rate_effective_date);
         return currentDate > latestDate ? current : latest;
       });
     });
@@ -208,61 +516,23 @@ export default function HistoricalRates() {
     return columns;
   }, [filteredData]);
 
-  // Move extractFilters inside the component
-  const extractFilters = (data: ServiceData[]) => {
-    const categories = data
-      .map((item) => item.service_category?.trim())
-      .filter(category => category);
-    setServiceCategories([...new Set(categories)].sort((a, b) => a.localeCompare(b)));
+  // Now fetchComment is after all useState hooks
+  const fetchComment = async (serviceCategory: string, state: string) => {
+    const { data: commentData, error } = await supabase
+      .from("comments")
+      .select("comment")
+      .eq("service_category", serviceCategory)
+      .eq("state", state)
+      .single();
 
-    const states = data
-      .map((item) => item.state_name?.trim().toUpperCase())
-      .filter(state => state);
-    setStates([...new Set(states)].sort((a, b) => a.localeCompare(b)));
-
-    // Get programs
-    const programs = data
-      .map((item) => item.program?.trim())
-      .filter((program): program is string => !!program);
-    setPrograms([...new Set(programs)].sort((a, b) => a.localeCompare(b)));
-
-    // Get location regions
-    const locationRegions = data
-      .map((item) => item.location_region?.trim())
-      .filter((region): region is string => !!region);
-    setLocationRegions([...new Set(locationRegions)].sort((a, b) => a.localeCompare(b)));
-
-    // Get modifiers
-    const allModifiers = data.flatMap(item => [
-      item.modifier_1 ? { value: item.modifier_1, details: item.modifier_1_details } : null,
-      item.modifier_2 ? { value: item.modifier_2, details: item.modifier_2_details } : null,
-      item.modifier_3 ? { value: item.modifier_3, details: item.modifier_3_details } : null,
-      item.modifier_4 ? { value: item.modifier_4, details: item.modifier_4_details } : null
-    ]).filter(Boolean);
-
-    setModifiers([...new Set(allModifiers.map(mod => mod?.value).filter(Boolean))].map(value => {
-      const mod = allModifiers.find(mod => mod?.value === value);
-      return { value: value as string, label: value as string, details: mod?.details || '' };
-    }));
-
-    // Get provider types
-    const types = data
-      .map((item) => item.provider_type?.trim())
-      .filter((type): type is string => !!type);
-    setProviderTypes([...new Set(types)].sort((a, b) => a.localeCompare(b)));
+    if (error) {
+      setComment(null);
+    } else {
+      setComment(commentData?.comment || null);
+    }
   };
 
-  // Now the useEffect can safely call extractFilters
-  useEffect(() => {
-    if (data.length > 0) {
-      extractFilters(data);
-    }
-  }, [data]);
-
-  useEffect(() => {
-    checkSubscriptionAndSubUser();
-  }, [router]);
-
+  // Define checkSubscriptionAndSubUser before using it
   const checkSubscriptionAndSubUser = async () => {
     const userEmail = user?.email ?? "";
     const kindeUserId = user?.id ?? "";
@@ -348,20 +618,25 @@ export default function HistoricalRates() {
     }
   };
 
-  const fetchComment = async (serviceCategory: string, state: string) => {
-    try {
-      const response = await fetch(`/api/comments_table?serviceCategory=${encodeURIComponent(serviceCategory)}&state=${encodeURIComponent(state)}`);
-      const data = await response.json();
+  // Now the useEffect can safely use checkSubscriptionAndSubUser
+  useEffect(() => {
+    checkSubscriptionAndSubUser();
+  }, [router]);
+
+  // Move all useEffect hooks here, before any conditional returns
+  useEffect(() => {
       if (data.length > 0) {
-        setComment(data[0].comment);
-      } else {
-        setComment(null);
-      }
-    } catch (error) {
-      console.error("Error fetching comment:", error);
-      setComment(null);
+      extractFilters(
+        data,
+        setServiceCategories,
+        setStates,
+        setPrograms,
+        setLocationRegions,
+        setModifiers,
+        setProviderTypes
+      );
     }
-  };
+  }, [data]);
 
   useEffect(() => {
     if (selectedServiceCategory && selectedState) {
@@ -371,241 +646,21 @@ export default function HistoricalRates() {
     }
   }, [selectedServiceCategory, selectedState]);
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
+  useEffect(() => {
+    if (shouldExtractFilters) {
+      extractFilters(
+        data,
+        setServiceCategories,
+        setStates,
+        setPrograms,
+        setLocationRegions,
+        setModifiers,
+        setProviderTypes
+      );
+      setShouldExtractFilters(false);
+    }
+  }, [shouldExtractFilters, data]);
 
-  if (error) {
-    return <div>Error: {error}</div>;
-  }
-
-  const ErrorMessage = ({ error }: { error: string | null }) => {
-    if (!error) return null;
-    
-    return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded-lg mb-4">
-        <div className="flex items-center">
-          <FaExclamationCircle className="h-5 w-5 text-red-500 mr-2" />
-          <p className="text-red-700">{error}</p>
-        </div>
-      </div>
-    );
-  };
-
-  const resetFilters = () => {
-    setSelectedServiceCategory("");
-    setSelectedState("");
-    setSelectedServiceCode("");
-    setServiceCodes([]);
-    setStates([]);
-    setSelectedEntry(null);
-  };
-
-  const handleServiceCategoryChange = (category: string) => {
-    setSelectedServiceCategory(category);
-    setSelectedState("");
-    setSelectedServiceCode("");
-    setSelectedServiceDescription("");
-    setSelectedProgram("");
-    setSelectedLocationRegion("");
-    setSelectedModifier("");
-    setSelectedProviderType("");
-    setFilterStep(2);
-
-    // Reset all dependent filter options
-    setStates([]);
-    setServiceCodes([]);
-    setServiceDescriptions([]);
-    setPrograms([]);
-    setLocationRegions([]);
-    setModifiers([]);
-    setProviderTypes([]);
-
-    // Filter data based on selected category
-    const filteredData = data.filter(item => item.service_category === category);
-    setStates([...new Set(filteredData.map(item => item.state_name).filter((v): v is string => !!v))].sort());
-    setServiceCodes([...new Set(filteredData.map(item => item.service_code).filter((v): v is string => !!v))].sort());
-    setServiceDescriptions([...new Set(filteredData.map(item => item.service_description).filter((v): v is string => !!v))].sort());
-    setPrograms([...new Set(filteredData.map(item => item.program).filter((v): v is string => !!v))].sort());
-    setLocationRegions([...new Set(filteredData.map(item => item.location_region).filter((v): v is string => !!v))].sort());
-    setProviderTypes([...new Set(filteredData.map(item => item.provider_type).filter((v): v is string => !!v))].sort());
-    // Modifiers
-    const allModifiers = filteredData.flatMap(item => [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].filter((v): v is string => !!v));
-    setModifiers([...new Set(allModifiers)].map(value => ({ value, label: value })));
-  };
-
-  const handleStateChange = (state: string) => {
-    setSelectedState(state);
-    setSelectedServiceCode("");
-    setSelectedServiceDescription("");
-    setSelectedProgram("");
-    setSelectedLocationRegion("");
-    setSelectedModifier("");
-    setSelectedProviderType("");
-    setFilterStep(3);
-
-    setServiceCodes([]);
-    setServiceDescriptions([]);
-    setPrograms([]);
-    setLocationRegions([]);
-    setModifiers([]);
-    setProviderTypes([]);
-
-    const filteredData = data.filter(item => item.service_category === selectedServiceCategory && item.state_name === state);
-    setServiceCodes([...new Set(filteredData.map(item => item.service_code).filter((v): v is string => !!v))].sort());
-    setServiceDescriptions([...new Set(filteredData.map(item => item.service_description).filter((v): v is string => !!v))].sort());
-    setPrograms([...new Set(filteredData.map(item => item.program).filter((v): v is string => !!v))].sort());
-    setLocationRegions([...new Set(filteredData.map(item => item.location_region).filter((v): v is string => !!v))].sort());
-    setProviderTypes([...new Set(filteredData.map(item => item.provider_type).filter((v): v is string => !!v))].sort());
-    const allModifiers = filteredData.flatMap(item => [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].filter((v): v is string => !!v));
-    setModifiers([...new Set(allModifiers)].map(value => ({ value, label: value })));
-  };
-
-  const handleServiceCodeChange = (code: string) => {
-    setSelectedServiceCode(code);
-    setSelectedServiceDescription("");
-    setSelectedProgram("");
-    setSelectedLocationRegion("");
-    setSelectedModifier("");
-    setSelectedProviderType("");
-    setFilterStep(4);
-
-    setServiceCodes([]);
-    setPrograms([]);
-    setLocationRegions([]);
-    setModifiers([]);
-    setProviderTypes([]);
-
-    const filteredData = data.filter(item => item.service_category === selectedServiceCategory && item.state_name === selectedState && item.service_code === code);
-    setServiceCodes([...new Set(filteredData.map(item => item.service_code).filter((v): v is string => !!v))].sort());
-    setServiceDescriptions([...new Set(filteredData.map(item => item.service_description).filter((v): v is string => !!v))].sort());
-    setPrograms([...new Set(filteredData.map(item => item.program).filter((v): v is string => !!v))].sort());
-    setLocationRegions([...new Set(filteredData.map(item => item.location_region).filter((v): v is string => !!v))].sort());
-    setProviderTypes([...new Set(filteredData.map(item => item.provider_type).filter((v): v is string => !!v))].sort());
-    const allModifiers = filteredData.flatMap(item => [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].filter((v): v is string => !!v));
-    setModifiers([...new Set(allModifiers)].map(value => ({ value, label: value })));
-  };
-
-  const handleServiceDescriptionChange = (desc: string) => {
-    setSelectedServiceDescription(desc);
-    setSelectedServiceCode("");
-    setSelectedProgram("");
-    setSelectedLocationRegion("");
-    setSelectedModifier("");
-    setSelectedProviderType("");
-    setFilterStep(4);
-
-    setServiceCodes([]);
-    setPrograms([]);
-    setLocationRegions([]);
-    setModifiers([]);
-    setProviderTypes([]);
-
-    const filteredData = data.filter(item => item.service_category === selectedServiceCategory && item.state_name === selectedState && item.service_description === desc);
-    setServiceCodes([...new Set(filteredData.map(item => item.service_code).filter((v): v is string => !!v))].sort());
-    setPrograms([...new Set(filteredData.map(item => item.program).filter((v): v is string => !!v))].sort());
-    setLocationRegions([...new Set(filteredData.map(item => item.location_region).filter((v): v is string => !!v))].sort());
-    setProviderTypes([...new Set(filteredData.map(item => item.provider_type).filter((v): v is string => !!v))].sort());
-    const allModifiers = filteredData.flatMap(item => [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].filter((v): v is string => !!v));
-    setModifiers([...new Set(allModifiers)].map(value => ({ value, label: value })));
-  };
-
-  const getGraphData = () => {
-    if (!selectedEntry) return { xAxis: [], series: [] };
-
-    const allEntries = data.filter(item => 
-      item.state_name === selectedEntry.state_name &&
-      item.service_code === selectedEntry.service_code &&
-      item.program === selectedEntry.program &&
-      item.location_region === selectedEntry.location_region &&
-      item.modifier_1 === selectedEntry.modifier_1 &&
-      item.modifier_2 === selectedEntry.modifier_2 &&
-      item.modifier_3 === selectedEntry.modifier_3 &&
-      item.modifier_4 === selectedEntry.modifier_4
-    );
-
-    const sortedEntries = allEntries.sort((a, b) => 
-      new Date(a.rate_effective_date).getTime() - new Date(b.rate_effective_date).getTime()
-    );
-
-    const currentDate = new Date();
-    const lastEntry = sortedEntries[sortedEntries.length - 1];
-    const extendedEntries = [
-      ...sortedEntries,
-      {
-        ...lastEntry,
-        rate_effective_date: currentDate.toISOString().split('T')[0]
-      }
-    ];
-
-    const formatDate = (dateString: string) => {
-      const date = new Date(dateString);
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const day = date.getDate().toString().padStart(2, '0');
-      const year = date.getFullYear();
-      return `${month}/${day}/${year}`;
-    };
-
-    return {
-      xAxis: extendedEntries.map(entry => formatDate(entry.rate_effective_date)),
-      series: extendedEntries.map(entry => {
-        let rateValue = parseFloat(entry.rate.replace('$', '') || '0');
-        const durationUnit = entry.duration_unit?.toUpperCase();
-
-        if (showRatePerHour) {
-          if (durationUnit === '15 MINUTES') {
-            rateValue *= 4;
-          } else if (durationUnit === '30 MINUTES') {
-            rateValue *= 2;
-          } else if (durationUnit !== 'PER HOUR') {
-            return {
-              value: null,
-              displayValue: 'N/A', // Simplified for non-convertible units
-              state: entry.state_name,
-              serviceCode: entry.service_code,
-              program: entry.program,
-              locationRegion: entry.location_region,
-              modifier1: entry.modifier_1,
-              modifier1Details: entry.modifier_1_details,
-              modifier2: entry.modifier_2,
-              modifier2Details: entry.modifier_2_details,
-              modifier3: entry.modifier_3,
-              modifier3Details: entry.modifier_3_details,
-              modifier4: entry.modifier_4,
-              modifier4Details: entry.modifier_4_details,
-              durationUnit: entry.duration_unit,
-              date: formatDate(entry.rate_effective_date)
-            };
-          }
-        }
-
-        return {
-          value: showRatePerHour ? rateValue : parseFloat(entry.rate.replace('$', '') || '0'),
-          state: entry.state_name,
-          serviceCode: entry.service_code,
-          program: entry.program,
-          locationRegion: entry.location_region,
-          modifier1: entry.modifier_1,
-          modifier1Details: entry.modifier_1_details,
-          modifier2: entry.modifier_2,
-          modifier2Details: entry.modifier_2_details,
-          modifier3: entry.modifier_3,
-          modifier3Details: entry.modifier_3_details,
-          modifier4: entry.modifier_4,
-          modifier4Details: entry.modifier_4_details,
-          durationUnit: entry.duration_unit,
-          date: formatDate(entry.rate_effective_date)
-        };
-      })
-    };
-  };
-
-  // Create a utility function to format text
-  const formatText = (text: string | null | undefined) => {
-    return text ? text.toUpperCase() : '-';
-  };
-
-  // Dynamically populate filter options based on filteredData
   useEffect(() => {
     const descriptions = filteredData.map(item => item.service_description).filter((desc): desc is string => !!desc);
     setServiceDescriptions([...new Set(descriptions)].sort((a, b) => a.localeCompare(b)));
@@ -629,13 +684,304 @@ export default function HistoricalRates() {
     }));
   }, [filteredData]);
 
+  // Preload filter options from context (like dashboard)
+  useEffect(() => {
+    if (filterOptions?.serviceCategories) {
+      setServiceCategories(filterOptions.serviceCategories);
+    }
+    if (filterOptions?.states) {
+      setStates(filterOptions.states);
+    }
+    // Add other filters as needed
+  }, [filterOptions]);
+
+  // Debug: Log filterOptions and selected filters
+  useEffect(() => {
+    console.log('filterOptions.serviceCodes:', filterOptions?.serviceCodes);
+    console.log('selectedServiceCategory:', selectedServiceCategory, 'selectedState:', selectedState);
+  }, [filterOptions, selectedServiceCategory, selectedState]);
+
+  useEffect(() => {
+    if (selectedServiceCategory && selectedState) {
+      refreshData({
+        serviceCategory: selectedServiceCategory,
+        state: selectedState
+      });
+    }
+  }, [selectedServiceCategory, selectedState, refreshData]);
+
+  // Populate Service Codes when Service Line and State are selected
+  useEffect(() => {
+    if (selectedServiceCategory && selectedState) {
+      refreshData({
+        serviceCategory: selectedServiceCategory,
+        state: selectedState
+      });
+    }
+  }, [selectedServiceCategory, selectedState, refreshData]);
+
+  // Add handleServiceCategoryChange above where it is used
+  const handleServiceCategoryChange = async (category: string) => {
+    setSelectedServiceCategory(category);
+    setSelectedState("");
+    setSelectedServiceCode("");
+    setSelectedServiceDescription("");
+    setSelectedProgram("");
+    setSelectedLocationRegion("");
+    setSelectedModifier("");
+    setSelectedProviderType("");
+    setStates([]);
+    setServiceCodes([]);
+    setPrograms([]);
+    setLocationRegions([]);
+    setModifiers([]);
+    setProviderTypes([]);
+    if (typeof refreshFilters === 'function') {
+      await refreshFilters(category);
+    }
+  };
+
+  // Update handleStateChange to use pagination
+  const handleStateChange = async (state: string) => {
+    setSelectedState(state);
+    setSelectedServiceCode("");
+    setSelectedServiceDescription("");
+    setSelectedProgram("");
+    setSelectedLocationRegion("");
+    setSelectedModifier("");
+    setSelectedProviderType("");
+    setServiceCodes([]);
+    setPrograms([]);
+    setLocationRegions([]);
+    setModifiers([]);
+    setProviderTypes([]);
+    setCurrentPage(1); // Reset to first page when filter changes
+    if (typeof refreshFilters === 'function') {
+      await refreshFilters(selectedServiceCategory);
+    }
+  };
+
+  // Update handleServiceCodeChange to use pagination
+  const handleServiceCodeChange = async (code: string) => {
+    const matchingItem = data.find(item => item.service_code?.trim() === code.trim());
+    const matchingDescription = matchingItem?.service_description?.trim() || '';
+    setSelectedServiceCode(code);
+    setSelectedServiceDescription(matchingDescription);
+    setSelectedProgram("");
+    setSelectedLocationRegion("");
+    setSelectedModifier("");
+    setSelectedProviderType("");
+    setPrograms([]);
+    setLocationRegions([]);
+    setModifiers([]);
+    setProviderTypes([]);
+    setCurrentPage(1); // Reset to first page when filter changes
+    if (typeof refreshData === 'function') {
+      const result = await refreshData({
+        serviceCategory: selectedServiceCategory,
+        state: selectedState,
+        serviceCode: code,
+        page: "1",
+        itemsPerPage: String(itemsPerPage)
+      });
+      if (result) {
+        setTotalCount(result.totalCount);
+      }
+    }
+  };
+
+  // Update handleServiceDescriptionChange to use pagination
+  const handleServiceDescriptionChange = async (desc: string) => {
+    setSelectedServiceDescription(desc);
+    setSelectedProviderType("");
+    setCurrentPage(1); // Reset to first page when filter changes
+    if (typeof refreshData === 'function') {
+      const result = await refreshData({
+        serviceCategory: selectedServiceCategory,
+        state: selectedState,
+        serviceCode: selectedServiceCode,
+        serviceDescription: desc,
+        page: "1",
+        itemsPerPage: String(itemsPerPage)
+      });
+      if (result) {
+        setTotalCount(result.totalCount);
+      }
+    }
+  };
+
+  // Add useEffect for pagination
+  useEffect(() => {
+    if (areFiltersApplied) {
+      refreshData({
+        serviceCategory: selectedServiceCategory,
+        state: selectedState,
+        serviceCode: selectedServiceCode,
+        page: String(currentPage),
+        itemsPerPage: String(itemsPerPage)
+      }).then(result => {
+        if (result) {
+          setTotalCount(result.totalCount);
+        }
+      });
+    }
+  }, [currentPage, areFiltersApplied, selectedServiceCategory, selectedState, selectedServiceCode]);
+
+  // Update resetFilters to reset pagination
+  const resetFilters = async () => {
+    setSelectedServiceCategory("");
+    setSelectedState("");
+    setSelectedServiceCode("");
+    setSelectedServiceDescription("");
+    setSelectedProgram("");
+    setSelectedLocationRegion("");
+    setSelectedModifier("");
+    setSelectedProviderType("");
+    setSelectedEntry(null);
+    setStates([]);
+    setPrograms([]);
+    setLocationRegions([]);
+    setModifiers([]);
+    setProviderTypes([]);
+    setCurrentPage(1);
+    setTotalCount(0);
+    if (typeof refreshFilters === 'function') {
+      await refreshFilters();
+    }
+  };
+
+  const formatText = (text: string | undefined) => text || '-';
+
+  const getGraphData = () => {
+    if (!selectedEntry) return { xAxis: [], series: [] };
+
+    const entries = data.filter((item: ServiceData) => 
+      item.state_name === selectedEntry.state_name &&
+      item.service_category === selectedEntry.service_category &&
+      item.service_code === selectedEntry.service_code &&
+      item.service_description === selectedEntry.service_description &&
+      item.program === selectedEntry.program &&
+      item.location_region === selectedEntry.location_region &&
+      item.modifier_1 === selectedEntry.modifier_1 &&
+      item.modifier_1_details === selectedEntry.modifier_1_details &&
+      item.modifier_2 === selectedEntry.modifier_2 &&
+      item.modifier_2_details === selectedEntry.modifier_2_details &&
+      item.modifier_3 === selectedEntry.modifier_3 &&
+      item.modifier_3_details === selectedEntry.modifier_3_details &&
+      item.modifier_4 === selectedEntry.modifier_4 &&
+      item.modifier_4_details === selectedEntry.modifier_4_details &&
+      item.duration_unit === selectedEntry.duration_unit &&
+      item.provider_type === selectedEntry.provider_type
+    ).sort((a, b) => parseDateString(a.rate_effective_date).getTime() - parseDateString(b.rate_effective_date).getTime());
+
+    let xAxis = entries.map(entry => entry.rate_effective_date);
+    let series = entries.map(entry => {
+      const rateValue = parseFloat(entry.rate.replace('$', '') || '0');
+        const durationUnit = entry.duration_unit?.toUpperCase();
+      let value = rateValue;
+      let displayValue: string | null = null;
+
+        if (showRatePerHour) {
+          if (durationUnit === '15 MINUTES') {
+          value = rateValue * 4;
+          } else if (durationUnit === '30 MINUTES') {
+          value = rateValue * 2;
+          } else if (durationUnit !== 'PER HOUR') {
+          displayValue = 'N/A';
+          }
+        }
+
+        return {
+        value: displayValue ? null : value,
+        displayValue,
+          state: entry.state_name,
+          serviceCode: entry.service_code,
+          program: entry.program,
+          locationRegion: entry.location_region,
+        durationUnit: entry.duration_unit,
+        date: entry.rate_effective_date,
+          modifier1: entry.modifier_1,
+          modifier1Details: entry.modifier_1_details,
+          modifier2: entry.modifier_2,
+          modifier2Details: entry.modifier_2_details,
+          modifier3: entry.modifier_3,
+          modifier3Details: entry.modifier_3_details,
+          modifier4: entry.modifier_4,
+        modifier4Details: entry.modifier_4_details
+      };
+    });
+
+    // Add a point for today if latest date < today
+    if (series.length > 0) {
+      const latestDate = parseDateString(xAxis[xAxis.length - 1]);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      // Only add if latestDate is before today (not the same day)
+      if (latestDate < today) {
+        const todayStr = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
+        xAxis = [...xAxis, todayStr];
+        const last = series[series.length - 1];
+        series = [...series, { ...last, date: todayStr }];
+      }
+    }
+
+    return { xAxis, series };
+  };
+
+  // Derived loading state for service code options
+  const serviceCodeOptionsLoading =
+    loading ||
+    (!!selectedServiceCategory && !!selectedState && (!filterOptions.serviceCodes || filterOptions.serviceCodes.length === 0));
+
+  // Replace the tableData logic with grouping by all fields except rate_effective_date and rate
+  const tableData = useMemo(() => {
+    if (!selectedServiceCategory || !selectedState || !selectedServiceCode) return [];
+
+    // Group by all fields except rate_effective_date and rate
+    const grouped: { [key: string]: ServiceData } = {};
+    data.forEach(item => {
+      const key = JSON.stringify({
+        state_name: item.state_name,
+        service_category: item.service_category,
+        service_code: item.service_code,
+        service_description: item.service_description,
+        program: item.program,
+        location_region: item.location_region,
+        modifier_1: item.modifier_1,
+        modifier_1_details: item.modifier_1_details,
+        modifier_2: item.modifier_2,
+        modifier_2_details: item.modifier_2_details,
+        modifier_3: item.modifier_3,
+        modifier_3_details: item.modifier_3_details,
+        modifier_4: item.modifier_4,
+        modifier_4_details: item.modifier_4_details,
+        duration_unit: item.duration_unit,
+        provider_type: item.provider_type
+      });
+      if (!grouped[key] || parseDateString(item.rate_effective_date) > parseDateString(grouped[key].rate_effective_date)) {
+        grouped[key] = item;
+      }
+    });
+    // Return all latest entries for each unique combination
+    return Object.values(grouped) as ServiceData[];
+  }, [data, selectedServiceCategory, selectedState, selectedServiceCode, selectedProgram, selectedLocationRegion, selectedModifier, selectedProviderType]);
+
+  // Main render - all hooks have been called by this point
   return (
     <AppLayout activeTab="historicalRates">
       <div className="p-4 sm:p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
-        {/* Error Message */}
         <ErrorMessage error={error} />
 
-        {/* Heading */}
+        {serviceCodeOptionsLoading ? (
+          <div className="loader-overlay">
+            <div className="cssloader">
+              <div className="sh1"></div>
+              <div className="sh2"></div>
+              <h4 className="lt">loading</h4>
+            </div>
+          </div>
+        ) : (
+          <>
         <div className="flex flex-col items-start mb-6 sm:mb-8">
           <h1 className="text-3xl sm:text-5xl md:text-6xl text-[#012C61] font-lemonMilkRegular uppercase mb-3 sm:mb-4">
             Rate History
@@ -648,21 +994,9 @@ export default function HistoricalRates() {
           </button>
         </div>
 
-        {/* Loading State */}
-        {loading && (
-          <div className="flex justify-center items-center h-64">
-            <FaSpinner className="animate-spin h-12 w-12 text-blue-500" />
-            <p className="ml-4 text-gray-600">Loading data...</p>
-          </div>
-        )}
-
-        {/* Main Content */}
-        {!loading && (
           <div className="space-y-8">
-            {/* Filters */}
             <div className="p-4 sm:p-6 bg-white rounded-xl shadow-lg">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-                {/* Service Category Selector */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Service Line</label>
                   <Select
@@ -671,6 +1005,7 @@ export default function HistoricalRates() {
                     onChange={(option) => handleServiceCategoryChange(option?.value || "")}
                     placeholder="Select Service Line"
                     isSearchable
+                      filterOption={customFilterOption}
                     className="react-select-container"
                     classNamePrefix="react-select"
                   />
@@ -679,7 +1014,6 @@ export default function HistoricalRates() {
                   )}
                 </div>
 
-                {/* State Selector */}
                 {selectedServiceCategory ? (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">State</label>
@@ -689,6 +1023,7 @@ export default function HistoricalRates() {
                       onChange={(option) => handleStateChange(option?.value || "")}
                       placeholder="Select State"
                       isSearchable
+                        filterOption={customFilterOption}
                       className="react-select-container"
                       classNamePrefix="react-select"
                     />
@@ -705,16 +1040,17 @@ export default function HistoricalRates() {
                   </div>
                 )}
 
-                {/* Service Code Selector */}
                 {selectedServiceCategory && selectedState ? (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Service Code</label>
                     <Select
-                      options={serviceCodes.map(code => ({ value: code, label: code }))}
+                      options={filterOptions.serviceCodes?.map(code => ({ value: code, label: code })) || []}
                       value={selectedServiceCode ? { value: selectedServiceCode, label: selectedServiceCode } : null}
                       onChange={(option) => handleServiceCodeChange(option?.value || "")}
-                      placeholder="Select Service Code"
+                      placeholder={"Select Service Code"}
+                      isDisabled={false}
                       isSearchable
+                      filterOption={customFilterOption}
                       className="react-select-container"
                       classNamePrefix="react-select"
                     />
@@ -731,40 +1067,7 @@ export default function HistoricalRates() {
                   </div>
                 )}
 
-                {/* Program Selector */}
-                {selectedServiceCategory && selectedState && selectedServiceCode && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Program</label>
-                    <Select
-                      options={programs.map((program) => ({ value: program, label: program }))}
-                      value={selectedProgram ? { value: selectedProgram, label: selectedProgram } : null}
-                      onChange={(option) => setSelectedProgram(option?.value || "")}
-                      placeholder="Select Program"
-                      isSearchable
-                      className="react-select-container"
-                      classNamePrefix="react-select"
-                    />
-                  </div>
-                )}
-
-                {/* Location/Region Selector */}
-                {selectedServiceCategory && selectedState && selectedServiceCode && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Location/Region</label>
-                    <Select
-                      options={locationRegions.map((region) => ({ value: region, label: region }))}
-                      value={selectedLocationRegion ? { value: selectedLocationRegion, label: selectedLocationRegion } : null}
-                      onChange={(option) => setSelectedLocationRegion(option?.value || "")}
-                      placeholder="Select Location/Region"
-                      isSearchable
-                      className="react-select-container"
-                      classNamePrefix="react-select"
-                    />
-                  </div>
-                )}
-
-                {/* Modifier Selector */}
-                {selectedServiceCategory && selectedState && selectedServiceCode && (
+                {selectedServiceCategory && selectedState && (selectedServiceCode || selectedServiceDescription) && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Modifier</label>
                     <Select
@@ -776,7 +1079,9 @@ export default function HistoricalRates() {
                       onChange={(option) => setSelectedModifier(option?.value || "")}
                       placeholder="Select Modifier"
                       isSearchable
-                      className="react-select-container"
+                      filterOption={customFilterOption}
+                      isDisabled={!selectedServiceCode && !selectedServiceDescription}
+                      className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
                       classNamePrefix="react-select"
                     />
                     {selectedModifier && (
@@ -785,7 +1090,38 @@ export default function HistoricalRates() {
                   </div>
                 )}
 
-                {/* Service Description Selector */}
+                {selectedServiceCategory && selectedState && selectedServiceCode && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Program</label>
+                    <Select
+                      options={programs.map((program) => ({ value: program, label: program }))}
+                      value={selectedProgram ? { value: selectedProgram, label: selectedProgram } : null}
+                      onChange={(option) => setSelectedProgram(option?.value || "")}
+                      placeholder="Select Program"
+                      isSearchable
+                        filterOption={customFilterOption}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                    />
+                  </div>
+                )}
+
+                {selectedServiceCategory && selectedState && selectedServiceCode && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Location/Region</label>
+                    <Select
+                      options={locationRegions.map((region) => ({ value: region, label: region }))}
+                      value={selectedLocationRegion ? { value: selectedLocationRegion, label: selectedLocationRegion } : null}
+                      onChange={(option) => setSelectedLocationRegion(option?.value || "")}
+                      placeholder="Select Location/Region"
+                      isSearchable
+                        filterOption={customFilterOption}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                    />
+                  </div>
+                )}
+
                 {selectedServiceCategory && selectedState && selectedServiceCode && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Service Description</label>
@@ -795,6 +1131,7 @@ export default function HistoricalRates() {
                       onChange={(option) => handleServiceDescriptionChange(option?.value || "")}
                       placeholder="Select Service Description"
                       isSearchable
+                        filterOption={customFilterOption}
                       className="react-select-container"
                       classNamePrefix="react-select"
                     />
@@ -804,7 +1141,6 @@ export default function HistoricalRates() {
                   </div>
                 )}
 
-                {/* Provider Type Selector */}
                 {selectedServiceCategory && selectedState && selectedServiceCode && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Provider Type</label>
@@ -814,6 +1150,7 @@ export default function HistoricalRates() {
                       onChange={(option) => setSelectedProviderType(option?.value || "")}
                       placeholder="Select Provider Type"
                       isSearchable
+                        filterOption={customFilterOption}
                       isDisabled={!selectedServiceCode && !selectedServiceDescription}
                       className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
                       classNamePrefix="react-select"
@@ -826,7 +1163,6 @@ export default function HistoricalRates() {
               </div>
             </div>
 
-            {/* Empty State Message */}
             {!areFiltersApplied && (
               <div className="p-6 bg-white rounded-xl shadow-lg text-center">
                 <div className="flex justify-center items-center mb-4">
@@ -841,10 +1177,8 @@ export default function HistoricalRates() {
               </div>
             )}
 
-            {/* Graph Component */}
-            {selectedEntry && areFiltersApplied && (
+            {selectedEntry && (
               <>
-                {/* Display the comment above the graph */}
                 {comment && (
                   <div className="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-200">
                     <p className="text-sm text-blue-700">
@@ -856,7 +1190,6 @@ export default function HistoricalRates() {
                 <div className="p-6 bg-white rounded-xl shadow-lg">
                   <h2 className="text-xl font-semibold mb-4 text-gray-800">Rate History</h2>
                   
-                  {/* Toggle Switch */}
                   <div className="flex justify-center items-center mb-6">
                     <div className="flex items-center bg-gray-100 p-1 rounded-lg">
                       <button
@@ -994,9 +1327,9 @@ export default function HistoricalRates() {
               </>
             )}
 
-            {/* Data Table */}
             {areFiltersApplied && (
-              <div className="overflow-x-auto rounded-lg shadow-lg">
+              <div className="overflow-hidden rounded-lg shadow-lg">
+                <div className="overflow-x-auto">
                 <table className="min-w-full bg-white">
                   <thead className="bg-gray-50 sticky top-0">
                     <tr>
@@ -1043,23 +1376,34 @@ export default function HistoricalRates() {
                       {getVisibleColumns.location_region && (
                         <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Location/Region</th>
                       )}
-                      {/* Add Provider Type Column */}
                       <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Provider Type</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {filteredData.map((item, index) => {
-                      const isSelected = selectedEntry?.state_name === item.state_name &&
-                        selectedEntry?.service_code === item.service_code &&
-                        selectedEntry?.program === item.program &&
-                        selectedEntry?.location_region === item.location_region &&
-                        selectedEntry?.modifier_1 === item.modifier_1 &&
-                        selectedEntry?.modifier_2 === item.modifier_2 &&
-                        selectedEntry?.modifier_3 === item.modifier_3 &&
-                        selectedEntry?.modifier_4 === item.modifier_4;
+                      {tableData.map((item, index) => {
+                        const entry = item as ServiceData;
+                        const isSelected =
+                          selectedEntry &&
+                          selectedEntry.state_name === entry.state_name &&
+                          selectedEntry.service_category === entry.service_category &&
+                          selectedEntry.service_code === entry.service_code &&
+                          selectedEntry.service_description === entry.service_description &&
+                          selectedEntry.program === entry.program &&
+                          selectedEntry.location_region === entry.location_region &&
+                          selectedEntry.modifier_1 === entry.modifier_1 &&
+                          selectedEntry.modifier_1_details === entry.modifier_1_details &&
+                          selectedEntry.modifier_2 === entry.modifier_2 &&
+                          selectedEntry.modifier_2_details === entry.modifier_2_details &&
+                          selectedEntry.modifier_3 === entry.modifier_3 &&
+                          selectedEntry.modifier_3_details === entry.modifier_3_details &&
+                          selectedEntry.modifier_4 === entry.modifier_4 &&
+                          selectedEntry.modifier_4_details === entry.modifier_4_details &&
+                          selectedEntry.duration_unit === entry.duration_unit &&
+                          selectedEntry.provider_type === entry.provider_type &&
+                          selectedEntry.rate_effective_date === entry.rate_effective_date;
 
-                      const rateValue = parseFloat(item.rate.replace('$', '') || '0');
-                      const durationUnit = item.duration_unit?.toUpperCase();
+                        const rateValue = parseFloat(entry.rate.replace('$', '') || '0');
+                        const durationUnit = entry.duration_unit?.toUpperCase();
                       const hourlyRate = durationUnit === '15 MINUTES' ? rateValue * 4 : rateValue;
 
                       return (
@@ -1068,7 +1412,7 @@ export default function HistoricalRates() {
                           className={`hover:bg-gray-50 transition-colors cursor-pointer ${
                             isSelected ? 'bg-blue-50' : ''
                           }`}
-                          onClick={() => setSelectedEntry(item)}
+                            onClick={() => setSelectedEntry(entry)}
                         >
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
@@ -1091,36 +1435,58 @@ export default function HistoricalRates() {
                                   </svg>
                                 )}
                               </div>
+                                {isSelected && (
+                                  <button
+                                    onClick={e => { e.stopPropagation(); setSelectedEntry(null); }}
+                                    className="ml-2 text-gray-400 hover:text-red-500"
+                                    title="Deselect"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                  </button>
+                                )}
                             </div>
                           </td>
                           {getVisibleColumns.state_name && (
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.state_name)}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {STATE_ABBREVIATIONS[entry.state_name?.toUpperCase() || ""] || entry.state_name || '-'}
+                              </td>
                           )}
                           {getVisibleColumns.service_category && (
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.service_category)}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {SERVICE_CATEGORY_ABBREVIATIONS[entry.service_category?.trim().toUpperCase() || ""] || entry.service_category || '-'}
+                              </td>
                           )}
                           {getVisibleColumns.service_code && (
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(item.service_code)}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(entry.service_code)}</td>
                           )}
                           {getVisibleColumns.service_description && (
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_description || '-'}</td>
+                            <td
+                              className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 max-w-[220px] truncate"
+                              title={entry.service_description || '-'}
+                            >
+                              {entry.service_description && entry.service_description.length > 30
+                                ? entry.service_description.slice(0, 30) + '...'
+                                : entry.service_description || '-'}
+                            </td>
                           )}
                           {getVisibleColumns.duration_unit && (
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {item.duration_unit || '-'}
+                                {entry.duration_unit || '-'}
                             </td>
                           )}
                           {getVisibleColumns.rate && (
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {item.rate || '-'}
+                                {formatCurrency(entry.rate)}
                             </td>
                           )}
                           {getVisibleColumns.rate_per_hour && (
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {(() => {
-                                const rateStr = (item.rate || '').replace('$', '');
+                                  const rateStr = (entry.rate || '').replace('$', '');
                                 const rate = parseFloat(rateStr);
-                                const durationUnit = item.duration_unit?.toUpperCase();
+                                  const durationUnit = entry.duration_unit?.toUpperCase();
                                 
                                 if (isNaN(rate)) return '-';
                                 
@@ -1137,52 +1503,59 @@ export default function HistoricalRates() {
                           )}
                           {getVisibleColumns.modifier_1 && (
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {item.modifier_1 ? `${item.modifier_1}${item.modifier_1_details ? ` - ${item.modifier_1_details}` : ''}` : '-'}
+                                {entry.modifier_1 ? `${entry.modifier_1}${entry.modifier_1_details ? ` - ${entry.modifier_1_details}` : ''}` : '-'}
                             </td>
                           )}
                           {getVisibleColumns.modifier_2 && (
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {item.modifier_2 ? `${item.modifier_2}${item.modifier_2_details ? ` - ${item.modifier_2_details}` : ''}` : '-'}
+                                {entry.modifier_2 ? `${entry.modifier_2}${entry.modifier_2_details ? ` - ${entry.modifier_2_details}` : ''}` : '-'}
                             </td>
                           )}
                           {getVisibleColumns.modifier_3 && (
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {item.modifier_3 ? `${item.modifier_3}${item.modifier_3_details ? ` - ${item.modifier_3_details}` : ''}` : '-'}
+                                {entry.modifier_3 ? `${entry.modifier_3}${entry.modifier_3_details ? ` - ${entry.modifier_3_details}` : ''}` : '-'}
                             </td>
                           )}
                           {getVisibleColumns.modifier_4 && (
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {item.modifier_4 ? `${item.modifier_4}${item.modifier_4_details ? ` - ${item.modifier_4_details}` : ''}` : '-'}
+                                {entry.modifier_4 ? `${entry.modifier_4}${entry.modifier_4_details ? ` - ${entry.modifier_4_details}` : ''}` : '-'}
                             </td>
                           )}
                           {getVisibleColumns.rate_effective_date && (
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {item.rate_effective_date ? new Date(item.rate_effective_date).toLocaleDateString() : '-'}
+                                {entry.rate_effective_date ? new Date(entry.rate_effective_date).toLocaleDateString() : '-'}
                             </td>
                           )}
                           {getVisibleColumns.program && (
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {item.program}
+                                {entry.program}
                             </td>
                           )}
                           {getVisibleColumns.location_region && (
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {formatText(item.location_region)}
+                                {formatText(entry.location_region)}
                             </td>
                           )}
-                          {/* Add Provider Type Column */}
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {formatText(item.provider_type)}
+                              {formatText(entry.provider_type)}
                           </td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
+                </div>
+                {totalCount > 0 && (
+                  <PaginationControls 
+                    currentPage={currentPage}
+                    setCurrentPage={setCurrentPage}
+                    totalCount={totalCount}
+                    itemsPerPage={itemsPerPage}
+                  />
+                )}
               </div>
             )}
 
-            {/* Selection Prompt */}
             {areFiltersApplied && !selectedEntry && (
               <div className="p-6 bg-white rounded-xl shadow-lg text-center">
                 <div className="flex justify-center items-center mb-4">
@@ -1197,6 +1570,7 @@ export default function HistoricalRates() {
               </div>
             )}
           </div>
+          </>
         )}
       </div>
     </AppLayout>

@@ -780,7 +780,7 @@ export default function Dashboard() {
       return [selected, ...options];
     }
     return options;
-  }
+      }
 
   const handleServiceCodeChange = async (code: string) => {
     // Find the matching item for this code
@@ -1631,6 +1631,7 @@ export default function Dashboard() {
                 }}
                 placeholder="Select Service Description"
                 isSearchable
+                filterOption={customFilterOption}
                 isDisabled={!selectedState}
                 className={`react-select-container ${!selectedState ? 'opacity-50' : ''}`}
                 classNamePrefix="react-select"
@@ -1650,6 +1651,7 @@ export default function Dashboard() {
                 onChange={(option) => handleProgramChange(option?.value || '')}
                 placeholder="Select Program"
                 isSearchable
+                filterOption={customFilterOption}
                 isDisabled={!selectedServiceCode && !selectedServiceDescription}
                 className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
                 classNamePrefix="react-select"
@@ -1669,6 +1671,7 @@ export default function Dashboard() {
                 onChange={(option) => handleLocationRegionChange(option?.value || '')}
                 placeholder="Select Location/Region"
                 isSearchable
+                filterOption={customFilterOption}
                 isDisabled={!selectedServiceCode && !selectedServiceDescription}
                 className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
                 classNamePrefix="react-select"
@@ -1688,6 +1691,7 @@ export default function Dashboard() {
                 onChange={(option) => setSelectedModifier(option?.value || '')}
                 placeholder="Select Modifier"
                 isSearchable
+                filterOption={customFilterOption}
                 isDisabled={!selectedServiceCode && !selectedServiceDescription}
                 className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
                 classNamePrefix="react-select"
@@ -1707,6 +1711,7 @@ export default function Dashboard() {
                 onChange={(option) => setSelectedProviderType(option?.value || '')}
                 placeholder="Select Provider Type"
                 isSearchable
+                filterOption={customFilterOption}
                 isDisabled={!selectedServiceCode && !selectedServiceDescription}
                 className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
                 classNamePrefix="react-select"
