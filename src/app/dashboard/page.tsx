@@ -488,10 +488,6 @@ export default function Dashboard() {
       filtered = filtered.filter(item => item.service_code?.trim() === selectedServiceCode.trim());
     }
 
-    if (selectedServiceDescription) {
-      filtered = filtered.filter(item => item.service_description?.trim() === selectedServiceDescription.trim());
-    }
-
     if (selectedProgram === '-') {
       filtered = filtered.filter(item => !item.program || item.program.trim() === '');
     } else if (selectedProgram) {
@@ -553,7 +549,6 @@ export default function Dashboard() {
     data,
     selectedState,
     selectedServiceCode,
-    selectedServiceDescription,
     selectedProgram,
     selectedLocationRegion,
     selectedModifier,
@@ -779,17 +774,25 @@ export default function Dashboard() {
     dropdownSetter(prev => !prev);
   };
 
+  // Utility to ensure selected value is always in options
+  function ensureOptionInList(options: string[], selected: string): string[] {
+    if (selected && !options.includes(selected)) {
+      return [selected, ...options];
+    }
+    return options;
+  }
+
   const handleServiceCodeChange = async (code: string) => {
+    // Find the matching item for this code
+    const matchingItem = data.find(item => item.service_code?.trim() === code.trim());
+    const matchingDescription = matchingItem?.service_description?.trim() || '';
     setSelectedServiceCode(code);
-    // Auto-select matching description
-    const desc = data.find(item => item.service_code === code)?.service_description || '';
-    setSelectedServiceDescription(desc);
+    setSelectedServiceDescription(matchingDescription);
     setSelectedProgram("");
     setSelectedLocationRegion("");
     setSelectedModifier("");
     setSelectedProviderType("");
     setFilterStep(4);
-    setServiceDescriptions([]);
     setPrograms([]);
     setLocationRegions([]);
     setModifiers([]);
@@ -797,21 +800,27 @@ export default function Dashboard() {
     await refreshData({
       serviceCategory: selectedServiceCategory,
       state: selectedState,
-      serviceCode: code
+      serviceCode: code // Only use code for backend filtering
     });
   };
 
   const handleServiceDescriptionChange = async (desc: string) => {
+    // If the current code already matches this description, do nothing
+    const currentItem = data.find(item => item.service_code?.trim() === selectedServiceCode?.trim());
+    if (currentItem && currentItem.service_description?.trim() === desc) {
+      setSelectedServiceDescription(desc);
+      return;
+    }
+    // Otherwise, find the first item with this description
+    const matchingItem = data.find(item => item.service_description?.trim() === desc);
+    const matchingCode = matchingItem?.service_code?.trim() || '';
     setSelectedServiceDescription(desc);
-    // Auto-select matching code
-    const code = data.find(item => item.service_description === desc)?.service_code || '';
-    setSelectedServiceCode(code);
+    setSelectedServiceCode(matchingCode);
     setSelectedProgram("");
     setSelectedLocationRegion("");
     setSelectedModifier("");
     setSelectedProviderType("");
     setFilterStep(4);
-    setServiceCodes([]);
     setPrograms([]);
     setLocationRegions([]);
     setModifiers([]);
@@ -819,7 +828,7 @@ export default function Dashboard() {
     await refreshData({
       serviceCategory: selectedServiceCategory,
       state: selectedState,
-      serviceDescription: desc
+      serviceCode: matchingCode // Only use code for backend filtering
     });
   };
 
@@ -1563,13 +1572,22 @@ export default function Dashboard() {
               <label className="text-sm font-medium text-gray-700">Service Code</label>
               <Select
                 instanceId={serviceCodeId}
-                options={serviceCodes.map(code => ({ value: code, label: code }))}
+                options={(() => {
+                  if (serviceCodes.length === 0 && selectedServiceCode) {
+                    return [{ value: selectedServiceCode, label: selectedServiceCode }];
+                  }
+                  const opts = serviceCodes.map(code => ({ value: code, label: code }));
+                  if (selectedServiceCode && !serviceCodes.includes(selectedServiceCode)) {
+                    opts.unshift({ value: selectedServiceCode, label: selectedServiceCode });
+                  }
+                  return opts;
+                })()}
                 value={selectedServiceCode ? { value: selectedServiceCode, label: selectedServiceCode } : null}
                 onChange={(option) => {
-                  setSelectedServiceCode(option?.value || "");
-                  setSelectedServiceDescription("");
                   if (option?.value) {
                     handleServiceCodeChange(option.value);
+                  } else {
+                    handleServiceCodeChange("");
                   }
                 }}
                 placeholder="Select Service Code"
@@ -1580,10 +1598,7 @@ export default function Dashboard() {
                 classNamePrefix="react-select"
               />
               {selectedServiceCode && (
-                <ClearButton onClick={() => {
-                  setSelectedServiceCode("");
-                  handleServiceCodeChange("");
-                }} />
+                <ClearButton onClick={() => handleServiceCodeChange("")} />
               )}
             </div>
 
@@ -1592,13 +1607,22 @@ export default function Dashboard() {
               <label className="text-sm font-medium text-gray-700">Service Description</label>
               <Select
                 instanceId={serviceDescriptionId}
-                options={serviceDescriptions.map(desc => ({ value: desc, label: desc }))}
+                options={(() => {
+                  if (serviceDescriptions.length === 0 && selectedServiceDescription) {
+                    return [{ value: selectedServiceDescription, label: selectedServiceDescription }];
+                  }
+                  const opts = serviceDescriptions.map(desc => ({ value: desc, label: desc }));
+                  if (selectedServiceDescription && !serviceDescriptions.includes(selectedServiceDescription)) {
+                    opts.unshift({ value: selectedServiceDescription, label: selectedServiceDescription });
+                  }
+                  return opts;
+                })()}
                 value={selectedServiceDescription ? { value: selectedServiceDescription, label: selectedServiceDescription } : null}
                 onChange={(option) => {
-                  setSelectedServiceDescription(option?.value || "");
-                  setSelectedServiceCode("");
                   if (option?.value) {
                     handleServiceDescriptionChange(option.value);
+                  } else {
+                    handleServiceDescriptionChange("");
                   }
                 }}
                 placeholder="Select Service Description"
@@ -1608,10 +1632,7 @@ export default function Dashboard() {
                 classNamePrefix="react-select"
               />
               {selectedServiceDescription && (
-                <ClearButton onClick={() => {
-                  setSelectedServiceDescription("");
-                  handleServiceDescriptionChange("");
-                }} />
+                <ClearButton onClick={() => handleServiceDescriptionChange("")} />
               )}
             </div>
 
@@ -1719,9 +1740,12 @@ export default function Dashboard() {
 
         {/* Loading State */}
         {loading && (
-          <div className="flex justify-center items-center h-64">
-            <FaSpinner className="animate-spin h-12 w-12 text-blue-500" />
-            <p className="ml-4 text-gray-600">Loading data...</p>
+          <div className="loader-overlay">
+            <div className="cssloader">
+              <div className="sh1"></div>
+              <div className="sh2"></div>
+              <h4 className="lt">loading</h4>
+            </div>
           </div>
         )}
 
@@ -2070,6 +2094,66 @@ export default function Dashboard() {
           z-index: 50;
           position: sticky;
           top: 0;
+        }
+      `}</style>
+      <style jsx>{`
+        .loader-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background: rgba(57,57,57,0.9);
+          z-index: 9999;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: opacity 0.2s;
+        }
+        .cssloader {
+          padding-top: 0;
+        }
+        .sh1 {
+          width: 0;
+          height: 0;
+          border-style: solid;
+          border-width: 50px 50px 0 0;
+          border-color: #012C61 transparent transparent transparent;
+          margin: 0 auto;
+          animation: shk1 1s ease-in-out infinite normal;
+        }
+        .sh2 {
+          width: 0;
+          height: 0;
+          border-style: solid;
+          border-width: 0 0 50px 50px;
+          border-color: transparent  transparent #3b82f6 transparent ;
+          margin: -50px auto 0;
+          animation: shk2 1s ease-in-out infinite alternate;
+        }
+        @keyframes shk1 {
+          0% { transform: rotate(-360deg); }
+          100% {}
+        }
+        @keyframes shk2 {
+          0% { transform: rotate(360deg); }
+          100% {}
+        }
+        .lt {
+          color: #bdbdbd;
+          font-family: 'Roboto', 'Arial', sans-serif;
+          margin: 30px auto;
+          text-align: center;
+          font-weight: 100;
+          letter-spacing: 10px;
+          text-transform: lowercase;
+        }
+        .animate-fade-in {
+          animation: fade-in 0.3s ease-out;
+        }
+        @keyframes fade-in {
+          0% { opacity: 0; transform: scale(0.95); }
+          100% { opacity: 1; transform: scale(1); }
         }
       `}</style>
     </AppLayout>
