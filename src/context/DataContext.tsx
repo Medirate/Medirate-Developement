@@ -52,16 +52,21 @@ interface DataContextType {
       programs: string[];
       locationRegions: string[];
       providerTypes: string[];
+      modifiers: { value: string; label: string }[];
+      data: ServiceData[];
     };
   } | null>;
-  refreshFilters: (serviceCategory?: string) => Promise<void>;
+  refreshFilters: (serviceCategory?: string, state?: string, serviceCode?: string) => Promise<{
+    filterOptions: FilterOptions & { data?: ServiceData[] };
+  } | null>;
   fetchFeeScheduleDates: (state: string, serviceCategory: string, serviceCode: string) => Promise<string[]>;
+  setData: (data: ServiceData[]) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useState<ServiceData[]>([]);
+  const [data, setDataState] = useState<ServiceData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
@@ -84,16 +89,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return params.toString();
   };
 
-  // New function to fetch only filter options
-  const refreshFilters = useCallback(async (serviceCategory?: string) => {
-    if (!isAuthenticated) return;
+  // Update refreshFilters to handle service code
+  const refreshFilters = useCallback(async (serviceCategory?: string, state?: string, serviceCode?: string) => {
+    if (!isAuthenticated) return null;
 
     try {
       setLoading(true);
       const filters: Record<string, string> = { mode: 'filters' };
-      if (serviceCategory) {
-        filters.serviceCategory = serviceCategory;
-      }
+      if (serviceCategory) filters.serviceCategory = serviceCategory;
+      if (state) filters.state = state;
+      if (serviceCode) filters.serviceCode = serviceCode;
       
       const queryString = buildQueryString(filters);
       const response = await fetch(`/api/state-payment-comparison?${queryString}`);
@@ -103,11 +108,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
 
       const result = await response.json();
-      setFilterOptions(result.filterOptions);
+      
+      // Update filter options, preserving existing service codes if not provided in response
+      setFilterOptions(prev => ({
+        ...prev,
+        ...result.filterOptions,
+        serviceCodes: result.filterOptions.serviceCodes || prev.serviceCodes
+      }));
+      
       setError(null);
+      return result;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
       console.error('Error fetching filter options:', err);
+      return null;
     } finally {
       setLoading(false);
     }
@@ -129,7 +144,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const result = await response.json();
       // Only update data if we got a valid response
       if (result && Array.isArray(result.data)) {
-      setData(result.data);
+      setDataState(result.data);
       setFilterOptions(prev => ({
         ...prev,
         ...result.filterOptions
@@ -170,6 +185,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     refreshFilters();
   }, [refreshFilters]);
 
+  // Add setData function
+  const setData = useCallback((newData: ServiceData[]) => {
+    setDataState(newData);
+  }, []);
+
   const value = {
     data,
     loading,
@@ -178,6 +198,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     refreshData,
     refreshFilters,
     fetchFeeScheduleDates,
+    setData
   };
 
   return (

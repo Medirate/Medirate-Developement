@@ -13,7 +13,7 @@ import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
 import { useData } from "@/context/DataContext";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { DataTable } from './DataTable';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -27,6 +27,30 @@ const colorSequence = [
   '#C9CBCF', // Gray
   '#00A8E8', // Light Blue
   '#FF6B6B'  // Coral
+];
+
+// Chart.js default colors with 0.8 alpha for less transparency
+const chartJsColors = [
+  'rgba(54,162,235,0.8)',   // Blue
+  'rgba(255,99,132,0.8)',   // Red
+  'rgba(75,192,192,0.8)',   // Teal
+  'rgba(255,159,64,0.8)',   // Orange
+  'rgba(153,102,255,0.8)',  // Purple
+  'rgba(255,205,86,0.8)',   // Yellow
+  'rgba(201,203,207,0.8)',  // Gray
+  'rgba(0,168,232,0.8)',    // Light Blue
+  'rgba(255,107,107,0.8)',  // Coral
+  'rgba(46,204,64,0.8)',    // Green
+  'rgba(255,133,27,0.8)',   // Orange
+  'rgba(127,219,255,0.8)',  // Aqua
+  'rgba(177,13,201,0.8)',   // Violet
+  'rgba(255,220,0,0.8)',    // Gold
+  'rgba(0,31,63,0.8)',      // Navy
+  'rgba(57,204,204,0.8)',   // Cyan
+  'rgba(1,255,112,0.8)',    // Lime
+  'rgba(133,20,75,0.8)',    // Maroon
+  'rgba(240,18,190,0.8)',   // Fuchsia
+  'rgba(61,153,112,0.8)',   // Olive
 ];
 
 interface ServiceData {
@@ -89,13 +113,7 @@ const lightenColor = (color: string, amount: number): string => {
   return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 };
 
-// Initialize Supabase Client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-// Add this custom filter function before the StatePaymentComparison component
+// Add back the customFilterOption function
 const customFilterOption = (option: any, inputValue: string) => {
   const label = option.label.toLowerCase();
   const searchTerm = inputValue.toLowerCase();
@@ -109,9 +127,39 @@ const customFilterOption = (option: any, inputValue: string) => {
   return label.includes(searchTerm);
 };
 
+// Generate a stable unique key for a row
+function getRowKey(item: ServiceData) {
+  return [
+    item.state_name,
+    item.service_category,
+    item.service_code,
+    item.service_description,
+    item.program,
+    item.location_region,
+    item.modifier_1,
+    item.modifier_1_details,
+    item.modifier_2,
+    item.modifier_2_details,
+    item.modifier_3,
+    item.modifier_3_details,
+    item.modifier_4,
+    item.modifier_4_details,
+    item.duration_unit,
+    item.provider_type
+  ].map(x => x ?? '').join('|');
+}
+
 export default function StatePaymentComparison() {
-  // Call all hooks at the top, unconditionally
-  const { data, loading: dataLoading, error: dataError } = useData();
+  // Update useData hook to include all needed functions
+  const { 
+    data, 
+    loading: dataLoading, 
+    error: dataError,
+    filterOptions,
+    refreshData,
+    refreshFilters,
+    setData
+  } = useData();
   const router = useRouter();
 
   // State hooks
@@ -129,14 +177,7 @@ export default function StatePaymentComparison() {
   const [selectedLocationRegion, setSelectedLocationRegion] = useState("");
   const [selectedModifier, setSelectedModifier] = useState("");
   const [selectedServiceDescription, setSelectedServiceDescription] = useState("");
-  const [serviceCategories, setServiceCategories] = useState<string[]>([]);
-  const [states, setStates] = useState<string[]>([]);
-  const [serviceCodes, setServiceCodes] = useState<string[]>([]);
-  const [programs, setPrograms] = useState<string[]>([]);
-  const [locationRegions, setLocationRegions] = useState<string[]>([]);
-  const [modifiers, setModifiers] = useState<{ value: string; label: string; details?: string }[]>([]);
-  const [serviceDescriptions, setServiceDescriptions] = useState<string[]>([]);
-  const [selectedModifiers, setSelectedModifiers] = useState<{[key: string]: string}>({});
+  const [selectedProviderType, setSelectedProviderType] = useState("");
   const [filterSets, setFilterSets] = useState<FilterSet[]>([
     { serviceCategory: "", states: [], serviceCode: "", stateOptions: [], serviceCodeOptions: [] }
   ]);
@@ -156,208 +197,341 @@ export default function StatePaymentComparison() {
   const [selectedEntry, setSelectedEntry] = useState<ServiceData | null>(null);
   const [comment, setComment] = useState<string | null>(null);
   const [comments, setComments] = useState<{ state: string; comment: string }[]>([]);
-  const [selectedProviderType, setSelectedProviderType] = useState("");
+  const [serviceCategories, setServiceCategories] = useState<string[]>([]);
+  const [states, setStates] = useState<string[]>([]);
+  const [serviceCodes, setServiceCodes] = useState<string[]>([]);
+  const [programs, setPrograms] = useState<string[]>([]);
+  const [locationRegions, setLocationRegions] = useState<string[]>([]);
+  const [modifiers, setModifiers] = useState<{ value: string; label: string; details?: string }[]>([]);
+  const [serviceDescriptions, setServiceDescriptions] = useState<string[]>([]);
+  const [selectedModifiers, setSelectedModifiers] = useState<{[key: string]: string}>({});
   const [providerTypes, setProviderTypes] = useState<string[]>([]);
+  const [filterSetData, setFilterSetData] = useState<{ [index: number]: ServiceData[] }>({});
+  const [selectedEntries, setSelectedEntries] = useState<{ [state: string]: ServiceData[] }>({});
+  const [chartRefreshKey, setChartRefreshKey] = useState(0);
 
-  // Supabase check (after hooks)
-  if (!supabase) {
-    console.error("Supabase client not initialized.");
-    return <div>Error: Supabase client not initialized.</div>;
-  }
+  // Existing useMemo hooks
+  const areFiltersComplete = useMemo(() => 
+    filterSets.every(filterSet => 
+      filterSet.serviceCategory && 
+      filterSet.states.length > 0 && 
+      filterSet.serviceCode
+    ), 
+    [filterSets]
+  );
 
-  // Early return for data errors
-  if (dataError) {
-    console.error("Error fetching data:", dataError);
-    return <div>Error: Failed to fetch data.</div>;
-  }
+  const hasSelectedRows = useMemo(() => 
+    Object.values(selectedTableRows).some(selections => selections.length > 0),
+    [selectedTableRows]
+  );
 
-  if (!data || data.length === 0) {
-    console.error("No data found.");
-    return <div>No data available.</div>;
-  }
+  const shouldShowChart = useMemo(() => {
+    const hasServiceCode = filterSets[0]?.serviceCode;
+    const hasServiceCategory = filterSets[0]?.serviceCategory;
+    const hasStates = filterSets[0]?.states.length > 0;
+    
+    console.log('Chart visibility conditions:', {
+      hasServiceCode,
+      hasServiceCategory,
+      hasStates,
+      isAllStatesSelected,
+      hasSelectedRows,
+      areFiltersComplete
+    });
 
-  // Add logging to see if data is being fetched
-  useEffect(() => {
-    console.log("Data loading state:", dataLoading);
-    console.log("Data error:", dataError);
-    console.log("Data:", data);
-  }, [dataLoading, dataError, data]);
+    return hasServiceCode && hasServiceCategory && hasStates;
+  }, [filterSets, isAllStatesSelected, hasSelectedRows, areFiltersComplete]);
 
-  // Add logging to see if filters are being extracted
-  useEffect(() => {
-    if (data.length > 0) {
-      console.log("Data loaded, extracting filters:", data);
-      extractFilters(data);
-    }
-  }, [data]);
+  const shouldShowMetrics = useMemo(() => 
+    areFiltersComplete,
+    [areFiltersComplete]
+  );
 
-  // Extract unique filter options
-  const extractFilters = (data: ServiceData[]) => {
-    const categories = data
-      .map((item) => item.service_category?.trim())
-      .filter((category): category is string => !!category);
-    setServiceCategories([...new Set(categories)].map(category => category || '').sort((a, b) => a.localeCompare(b)));
+  const shouldShowEmptyState = useMemo(() => 
+    areFiltersComplete && !isAllStatesSelected && !hasSelectedRows,
+    [areFiltersComplete, isAllStatesSelected, hasSelectedRows]
+  );
 
-    const states = data
-      .map((item) => item.state_name?.trim().toUpperCase())
-      .filter((state): state is string => !!state);
-    setStates([...new Set(states)].map(state => state || '').sort((a, b) => a.localeCompare(b)));
-
-    // Get programs
-    const programs = data
-      .map((item) => item.program?.trim())
-      .filter((program): program is string => !!program);
-    setPrograms([...new Set(programs)].map(program => program || '').sort((a, b) => a.localeCompare(b)));
-
-    // Get location regions
-    const locationRegions = data
-      .map((item) => item.location_region?.trim())
-      .filter((region): region is string => !!region);
-    setLocationRegions([...new Set(locationRegions)].map(region => region || '').sort((a, b) => a.localeCompare(b)));
-
-    // Get modifiers
-    const allModifiers = data.flatMap((item) => [
-      item.modifier_1 ? { value: item.modifier_1, details: item.modifier_1_details } : null,
-      item.modifier_2 ? { value: item.modifier_2, details: item.modifier_2_details } : null,
-      item.modifier_3 ? { value: item.modifier_3, details: item.modifier_3_details } : null,
-      item.modifier_4 ? { value: item.modifier_4, details: item.modifier_4_details } : null
-    ]).filter(Boolean);
-
-    setModifiers([...new Set(allModifiers.map(mod => mod?.value).filter(Boolean))].map(value => {
-      const mod = allModifiers.find(mod => mod?.value === value);
-      return { value: value as string, label: value as string, details: mod?.details || '' };
-    }));
-
-    // Get service descriptions
-    const descriptions = data.map(item => item.service_description).filter(desc => desc);
-    setServiceDescriptions([...new Set(descriptions)].filter((desc): desc is string => !!desc).sort((a, b) => a.localeCompare(b)));
-
-    // Get provider types
-    const types = data
-      .map((item) => item.provider_type?.trim())
-      .filter((type): type is string => !!type);
-    setProviderTypes([...new Set(types)].sort((a, b) => a.localeCompare(b)));
+  // Move formatText function to top level
+  const formatText = (text: string | null | undefined) => {
+    if (!text) return "-";
+    return text.trim();
   };
 
-  // Update filter handlers to remove URL updates
-  const handleServiceCategoryChange = (index: number, category: string) => {
+  // Move handleTableRowSelection to top level
+  const handleTableRowSelection = (state: string, item: ServiceData) => {
+    const modifierKey = [
+      item.modifier_1?.trim().toUpperCase() || '',
+      item.modifier_2?.trim().toUpperCase() || '',
+      item.modifier_3?.trim().toUpperCase() || '',
+      item.modifier_4?.trim().toUpperCase() || '',
+      item.program?.trim().toUpperCase() || '',
+      item.location_region?.trim().toUpperCase() || ''
+    ].join('|');
+
+    setSelectedTableRows(prev => {
+      const stateSelections = prev[state] || [];
+      const newSelections = stateSelections.includes(modifierKey)
+        ? stateSelections.filter(key => key !== modifierKey)
+        : [...stateSelections, modifierKey];
+
+      return {
+        ...prev,
+        [state]: newSelections
+      };
+    });
+
+    // Update the selected entry
+    setSelectedEntry(prev => 
+      prev?.state_name === item.state_name &&
+      prev?.service_code === item.service_code &&
+      prev?.program === item.program &&
+      prev?.location_region === item.location_region &&
+      prev?.modifier_1 === item.modifier_1 &&
+      prev?.modifier_2 === item.modifier_2 &&
+      prev?.modifier_3 === item.modifier_3 &&
+      prev?.modifier_4 === item.modifier_4
+        ? null
+        : item
+    );
+  };
+
+  // Move latestRates calculation to top level
+  const latestRates = useMemo(() => {
+    const latestRatesMap = new Map<string, ServiceData>();
+    data.forEach((item) => {
+      const key = `${item.state_name}|${item.service_category}|${item.service_code}|${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}|${item.program}|${item.location_region}`;
+      const currentDate = new Date(item.rate_effective_date);
+      const existing = latestRatesMap.get(key);
+      
+      if (!existing || currentDate > new Date(existing.rate_effective_date)) {
+        latestRatesMap.set(key, item);
+      }
+    });
+    return Array.from(latestRatesMap.values());
+  }, [data]);
+
+  // Update deleteFilterSet function
+  const deleteFilterSet = (index: number) => {
+    // Get the states from the filter set being removed
+    const removedFilterSet = filterSets[index];
+    const statesToRemove = removedFilterSet.states;
+
+    // Remove the filter set
+    setFilterSets(prev => prev.filter((_, i) => i !== index));
+
+    // Clear selected entries for the removed states
+    setSelectedEntries(prev => {
+      const newEntries = { ...prev };
+      statesToRemove.forEach(state => {
+        delete newEntries[state];
+      });
+      return newEntries;
+    });
+
+    // Clear filter set data for the removed index
+    setFilterSetData(prev => {
+      const newData = { ...prev };
+      delete newData[index];
+      return newData;
+    });
+  };
+
+  // Update useEffect to use refreshData
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setFilterLoading(true);
+        const result = await refreshData();
+        if (result) {
+          extractFilters(result.data);
+        }
+      } catch (error) {
+        console.error("Error loading data:", error);
+        setFetchError("Failed to load data. Please try again.");
+      } finally {
+        setFilterLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  // Update extractFilters to use filterOptions from context
+  const extractFilters = (data: ServiceData[]) => {
+    setServiceCategories(filterOptions.serviceCategories);
+    setStates(filterOptions.states);
+    setPrograms(filterOptions.programs);
+    setLocationRegions(filterOptions.locationRegions);
+    setModifiers(filterOptions.modifiers);
+    setServiceDescriptions(filterOptions.serviceDescriptions);
+    setProviderTypes(filterOptions.providerTypes);
+  };
+
+  // Update handleServiceCategoryChange to use refreshFilters
+  const handleServiceCategoryChange = async (index: number, category: string) => {
+    try {
+      setFilterLoading(true);
+      // First update the filter set
     const newFilters = [...filterSets];
     newFilters[index] = {
       ...newFilters[index],
       serviceCategory: category,
       states: [],
       serviceCode: "",
-      serviceCodeOptions: [],
-      stateOptions: []
+        serviceCodeOptions: []
     };
     setFilterSets(newFilters);
-
-    // Reset all dependent filter options
+      // Then refresh filters with just the category
+      await refreshFilters(category);
+      // Clear dependent filters for this filter set only
+      if (index === filterSets.length - 1) {
+        setServiceCodes([]);
     setPrograms([]);
     setLocationRegions([]);
     setModifiers([]);
     setProviderTypes([]);
     setServiceDescriptions([]);
-
-    // Filter data based on selected category - make it case insensitive and trim whitespace
-    const filteredData = data.filter(item => {
-      const itemCategory = item.service_category?.trim().toUpperCase();
-      const selectedCategory = category.trim().toUpperCase();
-      return itemCategory === selectedCategory;
-    });
-    newFilters[index].stateOptions = [...new Set(filteredData.map(item => item.state_name?.trim().toUpperCase()).filter((v): v is string => !!v))].sort().map(state => ({ value: state, label: state }));
-    newFilters[index].serviceCodeOptions = [...new Set(filteredData.map(item => item.service_code?.trim()).filter((v): v is string => !!v))].sort();
-    setFilterSets(newFilters);
-    setPrograms([...new Set(filteredData.map(item => item.program?.trim()).filter((v): v is string => !!v))].sort());
-    setLocationRegions([...new Set(filteredData.map(item => item.location_region?.trim()).filter((v): v is string => !!v))].sort());
-    setProviderTypes([...new Set(filteredData.map(item => item.provider_type?.trim()).filter((v): v is string => !!v))].sort());
-    setServiceDescriptions([...new Set(filteredData.map(item => item.service_description?.trim()).filter((v): v is string => !!v))].sort());
-    const allModifiers = filteredData.flatMap(item => [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].filter((v): v is string => !!v));
-    setModifiers([...new Set(allModifiers)].map(value => ({ value, label: value })));
-  };
-
-  const handleStateChange = (index: number, option: { value: string; label: string } | null) => {
-    const newFilters = [...filterSets];
-    newFilters[index] = {
-      ...newFilters[index],
-      states: option ? [option.value] : [],
-      serviceCode: "",
-      serviceCodeOptions: []
-    };
-    setFilterSets(newFilters);
-
-    setPrograms([]);
-    setLocationRegions([]);
-    setModifiers([]);
-    setProviderTypes([]);
-    setServiceDescriptions([]);
-
-    if (option && newFilters[index].serviceCategory) {
-      if (option.value === "ALL_STATES") {
-        // All States selected: show all service codes for the selected category
-        const allCodes = data
-          .filter(item => item.service_category?.trim().toUpperCase() === newFilters[index].serviceCategory.trim().toUpperCase())
-          .map(item => item.service_code?.trim())
-          .filter((v): v is string => !!v);
-        newFilters[index].serviceCodeOptions = [...new Set(allCodes)].sort();
-        setFilterSets(newFilters);
-        setPrograms([...new Set(data.filter(item => item.service_category?.trim().toUpperCase() === newFilters[index].serviceCategory.trim().toUpperCase()).map(item => item.program?.trim()).filter((v): v is string => !!v))].sort());
-        setLocationRegions([...new Set(data.filter(item => item.service_category?.trim().toUpperCase() === newFilters[index].serviceCategory.trim().toUpperCase()).map(item => item.location_region?.trim()).filter((v): v is string => !!v))].sort());
-        setProviderTypes([...new Set(data.filter(item => item.service_category?.trim().toUpperCase() === newFilters[index].serviceCategory.trim().toUpperCase()).map(item => item.provider_type?.trim()).filter((v): v is string => !!v))].sort());
-        setServiceDescriptions([...new Set(data.filter(item => item.service_category?.trim().toUpperCase() === newFilters[index].serviceCategory.trim().toUpperCase()).map(item => item.service_description?.trim()).filter((v): v is string => !!v))].sort());
-        const allModifiers = data.filter(item => item.service_category?.trim().toUpperCase() === newFilters[index].serviceCategory.trim().toUpperCase()).flatMap(item => [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].filter((v): v is string => !!v));
-        setModifiers([...new Set(allModifiers)].map(value => ({ value, label: value })));
-        return;
       }
-      // ...existing logic for single state selection...
-      const stateFilteredData = data.filter(item => {
-        const itemCategory = item.service_category?.trim().toUpperCase();
-        const selectedCategory = newFilters[index].serviceCategory.trim().toUpperCase();
-        const itemState = item.state_name?.trim().toUpperCase();
-        const selectedState = option.value.trim().toUpperCase();
-        return itemCategory === selectedCategory && itemState === selectedState;
-      });
-      newFilters[index].serviceCodeOptions = [...new Set(stateFilteredData.map(item => item.service_code?.trim()).filter((v): v is string => !!v))].sort();
-      setFilterSets(newFilters);
-      setPrograms([...new Set(stateFilteredData.map(item => item.program?.trim()).filter((v): v is string => !!v))].sort());
-      setLocationRegions([...new Set(stateFilteredData.map(item => item.location_region?.trim()).filter((v): v is string => !!v))].sort());
-      setProviderTypes([...new Set(stateFilteredData.map(item => item.provider_type?.trim()).filter((v): v is string => !!v))].sort());
-      setServiceDescriptions([...new Set(stateFilteredData.map(item => item.service_description?.trim()).filter((v): v is string => !!v))].sort());
-      const allModifiers = stateFilteredData.flatMap(item => [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].filter((v): v is string => !!v));
-      setModifiers([...new Set(allModifiers)].map(value => ({ value, label: value })));
+    } catch (error) {
+      console.error("Error updating filters:", error);
+      setFilterError("Failed to update filters. Please try again.");
+    } finally {
+      setFilterLoading(false);
     }
   };
 
-  const handleServiceCodeChange = (index: number, code: string) => {
-    const newFilters = [...filterSets];
-    newFilters[index] = {
-      ...newFilters[index],
-      serviceCode: code
-    };
-    setFilterSets(newFilters);
+  const handleStateChange = async (index: number, option: { value: string; label: string } | null) => {
+    try {
+      setFilterLoading(true);
+      const newFilters = [...filterSets];
+      const selectedState = option?.value || "";
+      
+      // Update isAllStatesSelected state
+      if (index === 0) {
+        setIsAllStatesSelected(selectedState === "ALL_STATES");
+      }
 
-    setPrograms([]);
-    setLocationRegions([]);
-    setModifiers([]);
-    setProviderTypes([]);
-    setServiceDescriptions([]);
+      newFilters[index] = {
+        ...newFilters[index],
+        states: selectedState === "ALL_STATES"
+          ? filterOptions.states // all states
+          : selectedState ? [selectedState] : [],
+        serviceCode: "",
+        serviceCodeOptions: []
+      };
+      setFilterSets(newFilters);
 
-    const filterSet = newFilters[index];
-    const codeFilteredData = data.filter(item => {
-      const itemCategory = item.service_category?.trim().toUpperCase();
-      const selectedCategory = filterSet.serviceCategory.trim().toUpperCase();
-      const itemState = item.state_name?.trim().toUpperCase();
-      const selectedState = filterSet.states[0]?.trim().toUpperCase();
-      const itemCode = item.service_code?.trim();
-      const selectedCode = code.trim();
-      return itemCategory === selectedCategory && itemState === selectedState && itemCode === selectedCode;
-    });
-    setPrograms([...new Set(codeFilteredData.map(item => item.program?.trim()).filter((v): v is string => !!v))].sort());
-    setLocationRegions([...new Set(codeFilteredData.map(item => item.location_region?.trim()).filter((v): v is string => !!v))].sort());
-    setProviderTypes([...new Set(codeFilteredData.map(item => item.provider_type?.trim()).filter((v): v is string => !!v))].sort());
-    setServiceDescriptions([...new Set(codeFilteredData.map(item => item.service_description?.trim()).filter((v): v is string => !!v))].sort());
-    const allModifiers = codeFilteredData.flatMap(item => [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].filter((v): v is string => !!v));
-    setModifiers([...new Set(allModifiers)].map(value => ({ value, label: value })));
+      // Clear dependent filters for this filter set only
+      if (index === filterSets.length - 1) {
+        setServiceCodes([]);
+        setPrograms([]);
+        setLocationRegions([]);
+        setModifiers([]);
+        setProviderTypes([]);
+        setServiceDescriptions([]);
+      }
+
+      if (selectedState && newFilters[index].serviceCategory) {
+        // Refresh filters with both category and state to get service codes
+        await refreshFilters(
+          newFilters[index].serviceCategory,
+          selectedState === "ALL_STATES" ? "ALL_STATES" : selectedState
+        );
+        
+        // Update service codes from the filter options
+        if (filterOptions.serviceCodes) {
+          newFilters[index].serviceCodeOptions = filterOptions.serviceCodes;
+          setFilterSets(newFilters);
+        }
+      }
+      
+      if (index === 0) setSelectedState(selectedState);
+    } catch (error) {
+      console.error("Error updating state filters:", error);
+      setFilterError("Failed to update state filters. Please try again.");
+    } finally {
+      setFilterLoading(false);
+    }
+  };
+
+  const handleServiceCodeChange = async (index: number, code: string) => {
+    try {
+      setFilterLoading(true);
+      const newFilters = [...filterSets];
+      newFilters[index] = {
+        ...newFilters[index],
+        serviceCode: code
+      };
+      setFilterSets(newFilters);
+
+      // Clear dependent filters for this filter set only
+      if (index === filterSets.length - 1) {
+        setServiceCodes([]);
+        setPrograms([]);
+        setLocationRegions([]);
+        setModifiers([]);
+        setProviderTypes([]);
+        setServiceDescriptions([]);
+      }
+
+      const filterSet = newFilters[index];
+      if (code && filterSet.serviceCategory) {
+        // For "All States" mode, fetch data for all states
+        if (isAllStatesSelected) {
+          const result = await refreshFilters(
+            filterSet.serviceCategory,
+            "ALL_STATES",
+            code
+          );
+          if (result) {
+            // Store data for this filter set
+            if (result.filterOptions.data) {
+              setFilterSetData(prev => {
+                const filteredPrev: { [index: number]: ServiceData[] } = {};
+                Object.entries(prev).forEach(([k, v]) => {
+                  if (Array.isArray(v)) filteredPrev[Number(k)] = v;
+                });
+                filteredPrev[index] = Array.isArray(result.filterOptions.data) ? result.filterOptions.data : [];
+                return filteredPrev;
+              });
+            }
+          }
+        } else {
+          // For single state mode, use existing logic
+          if (filterSet.states.length > 0) {
+            const result = await refreshFilters(
+              filterSet.serviceCategory,
+              filterSet.states[0],
+              code
+            );
+            if (result) {
+              if (index === filterSets.length - 1) {
+                setPrograms(result.filterOptions.programs || []);
+                setLocationRegions(result.filterOptions.locationRegions || []);
+                setProviderTypes(result.filterOptions.providerTypes || []);
+                setServiceDescriptions(result.filterOptions.serviceDescriptions || []);
+                setModifiers(result.filterOptions.modifiers || []);
+              }
+              if (result.filterOptions.data) {
+                setFilterSetData(prev => {
+                  const filteredPrev: { [index: number]: ServiceData[] } = {};
+                  Object.entries(prev).forEach(([k, v]) => {
+                    if (Array.isArray(v)) filteredPrev[Number(k)] = v;
+                  });
+                  filteredPrev[index] = Array.isArray(result.filterOptions.data) ? result.filterOptions.data : [];
+                  return filteredPrev;
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error updating service code filters:", error);
+      setFilterError("Failed to update service code filters. Please try again.");
+    } finally {
+      setFilterLoading(false);
+    }
   };
 
   const handleServiceDescriptionChange = (index: number, desc: string) => {
@@ -383,22 +557,6 @@ export default function StatePaymentComparison() {
     setModifiers([...new Set(allModifiers)].map(value => ({ value, label: value })));
   };
 
-  // Update the latestRatesMap creation to include program and location_region
-  const latestRatesMap = new Map<string, ServiceData>();
-  data.forEach((item) => {
-    // Include program and location_region in the key
-    const key = `${item.state_name}|${item.service_category}|${item.service_code}|${item.modifier_1}|${item.modifier_2}|${item.modifier_3}|${item.modifier_4}|${item.program}|${item.location_region}`;
-    const currentDate = new Date(item.rate_effective_date);
-    const existing = latestRatesMap.get(key);
-    
-    if (!existing || currentDate > new Date(existing.rate_effective_date)) {
-      latestRatesMap.set(key, item);
-    }
-  });
-
-  // Convert map to array of latest rates
-  const latestRates = Array.from(latestRatesMap.values());
-
   // Then filter based on selections
   const filteredData = useMemo(() => {
     return latestRates.filter((item) => {
@@ -406,11 +564,29 @@ export default function StatePaymentComparison() {
         (!filterSet.serviceCategory || item.service_category?.trim().toUpperCase() === filterSet.serviceCategory.trim().toUpperCase()) &&
         (!filterSet.states.length || filterSet.states.map(s => s.trim().toUpperCase()).includes(item.state_name?.trim().toUpperCase())) &&
         (!filterSet.serviceCode || item.service_code?.trim() === filterSet.serviceCode.trim()) &&
-        (!selectedProgram || item.program?.trim() === selectedProgram.trim()) &&
-        (!selectedLocationRegion || item.location_region?.trim() === selectedLocationRegion.trim()) &&
-        (!selectedModifier || [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].includes(selectedModifier)) &&
-        (!selectedServiceDescription || item.service_description?.trim() === selectedServiceDescription.trim()) &&
-        (!selectedProviderType || item.provider_type?.trim() === selectedProviderType.trim())
+        (
+          !selectedProgram ||
+          (selectedProgram === '-' ? !item.program || item.program.trim() === '' : item.program?.trim() === selectedProgram.trim())
+        ) &&
+        (
+          !selectedLocationRegion ||
+          (selectedLocationRegion === '-' ? !item.location_region || item.location_region.trim() === '' : item.location_region?.trim() === selectedLocationRegion.trim())
+        ) &&
+        (
+          !selectedModifier ||
+          (selectedModifier === '-' ?
+            (!item.modifier_1 && !item.modifier_2 && !item.modifier_3 && !item.modifier_4) :
+            [item.modifier_1, item.modifier_2, item.modifier_3, item.modifier_4].includes(selectedModifier)
+          )
+        ) &&
+        (
+          !selectedServiceDescription ||
+          (selectedServiceDescription === '-' ? !item.service_description || item.service_description.trim() === '' : item.service_description?.trim() === selectedServiceDescription.trim())
+        ) &&
+        (
+          !selectedProviderType ||
+          (selectedProviderType === '-' ? !item.provider_type || item.provider_type.trim() === '' : item.provider_type?.trim() === selectedProviderType.trim())
+        )
       ));
     });
   }, [latestRates, filterSets, selectedProgram, selectedLocationRegion, selectedModifier, selectedServiceDescription, selectedProviderType]);
@@ -525,164 +701,137 @@ export default function StatePaymentComparison() {
   ]);
 
   // ✅ Prepare ECharts Data
-  const echartOptions = useMemo<echarts.EChartsOption>(() => {
-    let statesList = Object.keys(processedData);
-    const series: echarts.SeriesOption[] = [];
+  const echartOptions = useMemo(() => {
+    if (!filterSets[0]?.serviceCode) return null;
 
+    // Get the selected service category and code
+    const serviceCategory = filterSets[0].serviceCategory;
+    const serviceCode = filterSets[0].serviceCode;
+
+    // For "All States" mode
     if (isAllStatesSelected) {
-      // Create an array of state-rate pairs for sorting
-      let sortedData = statesList.map(state => ({
-        state,
-        rate: processedData[state] && processedData[state]['average'] ? processedData[state]['average'] : null
-      }));
-
-      // Sort the data if needed
-      if (sortOrder !== 'default') {
-        sortedData.sort((a, b) => 
-          sortOrder === 'asc' ? (a.rate ?? 0) - (b.rate ?? 0) : (b.rate ?? 0) - (a.rate ?? 0)
+      // Get all states
+      const statesList = filterOptions.states;
+      
+      // Get the data for the current filter set
+      const currentData = filterSetData[0] || [];
+      
+      // Calculate average rate for each state
+      const stateData = statesList.map(state => {
+        const entries = currentData.filter(item =>
+          item.state_name?.trim().toUpperCase() === state.trim().toUpperCase() &&
+          item.service_category?.trim() === serviceCategory.trim() &&
+          item.service_code?.trim() === serviceCode.trim()
         );
-      }
 
-      // Update statesList to match the sorted order
-      statesList = sortedData.map(item => item.state);
-      
-      // Create a bar for each state's average rate using sorted data
-      series.push({
-        name: 'Average Rate',
-        type: 'bar',
-        barGap: '20%',
-        barCategoryGap: '20%',
-        data: sortedData.map(item => item.rate !== undefined && item.rate !== null ? item.rate : null),
-        label: {
-          show: true,
-          position: 'insideTop',
-          rotate: 45,
-          formatter: (params: any) => {
-            const value = params.value;
-            return value ? `$${value.toFixed(2)}` : '-';
-          },
-          color: '#374151',
-          fontSize: 12,
-          fontWeight: 'bold',
-          textShadowBlur: 2,
-          textShadowColor: 'rgba(255,255,255,0.5)'
-        },
-        itemStyle: {
-          color: '#36A2EBB3'
+        if (!entries.length) return null;
+
+        // If user selected specific entries for this state, use those
+        if (selectedEntries[state] && selectedEntries[state].length > 0) {
+          const rates = selectedEntries[state].map(item => {
+            let rateValue = parseFloat(item.rate?.replace('$', '') || '0');
+            const durationUnit = item.duration_unit?.toUpperCase();
+            if (showRatePerHour) {
+              if (durationUnit === '15 MINUTES') rateValue *= 4;
+              else if (durationUnit === '30 MINUTES') rateValue *= 2;
+              else if (durationUnit !== 'PER HOUR') rateValue = 0;
+            }
+            return rateValue;
+          });
+          return rates[0]; // Use the first selected rate
         }
-      });
-    } else {
-      // For manual state selection, create sorted array of selections
-      const allSelections: Array<{ state: string, modifierKey: string, rate: number }> = [];
-      
-      Object.entries(selectedTableRows).forEach(([state, selections]) => {
-        selections.forEach(modifierKey => {
-          let rate = 0;
-          if (processedData[state] && typeof processedData[state][modifierKey] === 'number' && !isNaN(processedData[state][modifierKey])) {
-            rate = processedData[state][modifierKey];
+
+        // Otherwise, calculate average rate
+        const avg = entries.reduce((sum, item) => {
+          let rateValue = parseFloat(item.rate?.replace('$', '') || '0');
+          const durationUnit = item.duration_unit?.toUpperCase();
+          if (showRatePerHour) {
+            if (durationUnit === '15 MINUTES') rateValue *= 4;
+            else if (durationUnit === '30 MINUTES') rateValue *= 2;
+            else if (durationUnit !== 'PER HOUR') rateValue = 0;
           }
-          allSelections.push({ state, modifierKey, rate });
-        });
+          return sum + rateValue;
+        }, 0) / entries.length;
+        return avg;
       });
 
-      // Sort selections if needed
-      if (sortOrder !== 'default') {
-        allSelections.sort((a, b) => sortOrder === 'asc' ? a.rate - b.rate : b.rate - a.rate);
-        // Update statesList to match the sorted order
-        statesList = Array.from(new Set(allSelections.map(item => item.state)));
-      }
+      console.log('Chart data for All States:', {
+        statesList,
+        stateData,
+        currentData: currentData.length
+      });
 
-      allSelections.forEach(({ state, modifierKey, rate }, index) => {
-        series.push({
-          name: `${state} - ${modifierKey}`,
+      return {
+        tooltip: {
+          trigger: 'item',
+          formatter: (params: any) => {
+            const state = params.name;
+            const value = params.value;
+            return `<strong>State:</strong> ${state}<br/><strong>Rate:</strong> $${value?.toFixed(2)}`;
+          }
+        },
+        xAxis: {
+          type: 'category',
+          data: statesList,
+          axisLabel: { rotate: 45, fontSize: 10 }
+        },
+        yAxis: {
+          type: 'value',
+          name: showRatePerHour ? 'Rate ($ per hour)' : 'Rate ($ per base unit)',
+          nameLocation: 'middle',
+          nameGap: 30
+        },
+        series: [{
+          name: 'Rate',
           type: 'bar',
           barGap: '0%',
-          barCategoryGap: '20%',
-          data: statesList.map(s => s === state ? rate : null),
+          itemStyle: { color: chartJsColors[0] },
+          data: stateData,
           label: {
             show: true,
             position: 'top',
-            formatter: (params: any) => {
-              const value = params.value;
-              return value ? `$${value.toFixed(2)}` : '-';
-            },
-            color: '#374151',
+            formatter: (params: any) => params.value != null ? `$${Number(params.value).toFixed(2)}` : '',
             fontSize: 12,
-            fontWeight: 'bold',
-            textShadowBlur: 2,
-            textShadowColor: 'rgba(255,255,255,0.5)'
-          },
-          itemStyle: {
-            color: `${colorSequence[index % colorSequence.length]}B3`
+            color: '#374151',
+            fontWeight: 'bold'
           }
-        });
-      });
+        }],
+        grid: {
+          containLabel: true,
+          left: '3%',
+          right: '3%',
+          bottom: '10%',
+          top: '5%'
+        }
+      };
     }
 
-    const option: echarts.EChartsOption = {
+    // For single state mode (existing logic)
+    const processedData = calculateProcessedData();
+    const states = Object.keys(processedData);
+    const series = states.map((state, index) => ({
+      name: state,
+      type: 'bar',
+      data: Object.values(processedData[state]),
+      itemStyle: { color: chartJsColors[index % chartJsColors.length] }
+    }));
+
+    return {
       tooltip: {
-        trigger: 'item',
-        axisPointer: {
-          type: 'shadow'
-        },
-        formatter: (params: any) => {
-          if (isAllStatesSelected) {
-            const state = params.name;
-            const rate = params.value;
-            return `State: ${state}<br>Average ${showRatePerHour ? 'Hourly' : 'Base'} Rate: $${rate?.toFixed(2) || '0.00'}`;
-          } else {
-            const state = params.name;
-            const seriesName = params.seriesName;
-            const modifierKey = seriesName.split(' - ')[1];
-            const rate = params.value;
-
-            // Use robust key generation for lookup
-            const item = filteredData.find(d => 
-              d.state_name === state && 
-              [d.modifier_1?.trim().toUpperCase() || '', d.modifier_2?.trim().toUpperCase() || '', d.modifier_3?.trim().toUpperCase() || '', d.modifier_4?.trim().toUpperCase() || '', d.program?.trim().toUpperCase() || '', d.location_region?.trim().toUpperCase() || ''].join('|') === modifierKey
-            );
-
-            if (!item) {
-              console.warn('No item found for key:', modifierKey, 'in state:', state);
-              return `State: ${state}<br>${showRatePerHour ? 'Hourly' : 'Base'} Rate: $${rate?.toFixed(2) || '0.00'}`;
-            }
-
-            // Collect modifiers that exist
-            const modifiers = [
-              item.modifier_1 ? `${item.modifier_1}${item.modifier_1_details ? ` - ${item.modifier_1_details}` : ''}` : null,
-              item.modifier_2 ? `${item.modifier_2}${item.modifier_2_details ? ` - ${item.modifier_2_details}` : ''}` : null,
-              item.modifier_3 ? `${item.modifier_3}${item.modifier_3_details ? ` - ${item.modifier_3_details}` : ''}` : null,
-              item.modifier_4 ? `${item.modifier_4}${item.modifier_4_details ? ` - ${item.modifier_4_details}` : ''}` : null
-            ].filter(Boolean);
-
-            const additionalDetails = [
-              `<b>${showRatePerHour ? 'Hourly' : 'Base'} Rate:</b> $${rate?.toFixed(2) || '0.00'}`,
-              item.service_code ? `<b>Service Code:</b> ${item.service_code}` : null,
-              item.program ? `<b>Program:</b> ${item.program}` : null,
-              item.location_region ? `<b>Location Region:</b> ${item.location_region}` : null,
-              item.rate_per_hour ? `<b>Rate Per Hour:</b> $${item.rate_per_hour}` : null,
-              item.rate_effective_date ? `<b>Effective Date:</b> ${new Date(item.rate_effective_date).toLocaleDateString()}` : null,
-              item.duration_unit ? `<b>Duration Unit:</b> ${item.duration_unit}` : null
-            ].filter(Boolean).join('<br>');
-            
-            return [
-              `<b>State:</b> ${state}`,
-              modifiers.length > 0 ? `<b>Modifiers:</b><br>${modifiers.join('<br>')}` : '<b>Modifiers:</b> None',
-              additionalDetails
-            ].filter(Boolean).join('<br>');
-          }
-        }
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' }
+      },
+      legend: { show: false },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '3%',
+        containLabel: true
       },
       xAxis: {
         type: 'category',
-        data: statesList,
-        axisLabel: {
-          rotate: 45,
-          fontSize: 10
-        },
-        axisTick: {
-          show: false
-        }
+        data: states,
+        axisLabel: { rotate: 45 }
       },
       yAxis: {
         type: 'value',
@@ -690,108 +839,17 @@ export default function StatePaymentComparison() {
         nameLocation: 'middle',
         nameGap: 30
       },
-      series,
-      grid: {
-        containLabel: true,
-        left: '3%',
-        right: '3%',
-        bottom: isAllStatesSelected ? '10%' : '15%',
-        top: '5%'
-      },
-      toolbox: {
-        show: false,
-      },
-      on: {
-        click: (params: any) => {
-          console.log("Chart clicked:", params);
-          if (isAllStatesSelected && params.componentType === 'series') {
-            const state = params.name;
-            const stateData = filteredData.filter(item => item.state_name === state);
-            if (!stateData || stateData.length === 0) {
-              console.warn('No stateData found for state:', state);
-              return;
-            }
-            const sum = stateData.reduce((acc, item) => {
-              if (!item) return acc;
-              const rate = showRatePerHour 
-                ? (() => {
-                    let rateValue = parseFloat(item.rate?.replace('$', '') || '0');
-                    const durationUnit = item.duration_unit?.toUpperCase();
-                    
-                    if (durationUnit === '15 MINUTES') {
-                      rateValue *= 4;
-                    } else if (durationUnit !== 'PER HOUR') {
-                      rateValue = 0; // Or handle differently if needed
-                    }
-                    return Math.round(rateValue * 100) / 100;
-                  })()
-                : parseFloat((parseFloat(item.rate?.replace("$", "") || "0").toFixed(2)));
-              return acc + rate;
-            }, 0);
-            const average = sum / stateData.length;
-            setSelectedStateDetails({
-              state,
-              average,
-              entries: stateData
-            });
-          }
-        }
-      }
+      series
     };
-
-    // Debug logging for chart data
-    console.log('processedData:', processedData);
-    console.log('selectedTableRows:', selectedTableRows);
-    console.log('series:', series);
-
-    return option;
-  }, [processedData, filteredData, isAllStatesSelected, showRatePerHour, selectedTableRows, sortOrder]);
+  }, [filterSets, isAllStatesSelected, filterOptions.states, filterSetData, selectedEntries, showRatePerHour]);
 
   const ChartWithErrorBoundary = () => {
     try {
       return (
         <ReactECharts
+          key={JSON.stringify(Object.keys(selectedEntries).sort()) + '-' + chartRefreshKey}
           option={echartOptions}
-          style={{ 
-            height: isAllStatesSelected ? '500px' : '400px',
-            width: '100%' 
-          }}
-          onEvents={{
-            click: (params: any) => {
-              console.log("Chart clicked:", params);
-              if (isAllStatesSelected && params.componentType === 'series') {
-                const state = params.name;
-                const stateData = filteredData.filter(item => item.state_name === state);
-                if (!stateData || stateData.length === 0) {
-                  console.warn('No stateData found for state:', state);
-                  return;
-                }
-                const sum = stateData.reduce((acc, item) => {
-                  if (!item) return acc;
-                  const rate = showRatePerHour 
-                    ? (() => {
-                        let rateValue = parseFloat(item.rate?.replace('$', '') || '0');
-                        const durationUnit = item.duration_unit?.toUpperCase();
-                        
-                        if (durationUnit === '15 MINUTES') {
-                          rateValue *= 4;
-                        } else if (durationUnit !== 'PER HOUR') {
-                          rateValue = 0; // Or handle differently if needed
-                        }
-                        return Math.round(rateValue * 100) / 100;
-                      })()
-                    : parseFloat((parseFloat(item.rate?.replace("$", "") || "0").toFixed(2)));
-                  return acc + rate;
-                }, 0);
-                const average = sum / stateData.length;
-                setSelectedStateDetails({
-                  state,
-                  average,
-                  entries: stateData
-                });
-              }
-            }
-          }}
+          style={{ height: '400px', width: '100%' }}
         />
       );
     } catch (error) {
@@ -837,16 +895,27 @@ export default function StatePaymentComparison() {
     setSelectedStateDetails(null);
   };
 
-  // Calculate comparison metrics
-  const rates = useMemo(() => {
-    return Object.values(processedData)
-      .flatMap(rates => Object.values(rates))
+  // Calculate highest and lowest among currently selected bars
+  const selectedRates = useMemo(() => {
+    // Flatten all selected entries and extract the rate value as a number
+    return Object.values(selectedEntries)
+      .flat()
+      .map(item => {
+        let rateValue = parseFloat(item.rate?.replace('$', '') || '0');
+        const durationUnit = item.duration_unit?.toUpperCase();
+        if (showRatePerHour) {
+          if (durationUnit === '15 MINUTES') rateValue *= 4;
+          else if (durationUnit === '30 MINUTES') rateValue *= 2;
+          else if (durationUnit !== 'PER HOUR') rateValue = 0;
+        }
+        return rateValue;
+      })
       .filter(rate => rate > 0);
-  }, [processedData]);
+  }, [selectedEntries, showRatePerHour]);
 
-  const maxRate = useMemo(() => Math.max(...rates), [rates]);
-  const minRate = useMemo(() => Math.min(...rates), [rates]);
-  const avgRate = useMemo(() => rates.reduce((sum, rate) => sum + rate, 0) / rates.length, [rates]);
+  const maxRate = useMemo(() => selectedRates.length > 0 ? Math.max(...selectedRates) : 0, [selectedRates]);
+  const minRate = useMemo(() => selectedRates.length > 0 ? Math.min(...selectedRates) : 0, [selectedRates]);
+  const avgRate = useMemo(() => selectedRates.length > 0 ? selectedRates.reduce((sum, rate) => sum + rate, 0) / selectedRates.length : 0, [selectedRates]);
 
   // Calculate national average
   const nationalAverage = useMemo(() => {
@@ -877,42 +946,6 @@ export default function StatePaymentComparison() {
     const sum = rates.reduce((sum, rate) => sum + rate, 0);
     return (sum / rates.length).toFixed(2);
   }, [data, selectedServiceCategory, selectedServiceCode, showRatePerHour]);
-
-  const handleTableRowSelection = (state: string, item: ServiceData) => {
-    const currentModifierKey = [
-      item.modifier_1?.trim().toUpperCase() || '',
-      item.modifier_2?.trim().toUpperCase() || '',
-      item.modifier_3?.trim().toUpperCase() || '',
-      item.modifier_4?.trim().toUpperCase() || '',
-      item.program?.trim().toUpperCase() || '',
-      item.location_region?.trim().toUpperCase() || ''
-    ].join('|');
-    const stateKey = item.state_name?.trim().toUpperCase();
-    setSelectedTableRows(prev => {
-      const stateSelections = prev[stateKey] || [];
-      const newSelections = stateSelections.includes(currentModifierKey)
-        ? stateSelections.filter(key => key !== currentModifierKey)
-        : [...stateSelections, currentModifierKey];
-      return {
-        ...prev,
-        [stateKey]: newSelections
-      };
-    });
-
-    // Update the selected entry
-    setSelectedEntry(prev => 
-      prev?.state_name === item.state_name &&
-      prev?.service_code === item.service_code &&
-      prev?.program === item.program &&
-      prev?.location_region === item.location_region &&
-      prev?.modifier_1 === item.modifier_1 &&
-      prev?.modifier_2 === item.modifier_2 &&
-      prev?.modifier_3 === item.modifier_3 &&
-      prev?.modifier_4 === item.modifier_4
-        ? null
-        : item
-    );
-  };
 
   // Add this component to display the calculation details
   const CalculationDetails = () => {
@@ -1036,85 +1069,50 @@ export default function StatePaymentComparison() {
     return columns;
   }, [filteredData]);
 
-  // Create a utility function to format text
-  const formatText = (text: string | null | undefined) => {
-    return text ? text.toUpperCase() : '-';
-  };
-
-  // Add this function to your component
-  const handleSort = (key: string, event: React.MouseEvent) => {
-    event.preventDefault();
-    setSortConfig(prev => {
-      const existingSort = prev.find(sort => sort.key === key);
-      if (existingSort) {
-        return prev.filter(sort => sort.key !== key);
-      }
-      return [...prev, { key, direction: 'asc' }];
-    });
-  };
-
-  // Also add this state near your other state declarations
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }[]>([]);
-
-  // Add this component to your file
-  const SortIndicator = ({ sortKey }: { sortKey: string }) => {
-    const sort = sortConfig.find(sort => sort.key === sortKey);
-    if (!sort) return null;
-    
-    return (
-      <span className="ml-1 sort-indicator">
-        <span className="arrow" style={{ 
-          display: 'inline-block',
-          transition: 'transform 0.2s ease',
-          transform: sort.direction === 'asc' ? 'rotate(0deg)' : 'rotate(180deg)'
-        }}>
-          ▲
-        </span>
-        {sortConfig.length > 1 && (
-          <sup className="sort-priority">
-            {sortConfig.findIndex(s => s.key === sortKey) + 1}
-          </sup>
-        )}
-      </span>
-    );
-  };
-
-  // Add a function to delete a filter set by its index
-  const deleteFilterSet = (index: number) => {
-    const newFilterSets = [...filterSets];
-    newFilterSets.splice(index, 1); // Remove the filter set at the specified index
-    setFilterSets(newFilterSets);
-  };
-
-  const fetchComments = async (serviceCategory: string, states: string[]) => {
-    try {
-      const commentsPromises = states.map(async (state) => {
-        const response = await fetch(`/api/comments_table?serviceCategory=${encodeURIComponent(serviceCategory)}&state=${encodeURIComponent(state)}`);
-        const data = await response.json();
-        return { state, comment: data.length > 0 ? data[0].comment : null };
-      });
-
-      const commentsResults = await Promise.all(commentsPromises);
-      setComments(commentsResults.filter((c) => c.comment !== null));
-    } catch (error) {
-      console.error("Error fetching comments:", error);
-      setComments([]);
-    }
-  };
-
-  // Update the useEffect to fetch comments for all states
+  // Debug: Log filterOptions and data when they change
   useEffect(() => {
-    console.log("Selected Service Category:", selectedServiceCategory); // Log selectedServiceCategory
-    console.log("Selected States:", selectedState); // Log selectedState
+    console.log('filterOptions:', filterOptions);
+    console.log('data:', data);
+  }, [filterOptions, data]);
 
-    if (selectedServiceCategory && selectedState.length > 0) {
-      console.log("Triggering fetchComments for:", { selectedServiceCategory, selectedState }); // Log when fetchComments is triggered
-      fetchComments(selectedServiceCategory, [selectedState]);
-    } else {
-      console.log("Skipping fetchComments - missing required parameters"); // Log if parameters are missing
-      setComments([]);
+  // Debug: Log when refreshData and refreshFilters are called
+  useEffect(() => {
+    console.log('Calling refreshFilters on mount');
+  }, []);
+
+  // Add useEffect to update filter options when service category or state changes
+  useEffect(() => {
+    // Log the params being sent to refreshFilters
+    console.log('Calling refreshFilters with:', selectedServiceCategory, selectedState);
+    if (selectedServiceCategory && selectedState) {
+      refreshFilters(selectedServiceCategory, selectedState);
+    } else if (selectedServiceCategory) {
+      refreshFilters(selectedServiceCategory);
     }
-  }, [selectedServiceCategory, selectedState]);
+  }, [selectedServiceCategory, selectedState, refreshFilters]);
+
+  // Update the row selection handler to update selectedEntries and refresh chart
+  const handleRowSelection = (state: string, item: ServiceData) => {
+    setSelectedEntries(prev => {
+      const prevArr = prev[state] || [];
+      // Check if already selected (by unique key)
+      const key = getRowKey(item);
+      const exists = prevArr.some(i => getRowKey(i) === key);
+      let newArr;
+      if (exists) {
+        newArr = prevArr.filter(i => getRowKey(i) !== key);
+    } else {
+        newArr = [...prevArr, item];
+      }
+      // If newArr is empty, remove the state key entirely
+      if (newArr.length === 0) {
+        const { [state]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [state]: newArr };
+    });
+    setChartRefreshKey(k => k + 1);
+  };
 
   return (
     <AppLayout activeTab="stateRateComparison">
@@ -1160,6 +1158,10 @@ export default function StatePaymentComparison() {
             <div className="mb-6 sm:mb-8">
               {filterSets.map((filterSet, index) => (
                 <div key={index} className="p-4 sm:p-6 bg-white rounded-xl shadow-lg mb-4 relative">
+                  {/* Filter Set Number Badge */}
+                  <div className="absolute -top-3 -left-3 bg-[#012C61] text-white rounded-full w-8 h-8 flex items-center justify-center font-bold shadow-lg">
+                    {index + 1}
+                  </div>
                   {/* Remove button for extra filter sets */}
                   {index > 0 && (
                     <button
@@ -1176,7 +1178,7 @@ export default function StatePaymentComparison() {
                       <label className="text-sm font-medium text-gray-700">Service Line</label>
                       <Select
                         instanceId={`service-category-select-${index}`}
-                        options={serviceCategories
+                        options={filterOptions.serviceCategories
                           .filter(category => {
                             const trimmedCategory = category.trim();
                             return trimmedCategory && 
@@ -1201,16 +1203,20 @@ export default function StatePaymentComparison() {
                           instanceId={`state-select-${index}`}
                           options={[
                             ...(index === 0 ? [{ value: "ALL_STATES", label: "All States" }] : []),
-                            ...filterSet.stateOptions
+                            ...filterOptions.states.map(state => ({ value: state, label: state }))
                           ]}
                           value={
-                            filterSet.states.length === filterSet.stateOptions.length && index === 0
+                            filterSet.states.length === filterOptions.states.length && index === 0
                               ? { value: "ALL_STATES", label: "All States" }
                               : filterSet.states.length > 0
                                 ? { value: filterSet.states[0], label: filterSet.states[0] }
                                 : null
                           }
-                          onChange={(option) => handleStateChange(index, option)}
+                          onChange={(option) => {
+                            handleStateChange(index, option);
+                            setSelectedState(option?.value || "");
+                            console.log('State selected (top-level):', option?.value);
+                          }}
                           placeholder="Select State"
                           isSearchable
                           filterOption={customFilterOption}
@@ -1233,7 +1239,9 @@ export default function StatePaymentComparison() {
                         <label className="text-sm font-medium text-gray-700">Service Code</label>
                         <Select
                           instanceId={`service-code-select-${index}`}
-                          options={filterSet.serviceCodeOptions.map((code) => ({ value: code, label: code }))}
+                          options={
+                            (filterOptions.serviceCodes || []).map((code) => ({ value: code, label: code }))
+                          }
                           value={filterSet.serviceCode ? { value: filterSet.serviceCode, label: filterSet.serviceCode } : null}
                           onChange={(option) => handleServiceCodeChange(index, option?.value || "")}
                           placeholder="Select Service Code"
@@ -1266,14 +1274,18 @@ export default function StatePaymentComparison() {
                         <label className="text-sm font-medium text-gray-700">Program</label>
                         <Select
                           instanceId={`program-select-${index}`}
-                          options={programs.map(program => ({ value: program, label: program }))}
+                          options={
+                            (filterOptions.programs && filterOptions.programs.length > 0)
+                              ? [{ value: '-', label: '-' }, ...filterOptions.programs.map(program => ({ value: program, label: program }))]
+                              : []
+                          }
                           value={selectedProgram ? { value: selectedProgram, label: selectedProgram } : null}
                           onChange={(option) => setSelectedProgram(option?.value || "")}
                           placeholder="Select Program"
                           isSearchable
                           filterOption={customFilterOption}
-                          isDisabled={programs.length === 0}
-                          className={`react-select-container ${programs.length === 0 ? 'opacity-50' : ''}`}
+                          isDisabled={(filterOptions.programs || []).length === 0}
+                          className={`react-select-container ${(filterOptions.programs || []).length === 0 ? 'opacity-50' : ''}`}
                           classNamePrefix="react-select"
                         />
                         {selectedProgram && (
@@ -1293,14 +1305,18 @@ export default function StatePaymentComparison() {
                         <label className="text-sm font-medium text-gray-700">Location/Region</label>
                         <Select
                           instanceId={`location-region-select-${index}`}
-                          options={locationRegions.map(region => ({ value: region, label: region }))}
+                          options={
+                            (filterOptions.locationRegions && filterOptions.locationRegions.length > 0)
+                              ? [{ value: '-', label: '-' }, ...filterOptions.locationRegions.map(region => ({ value: region, label: region }))]
+                              : []
+                          }
                           value={selectedLocationRegion ? { value: selectedLocationRegion, label: selectedLocationRegion } : null}
                           onChange={(option) => setSelectedLocationRegion(option?.value || "")}
                           placeholder="Select Location/Region"
                           isSearchable
                           filterOption={customFilterOption}
-                          isDisabled={locationRegions.length === 0}
-                          className={`react-select-container ${locationRegions.length === 0 ? 'opacity-50' : ''}`}
+                          isDisabled={(filterOptions.locationRegions || []).length === 0}
+                          className={`react-select-container ${(filterOptions.locationRegions || []).length === 0 ? 'opacity-50' : ''}`}
                           classNamePrefix="react-select"
                         />
                         {selectedLocationRegion && (
@@ -1320,14 +1336,18 @@ export default function StatePaymentComparison() {
                         <label className="text-sm font-medium text-gray-700">Modifier</label>
                         <Select
                           instanceId={`modifier-select-${index}`}
-                          options={modifiers}
+                          options={
+                            (filterOptions.modifiers && filterOptions.modifiers.length > 0)
+                              ? [{ value: '-', label: '-' }, ...filterOptions.modifiers]
+                              : []
+                          }
                           value={selectedModifier ? { value: selectedModifier, label: selectedModifier } : null}
                           onChange={(option) => setSelectedModifier(option?.value || "")}
                           placeholder="Select Modifier"
                           isSearchable
                           filterOption={customFilterOption}
-                          isDisabled={modifiers.length === 0}
-                          className={`react-select-container ${modifiers.length === 0 ? 'opacity-50' : ''}`}
+                          isDisabled={(filterOptions.modifiers || []).length === 0}
+                          className={`react-select-container ${(filterOptions.modifiers || []).length === 0 ? 'opacity-50' : ''}`}
                           classNamePrefix="react-select"
                         />
                         {selectedModifier && (
@@ -1347,14 +1367,18 @@ export default function StatePaymentComparison() {
                         <label className="text-sm font-medium text-gray-700">Provider Type</label>
                         <Select
                           instanceId={`provider-type-select-${index}`}
-                          options={providerTypes.map(type => ({ value: type, label: type }))}
+                          options={
+                            (filterOptions.providerTypes && filterOptions.providerTypes.length > 0)
+                              ? [{ value: '-', label: '-' }, ...filterOptions.providerTypes.map(type => ({ value: type, label: type }))]
+                              : []
+                          }
                           value={selectedProviderType ? { value: selectedProviderType, label: selectedProviderType } : null}
                           onChange={(option) => setSelectedProviderType(option?.value || "")}
                           placeholder="Select Provider Type"
                           isSearchable
                           filterOption={customFilterOption}
-                          isDisabled={providerTypes.length === 0}
-                          className={`react-select-container ${providerTypes.length === 0 ? 'opacity-50' : ''}`}
+                          isDisabled={(filterOptions.providerTypes || []).length === 0}
+                          className={`react-select-container ${(filterOptions.providerTypes || []).length === 0 ? 'opacity-50' : ''}`}
                           classNamePrefix="react-select"
                         />
                         {selectedProviderType && (
@@ -1364,6 +1388,37 @@ export default function StatePaymentComparison() {
                           >
                             Clear
                         </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Service Description Selector */}
+                    {filterSet.serviceCategory && filterSet.states.length > 0 && (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Service Description</label>
+                        <Select
+                          instanceId={`service-description-select-${index}`}
+                          options={
+                            (filterOptions.serviceDescriptions && filterOptions.serviceDescriptions.length > 0)
+                              ? [{ value: '-', label: '-' }, ...filterOptions.serviceDescriptions.map(desc => ({ value: desc, label: desc }))]
+                              : []
+                          }
+                          value={selectedServiceDescription ? { value: selectedServiceDescription, label: selectedServiceDescription } : null}
+                          onChange={(option) => setSelectedServiceDescription(option?.value || "")}
+                          placeholder="Select Service Description"
+                          isSearchable
+                          filterOption={customFilterOption}
+                          isDisabled={(filterOptions.serviceDescriptions || []).length === 0}
+                          className={`react-select-container ${(filterOptions.serviceDescriptions || []).length === 0 ? 'opacity-50' : ''}`}
+                          classNamePrefix="react-select"
+                        />
+                        {selectedServiceDescription && (
+                          <button
+                            onClick={() => setSelectedServiceDescription("")}
+                            className="text-xs text-blue-500 hover:underline mt-1"
+                          >
+                            Clear
+                          </button>
                         )}
                       </div>
                     )}
@@ -1379,13 +1434,7 @@ export default function StatePaymentComparison() {
             </div>
 
             {/* Comparison Metrics */}
-            {useMemo(() => {
-              return filterSets.every(filterSet => 
-                filterSet.serviceCategory && 
-                filterSet.states.length > 0 && 
-                filterSet.serviceCode
-              );
-            }, [filterSets]) && (
+            {shouldShowMetrics && (
               <div className="mb-8 p-6 bg-white rounded-xl shadow-lg">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Highest Rate */}
@@ -1393,7 +1442,7 @@ export default function StatePaymentComparison() {
                     <FaArrowUp className="h-8 w-8 text-green-500" />
                     <div>
                       <p className="text-sm text-gray-500">Highest Rate of Selected States</p>
-                      <p className="text-xl font-semibold text-gray-800">${rates.length > 0 ? Math.max(...rates).toFixed(2) : '0.00'}</p>
+                      <p className="text-xl font-semibold text-gray-800">${maxRate.toFixed(2)}</p>
                     </div>
                   </div>
 
@@ -1402,7 +1451,7 @@ export default function StatePaymentComparison() {
                     <FaArrowDown className="h-8 w-8 text-red-500" />
                     <div>
                       <p className="text-sm text-gray-500">Lowest Rate of Selected States</p>
-                      <p className="text-xl font-semibold text-gray-800">${rates.length > 0 ? Math.min(...rates).toFixed(2) : '0.00'}</p>
+                      <p className="text-xl font-semibold text-gray-800">${minRate.toFixed(2)}</p>
                     </div>
                   </div>
                 </div>
@@ -1410,13 +1459,7 @@ export default function StatePaymentComparison() {
             )}
 
             {/* Graph Component */}
-            {useMemo(() => {
-              return filterSets.every(filterSet => 
-                filterSet.serviceCategory && 
-                filterSet.states.length > 0 && 
-                filterSet.serviceCode
-              );
-            }, [filterSets]) && (isAllStatesSelected || Object.values(selectedTableRows).some(selections => selections.length > 0)) && (
+            {shouldShowChart && (
               <>
                 {/* Display the comment above the graph */}
                 {comments.length > 0 && (
@@ -1431,353 +1474,49 @@ export default function StatePaymentComparison() {
                   </div>
                 )}
 
-                {isAllStatesSelected && (
-                  <div className="mb-6 p-6 bg-blue-50 rounded-xl shadow-lg">
-                    <div className="flex items-center space-x-4">
-                      <FaChartLine className="h-6 w-6 text-blue-500" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-700">
-                          You've selected all states. The chart below displays the <strong>unweighted average rate</strong> for the selected service code across each state.
-                        </p>
-                        <p className="text-sm text-gray-500 mt-1">
-                          <strong>Note:</strong> The rates displayed are the current rates as of the latest available data. Rates are subject to change based on updates from state programs.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
+                {/* Chart component */}
                 <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg">
-                  {/* Toggle and Sort Section */}
-                  <div className="flex justify-center items-center mb-4 space-x-4">
-                    {/* Toggle Switch */}
-                    <div className="flex items-center bg-gray-100 p-1 rounded-lg">
-                      <button
-                        onClick={() => setShowRatePerHour(false)}
-                        className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                          !showRatePerHour
-                            ? 'bg-blue-600 text-white shadow-sm'
-                            : 'text-gray-500 hover:bg-gray-200'
-                        }`}
-                      >
-                        Base Rate
-                      </button>
-                      <button
-                        onClick={() => setShowRatePerHour(true)}
-                        className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                          showRatePerHour
-                            ? 'bg-blue-600 text-white shadow-sm'
-                            : 'text-gray-500 hover:bg-gray-200'
-                        }`}
-                      >
-                        Hourly Equivalent Rate
-                      </button>
-                    </div>
-
-                    {/* Sorting Dropdown */}
-                    <div className="flex items-center space-x-2">
-                      <label className="text-sm font-medium text-gray-700">Sort:</label>
-                      <select
-                        value={sortOrder}
-                        onChange={(e) => setSortOrder(e.target.value as 'default' | 'asc' | 'desc')}
-                        className="px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                      >
-                        <option value="default">Default</option>
-                        <option value="desc">High to Low</option>
-                        <option value="asc">Low to High</option>
-                      </select>
-                    </div>
-                  </div>
-                  
-                  <div className="w-full mx-auto">
-                    {chartLoading ? (
-                      <div className="flex justify-center items-center h-48 sm:h-64">
-                        <FaSpinner className="animate-spin h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
-                        <p className="ml-3 sm:ml-4 text-sm sm:text-base text-gray-600">Generating chart...</p>
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <div className="min-w-[500px] sm:min-w-0">
-                          <ChartWithErrorBoundary />
-                          <CalculationDetails />
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <ReactECharts
+                    key={JSON.stringify(Object.keys(selectedEntries).sort()) + '-' + chartRefreshKey}
+                    option={echartOptions}
+                    style={{ height: '400px', width: '100%' }}
+                  />
                 </div>
               </>
             )}
 
-            {/* Prompt to select data when no selections are made */}
-            {useMemo(() => {
-              return filterSets.every(filterSet => 
-                filterSet.serviceCategory && 
-                filterSet.states.length > 0 && 
-                filterSet.serviceCode
-              );
-            }, [filterSets]) && !isAllStatesSelected && Object.values(selectedTableRows).every(selections => selections.length === 0) && (
+            {/* Empty State */}
+            {!shouldShowChart && (
               <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg text-center">
                 <div className="flex justify-center items-center mb-2 sm:mb-3">
                   <FaChartBar className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
                 </div>
                 <p className="text-sm sm:text-base text-gray-600 font-medium">
-                  Select data from the tables below to generate the rate comparison visualization
+                  {filterSets[0]?.serviceCode 
+                    ? "No data available for the selected filters"
+                    : "Select a service code to generate the rate comparison visualization"}
                 </p>
               </div>
             )}
 
-            {/* Data Table - Show when filters are active and "All States" is not selected */}
-            {useMemo(() => {
-              return filterSets.map((filterSet, filterIndex) => {
-                // Add a heading for each filter set
-                const filterSetHeading = (
-                  <h3 className="text-lg font-bold text-blue-900 mb-2">
-                    Results for Filter Set #{filterIndex + 1}
-                  </h3>
-                );
-                // Filter the groupedByState for this filter set
-                if (!filterSet.serviceCategory || filterSet.states.length === 0 || !filterSet.serviceCode) return null;
-                const relevantStates = filterSet.states;
-                return relevantStates.map((state, stateIdx) => {
-                  const stateData = groupedByState[state] || [];
-                  const selectedModifierKeys = selectedTableRows[state] || [];
-                  if (stateData.length === 0) return null;
-                  return (
-                    <div key={filterIndex + '-' + state} className="mb-8 p-6 bg-white rounded-xl shadow-lg">
-                      {stateIdx === 0 && filterSetHeading}
-                      <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-semibold text-gray-800">{state}</h2>
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => {
-                              // Select all rows for this state
-                              const allModifierKeys = stateData.map(item => 
-                                [
-                                  item.modifier_1?.trim().toUpperCase() || '',
-                                  item.modifier_2?.trim().toUpperCase() || '',
-                                  item.modifier_3?.trim().toUpperCase() || '',
-                                  item.modifier_4?.trim().toUpperCase() || '',
-                                  item.program?.trim().toUpperCase() || '',
-                                  item.location_region?.trim().toUpperCase() || ''
-                                ].join('|')
-                              );
-                              setSelectedTableRows(prev => ({
-                                ...prev,
-                                [state]: allModifierKeys
-                              }));
-                            }}
-                            className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center space-x-1"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                            <span>Select All</span>
-                          </button>
-                          <button
-                            onClick={() => {
-                              // Deselect all rows for this state
-                              setSelectedTableRows(prev => ({
-                                ...prev,
-                                [state]: []
-                              }));
-                            }}
-                            className="px-3 py-1.5 text-sm bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors flex items-center space-x-1"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                            <span>Deselect All</span>
-                          </button>
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-500 mb-4">
-                        <strong>Note:</strong> The rates displayed are the current rates as of the latest available data. Rates are subject to change based on updates from state programs.
-                      </p>
-                      {stateData.length > 0 && (
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Select
-                                </th>
-                                {getVisibleColumns.service_category && (
-                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service Category</th>
-                                )}
-                                {getVisibleColumns.service_code && (
-                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service Code</th>
-                                )}
-                                {getVisibleColumns.service_description && (
-                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service Description</th>
-                                )}
-                                {getVisibleColumns.program && (
-                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Program</th>
-                                )}
-                                {getVisibleColumns.location_region && (
-                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location Region</th>
-                                )}
-                                {getVisibleColumns.modifier_1 && (
-                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modifier 1</th>
-                                )}
-                                {getVisibleColumns.modifier_2 && (
-                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modifier 2</th>
-                                )}
-                                {getVisibleColumns.modifier_3 && (
-                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
-                                )}
-                                {getVisibleColumns.modifier_4 && (
-                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
-                                )}
-                                {getVisibleColumns.duration_unit && (
-                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration Unit</th>
-                                )}
-                                {getVisibleColumns.rate && (
-                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
-                                )}
-                                {getVisibleColumns.rate_per_hour && (
-                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hourly Equivalent Rate</th>
-                                )}
-                                {/* Add Provider Type Column */}
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider Type</th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {stateData.map((item, index) => {
-                                const currentModifierKey = [
-                                  item.modifier_1?.trim().toUpperCase() || '',
-                                  item.modifier_2?.trim().toUpperCase() || '',
-                                  item.modifier_3?.trim().toUpperCase() || '',
-                                  item.modifier_4?.trim().toUpperCase() || '',
-                                  item.program?.trim().toUpperCase() || '',
-                                  item.location_region?.trim().toUpperCase() || ''
-                                ].join('|');
-                                const isSelected = selectedModifierKeys.includes(currentModifierKey);
+            {/* Data Table */}
+            <DataTable
+              filterSets={filterSets.map((set, index) => ({ ...set, number: index + 1 }))}
+              latestRates={filterSets.flatMap((_, idx) => filterSetData[idx] || [])}
+              selectedProgram={selectedProgram}
+              selectedLocationRegion={selectedLocationRegion}
+              selectedModifier={selectedModifier}
+              selectedServiceDescription={selectedServiceDescription}
+              selectedProviderType={selectedProviderType}
+              selectedTableRows={selectedTableRows}
+              isAllStatesSelected={isAllStatesSelected}
+              onRowSelection={handleRowSelection}
+              formatText={formatText}
+              selectedEntries={selectedEntries}
+            />
 
-                                return (
-                                  <tr key={index} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                      <div className="flex items-center space-x-2">
-                                        {isSelected && (
-                                          <button
-                                    onClick={() => handleTableRowSelection(state, item)}
-                                            className="text-gray-400 hover:text-red-500 transition-colors"
-                                            title="Deselect"
-                                  >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                            </svg>
-                                          </button>
-                                        )}
-                                        <button
-                                          onClick={() => handleTableRowSelection(state, item)}
-                                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                                            isSelected 
-                                              ? 'bg-blue-500 border-blue-500 text-white' 
-                                              : 'border-gray-300 hover:border-blue-500'
-                                          }`}
-                                        >
-                                          {isSelected && (
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                            </svg>
-                                          )}
-                                        </button>
-                                      </div>
-                                    </td>
-                                    {getVisibleColumns.service_category && (
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {formatText(item.service_category)}
-                                      </td>
-                                    )}
-                                    {getVisibleColumns.service_code && (
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {formatText(item.service_code)}
-                                      </td>
-                                    )}
-                                    {getVisibleColumns.service_description && (
-                                      <td 
-                                        className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate"
-                                        title={item.service_description || ''}
-                                      >
-                                        {formatText(item.service_description)}
-                                      </td>
-                                    )}
-                                    {getVisibleColumns.program && (
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {formatText(item.program)}
-                                      </td>
-                                    )}
-                                    {getVisibleColumns.location_region && (
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {formatText(item.location_region)}
-                                      </td>
-                                    )}
-                                    {getVisibleColumns.modifier_1 && (
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {item.modifier_1 ? `${item.modifier_1}${item.modifier_1_details ? ` - ${item.modifier_1_details}` : ''}` : '-'}
-                                      </td>
-                                    )}
-                                    {getVisibleColumns.modifier_2 && (
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {item.modifier_2 ? `${item.modifier_2}${item.modifier_2_details ? ` - ${item.modifier_2_details}` : ''}` : '-'}
-                                      </td>
-                                    )}
-                                    {getVisibleColumns.modifier_3 && (
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {item.modifier_3 ? `${item.modifier_3}${item.modifier_3_details ? ` - ${item.modifier_3_details}` : ''}` : '-'}
-                                      </td>
-                                    )}
-                                    {getVisibleColumns.modifier_4 && (
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {item.modifier_4 ? `${item.modifier_4}${item.modifier_4_details ? ` - ${item.modifier_4_details}` : ''}` : '-'}
-                                      </td>
-                                    )}
-                                    {getVisibleColumns.duration_unit && (
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {formatText(item.duration_unit)}
-                                      </td>
-                                    )}
-                                    {getVisibleColumns.rate && (
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {formatText(item.rate)}
-                                      </td>
-                                    )}
-                                    {getVisibleColumns.rate_per_hour && (
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {(() => {
-                                          const rateStr = (item.rate || '').replace('$', '');
-                                          const rate = parseFloat(rateStr);
-                                          const durationUnit = item.duration_unit?.toUpperCase();
-                                          
-                                          if (isNaN(rate)) return '-';
-                                          
-                                          if (durationUnit === '15 MINUTES') {
-                                            return `$${(rate * 4).toFixed(2)}`;
-                                          } else if (durationUnit === '30 MINUTES') {
-                                            return `$${(rate * 2).toFixed(2)}`;
-                                          } else if (durationUnit === 'PER HOUR') {
-                                            return `$${rate.toFixed(2)}`;
-                                          }
-                                          return 'N/A'; // Simplified for non-convertible units
-                                        })()}
-                                      </td>
-                                    )}
-                                    {/* Add Provider Type Column */}
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                      {formatText(item.provider_type)}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  );
-                });
-              });
-            }, [filterSets, groupedByState, selectedTableRows, getVisibleColumns, handleTableRowSelection, formatText])}
+            {/* Calculation Details */}
+            <CalculationDetails />
           </>
         )}
       </div>

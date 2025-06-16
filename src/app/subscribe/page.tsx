@@ -460,12 +460,12 @@ const StripePricingTableWithFooter = () => {
 
         {/* Stripe Pricing Table - Only visible when authenticated and form filled or subscribed */}
         {(isAuthenticated && (formFilled || hasActiveSubscription || isSubUser)) && (
-          <div id="pricing-table" className="w-full max-w-4xl transform scale-110" style={{ transformOrigin: "center" }}>
-            {React.createElement("stripe-pricing-table", {
-              "pricing-table-id": "prctbl_1QhgA9EA5fbmDyeFHEeLwdrJ",
-              "publishable-key": "pk_test_51QhZ80EA5fbmDyeFadp5z5QeaxeFyaUhRpS4nq3rXQh6Zap8nsAKw5D3lalc3ewBtBpecpBzeULgZx7H1jxragFs00IAS0L60o",
-            })}
-          </div>
+        <div id="pricing-table" className="w-full max-w-4xl transform scale-110" style={{ transformOrigin: "center" }}>
+          {React.createElement("stripe-pricing-table", {
+            "pricing-table-id": "prctbl_1QhgA9EA5fbmDyeFHEeLwdrJ",
+            "publishable-key": "pk_test_51QhZ80EA5fbmDyeFadp5z5QeaxeFyaUhRpS4nq3rXQh6Zap8nsAKw5D3lalc3ewBtBpecpBzeULgZx7H1jxragFs00IAS0L60o",
+          })}
+        </div>
         )}
 
         {/* Warning message for subscribed users */}
