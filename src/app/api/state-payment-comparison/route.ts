@@ -6,6 +6,29 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const mode = searchParams.get("mode"); // New parameter to determine API mode
 
+    // Handle fee schedule dates request
+    if (mode === 'feeScheduleDates') {
+      const state = searchParams.get("state");
+      const serviceCategory = searchParams.get("serviceCategory");
+      const serviceCode = searchParams.get("serviceCode");
+
+      if (!state || !serviceCategory || !serviceCode) {
+        return NextResponse.json({ dates: [] });
+      }
+
+      const query = `
+        SELECT DISTINCT rate_effective_date
+        FROM master_data_may_30_cleaned
+        WHERE TRIM(UPPER(state_name)) = TRIM(UPPER($1))
+          AND TRIM(UPPER(service_category)) = TRIM(UPPER($2))
+          AND service_code = $3
+        ORDER BY rate_effective_date DESC
+      `;
+
+      const result = await pool.query(query, [state, serviceCategory, serviceCode]);
+      return NextResponse.json({ dates: result.rows.map(r => r.rate_effective_date) });
+    }
+
     // If mode is 'filters', only return filter options
     if (mode === 'filters') {
       const serviceCategory = searchParams.get("serviceCategory");

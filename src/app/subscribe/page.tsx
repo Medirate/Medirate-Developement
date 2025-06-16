@@ -458,13 +458,15 @@ const StripePricingTableWithFooter = () => {
           </div>
         )}
 
-        {/* Stripe Pricing Table - Always visible */}
-        <div id="pricing-table" className="w-full max-w-4xl transform scale-110" style={{ transformOrigin: "center" }}>
-          {React.createElement("stripe-pricing-table", {
-            "pricing-table-id": "prctbl_1QhgA9EA5fbmDyeFHEeLwdrJ",
-            "publishable-key": "pk_test_51QhZ80EA5fbmDyeFadp5z5QeaxeFyaUhRpS4nq3rXQh6Zap8nsAKw5D3lalc3ewBtBpecpBzeULgZx7H1jxragFs00IAS0L60o",
-          })}
-        </div>
+        {/* Stripe Pricing Table - Only visible when authenticated and form filled or subscribed */}
+        {(isAuthenticated && (formFilled || hasActiveSubscription || isSubUser)) && (
+          <div id="pricing-table" className="w-full max-w-4xl transform scale-110" style={{ transformOrigin: "center" }}>
+            {React.createElement("stripe-pricing-table", {
+              "pricing-table-id": "prctbl_1QhgA9EA5fbmDyeFHEeLwdrJ",
+              "publishable-key": "pk_test_51QhZ80EA5fbmDyeFadp5z5QeaxeFyaUhRpS4nq3rXQh6Zap8nsAKw5D3lalc3ewBtBpecpBzeULgZx7H1jxragFs00IAS0L60o",
+            })}
+          </div>
+        )}
 
         {/* Warning message for subscribed users */}
         {isAuthenticated && (hasActiveSubscription || isSubUser) && (
@@ -488,6 +490,32 @@ const StripePricingTableWithFooter = () => {
             Terms and Conditions
           </button>
         </div>
+
+        {/* Add a message for non-authenticated users */}
+        {!isAuthenticated && (
+          <div className="w-full max-w-4xl mb-8 p-8 bg-white rounded-xl shadow-2xl border border-gray-100 text-center">
+            <h2 className="text-2xl font-bold mb-4 text-[#012C61] font-lemonMilkRegular">Ready to Subscribe?</h2>
+            <p className="text-lg mb-6 text-gray-600">
+              Please sign in to view subscription options and complete the registration process.
+            </p>
+            <button
+              onClick={() => router.push("/api/auth/login")}
+              className="bg-[#012C61] text-white px-8 py-3 rounded-lg transition-all duration-300 hover:bg-transparent hover:border hover:border-[#012C61] hover:text-[#012C61]"
+            >
+              Sign In to Continue
+            </button>
+          </div>
+        )}
+
+        {/* Add a message for authenticated users who haven't filled the form */}
+        {isAuthenticated && !formFilled && !hasActiveSubscription && !isSubUser && (
+          <div className="w-full max-w-4xl mb-8 p-8 bg-white rounded-xl shadow-2xl border border-gray-100 text-center">
+            <h2 className="text-2xl font-bold mb-4 text-[#012C61] font-lemonMilkRegular">Almost There!</h2>
+            <p className="text-lg mb-6 text-gray-600">
+              Please complete the registration form above to view subscription options.
+            </p>
+          </div>
+        )}
       </main>
 
       {/* Subscription Terms and Conditions Modal */}

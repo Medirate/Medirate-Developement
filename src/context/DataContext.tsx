@@ -55,6 +55,7 @@ interface DataContextType {
     };
   } | null>;
   refreshFilters: (serviceCategory?: string) => Promise<void>;
+  fetchFeeScheduleDates: (state: string, serviceCategory: string, serviceCode: string) => Promise<string[]>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -149,20 +150,38 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated]);
 
+  const fetchFeeScheduleDates = async (state: string, serviceCategory: string, serviceCode: string): Promise<string[]> => {
+    if (!state || !serviceCategory || !serviceCode) return [];
+    try {
+      const response = await fetch(
+        `/api/state-payment-comparison?mode=feeScheduleDates&state=${encodeURIComponent(state)}&serviceCategory=${encodeURIComponent(serviceCategory)}&serviceCode=${encodeURIComponent(serviceCode)}`
+      );
+      if (!response.ok) throw new Error('Failed to fetch fee schedule dates');
+      const data = await response.json();
+      return (data.dates || []).sort((a: string, b: string) => new Date(b).getTime() - new Date(a).getTime());
+    } catch (error) {
+      console.error('Error fetching fee schedule dates:', error);
+      return [];
+    }
+  };
+
   // Initial load - only fetch filter options
   useEffect(() => {
     refreshFilters();
   }, [refreshFilters]);
 
+  const value = {
+    data,
+    loading,
+    error,
+    filterOptions,
+    refreshData,
+    refreshFilters,
+    fetchFeeScheduleDates,
+  };
+
   return (
-    <DataContext.Provider value={{
-      data,
-      loading,
-      error,
-      filterOptions,
-      refreshData,
-      refreshFilters
-    }}>
+    <DataContext.Provider value={value}>
       {children}
     </DataContext.Provider>
   );

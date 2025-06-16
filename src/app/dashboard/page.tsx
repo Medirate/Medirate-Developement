@@ -274,7 +274,7 @@ export default function Dashboard() {
   };
 
   // Update useData destructuring to include refreshFilters
-  const { data, loading, error, filterOptions, refreshData, refreshFilters } = useData();
+  const { data, loading, error, filterOptions, refreshData, refreshFilters, fetchFeeScheduleDates } = useData();
 
   // Filter states
   const [selectedServiceCategory, setSelectedServiceCategory] = useState("");
@@ -285,8 +285,8 @@ export default function Dashboard() {
   const [selectedLocationRegion, setSelectedLocationRegion] = useState("");
   const [selectedModifier, setSelectedModifier] = useState("");
   const [selectedProviderType, setSelectedProviderType] = useState("");
-  const [startDate, setStartDate] = useState<Date | null>(new Date(2017, 0, 1));
-  const [endDate, setEndDate] = useState<Date | null>(new Date());
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
 
   // Visibility states for dropdowns
@@ -1105,10 +1105,17 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    if (data.length > 0) {
-      extractFeeScheduleDates(data);
-    }
-  }, [data, selectedServiceCategory, selectedState, selectedServiceCode, selectedServiceDescription]);
+    const loadFeeScheduleDates = async () => {
+      if (selectedState && selectedServiceCategory && selectedServiceCode) {
+        const dates = await fetchFeeScheduleDates(selectedState, selectedServiceCategory, selectedServiceCode);
+        setFeeScheduleDates(dates);
+      } else {
+        setFeeScheduleDates([]);
+      }
+    };
+
+    loadFeeScheduleDates();
+  }, [selectedState, selectedServiceCategory, selectedServiceCode, fetchFeeScheduleDates]);
 
   // Update the Date Range fields to disable them when a Fee Schedule Date is selected
   const isDateRangeDisabled = !!selectedFeeScheduleDate;
@@ -1381,6 +1388,14 @@ export default function Dashboard() {
     return isMandatory ? opts : [{ value: '-', label: '-' }, ...opts] as const;
   };
 
+  // Add this after state declarations
+  const isStateSelected = !!selectedState;
+  const hasAnyPrimaryFilter =
+    !!selectedServiceCode ||
+    !!selectedServiceDescription ||
+    (!!startDate && !!endDate) ||
+    !!selectedFeeScheduleDate;
+
   return (
     <AppLayout activeTab="dashboard">
       <div className="p-4 sm:p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
@@ -1404,9 +1419,9 @@ export default function Dashboard() {
                   startDate={startDate}
                   endDate={endDate}
                   className={`w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 ${
-                    selectedFeeScheduleDate ? 'opacity-50 cursor-not-allowed' : ''
+                    !isStateSelected || (hasAnyPrimaryFilter && !(startDate && endDate)) ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
-                  disabled={!!selectedFeeScheduleDate}
+                  disabled={!isStateSelected || (hasAnyPrimaryFilter && !(startDate && endDate))}
                   popperClassName="z-[900]" // Adjusted z-index
                   popperModifiers={[
                     {
@@ -1441,9 +1456,9 @@ export default function Dashboard() {
                   endDate={endDate}
                   minDate={startDate || undefined}
                   className={`w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 ${
-                    selectedFeeScheduleDate ? 'opacity-50 cursor-not-allowed' : ''
+                    !isStateSelected || (hasAnyPrimaryFilter && !(startDate && endDate)) ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
-                  disabled={!!selectedFeeScheduleDate}
+                  disabled={!isStateSelected || (hasAnyPrimaryFilter && !(startDate && endDate))}
                   popperClassName="z-[900]" // Adjusted z-index
                   popperModifiers={[
                     {
@@ -1500,14 +1515,16 @@ export default function Dashboard() {
                 }}
                 placeholder="Select Fee Schedule Date"
                 isSearchable
-                isDisabled={!!startDate || !!endDate}
+                isDisabled={
+                  !isStateSelected || (hasAnyPrimaryFilter && !selectedFeeScheduleDate)
+                }
                 className={`react-select-container ${
-                  !!startDate || !!endDate ? 'opacity-50' : ''
+                  !isStateSelected || (hasAnyPrimaryFilter && !selectedFeeScheduleDate) ? 'opacity-50' : ''
                 }`}
                 classNamePrefix="react-select"
                 menuPortalTarget={document.body}
                 styles={{
-                  menuPortal: (base) => ({ ...base, zIndex: 800 }), // Adjusted z-index
+                  menuPortal: (base) => ({ ...base, zIndex: 800 }),
                 }}
               />
               {selectedFeeScheduleDate && (
@@ -1597,8 +1614,8 @@ export default function Dashboard() {
                 placeholder="Select Service Code"
                 isSearchable
                 filterOption={customFilterOption}
-                isDisabled={!selectedState}
-                className={`react-select-container ${!selectedState ? 'opacity-50' : ''}`}
+                isDisabled={!isStateSelected || (hasAnyPrimaryFilter && !selectedServiceCode)}
+                className={`react-select-container ${!isStateSelected || (hasAnyPrimaryFilter && !selectedServiceCode) ? 'opacity-50' : ''}`}
                 classNamePrefix="react-select"
               />
               {selectedServiceCode && (
@@ -1632,8 +1649,8 @@ export default function Dashboard() {
                 placeholder="Select Service Description"
                 isSearchable
                 filterOption={customFilterOption}
-                isDisabled={!selectedState}
-                className={`react-select-container ${!selectedState ? 'opacity-50' : ''}`}
+                isDisabled={!isStateSelected || (hasAnyPrimaryFilter && !selectedServiceDescription)}
+                className={`react-select-container ${!isStateSelected || (hasAnyPrimaryFilter && !selectedServiceDescription) ? 'opacity-50' : ''}`}
                 classNamePrefix="react-select"
               />
               {selectedServiceDescription && (

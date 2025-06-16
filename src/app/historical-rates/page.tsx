@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import AppLayout from "@/app/components/applayout";
 import { FaSpinner, FaExclamationCircle, FaChevronLeft, FaChevronRight, FaFilter, FaChartLine } from 'react-icons/fa';
 import Select from "react-select";
@@ -132,6 +132,65 @@ const ErrorMessage = ({ error }: { error: string | null }) => {
         <FaExclamationCircle className="h-5 w-5 text-red-500 mr-2" />
         <p className="text-red-700">{error}</p>
       </div>
+    </div>
+  );
+};
+
+// Update the CustomTooltip component for better formatting
+const CustomTooltip = ({ content, children }: { content: string; children: React.ReactNode }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const [showOnRight, setShowOnRight] = useState(true);
+
+  const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
+    setIsVisible(true);
+    setTimeout(() => {
+      if (tooltipRef.current && e.currentTarget) {
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const tooltipRect = tooltipRef.current.getBoundingClientRect();
+        // Always show on the right of the cell
+        let x = rect.right + 12;
+        let y = rect.top;
+        // Only clamp if it would go off the window on the left
+        if (x < 0) x = 0;
+        if (y + tooltipRect.height > window.innerHeight) y = window.innerHeight - tooltipRect.height - 10;
+        if (y < 10) y = 10;
+        setPosition({ x, y });
+        setShowOnRight(true); // Always right
+      }
+    }, 0);
+  };
+
+  const handleMouseLeave = () => setIsVisible(false);
+
+  return (
+    <div
+      className="relative inline-block w-full"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {children}
+      {isVisible && (
+        <div
+          ref={tooltipRef}
+          className="fixed z-[9999] px-4 py-2 text-sm text-gray-700 bg-white rounded-lg shadow-lg border border-gray-100 max-w-xl whitespace-pre-line break-words"
+          style={{
+            left: `${position.x}px`,
+            top: `${position.y}px`,
+            opacity: 1,
+            pointerEvents: 'none'
+          }}
+        >
+          <div className="relative">
+            {/* Always use left-side arrow */}
+            <div className="absolute top-3 left-[-8px] w-4 h-4 bg-white border-t border-l border-gray-100 rotate-45"></div>
+            <div className="relative z-10 bg-white rounded-lg whitespace-normal break-words">
+              {content}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -365,6 +424,22 @@ const STATE_ABBREVIATIONS: Record<string, string> = {
   // Add more if needed
 };
 
+// Add this helper function similar to dashboard
+const getDropdownOptions = (options: string[], isMandatory: boolean = false): { value: string; label: string }[] => {
+  const uniqueOptions = [...new Set(options)].filter(Boolean).sort((a, b) => a.localeCompare(b));
+  const dropdownOptions = uniqueOptions.map(option => ({
+    value: option,
+    label: option
+  }));
+  
+  // Add "-" option for non-mandatory filters
+  if (!isMandatory) {
+    dropdownOptions.unshift({ value: "-", label: "-" });
+  }
+  
+  return dropdownOptions;
+};
+
 export default function HistoricalRates() {
   const { data, loading, error, filterOptions, refreshData, refreshFilters } = useData();
   const router = useRouter();
@@ -409,9 +484,9 @@ export default function HistoricalRates() {
       if (selectedServiceCategory && item.service_category !== selectedServiceCategory) return false;
       if (selectedState && item.state_name !== selectedState) return false;
       if (selectedServiceCode && item.service_code !== selectedServiceCode) return false;
-      if (selectedProgram && item.program !== selectedProgram) return false;
-      if (selectedLocationRegion && item.location_region !== selectedLocationRegion) return false;
-      if (selectedModifier) {
+      if (selectedProgram && selectedProgram !== "-" && item.program !== selectedProgram) return false;
+      if (selectedLocationRegion && selectedLocationRegion !== "-" && item.location_region !== selectedLocationRegion) return false;
+      if (selectedModifier && selectedModifier !== "-") {
         const selectedModifierCode = selectedModifier.split(' - ')[0];
         const hasModifier = 
           (item.modifier_1 && item.modifier_1.split(' - ')[0] === selectedModifierCode) ||
@@ -420,7 +495,18 @@ export default function HistoricalRates() {
           (item.modifier_4 && item.modifier_4.split(' - ')[0] === selectedModifierCode);
         if (!hasModifier) return false;
       }
-      if (selectedProviderType && item.provider_type !== selectedProviderType) return false;
+      if (selectedProviderType && selectedProviderType !== "-" && item.provider_type !== selectedProviderType) return false;
+      if (selectedServiceDescription && selectedServiceDescription !== "-" && item.service_description !== selectedServiceDescription) return false;
+
+      // Handle "-" selections (empty/null values)
+      if (selectedProgram === "-" && item.program) return false;
+      if (selectedLocationRegion === "-" && item.location_region) return false;
+      if (selectedProviderType === "-" && item.provider_type) return false;
+      if (selectedServiceDescription === "-" && item.service_description) return false;
+      if (selectedModifier === "-") {
+        const hasAnyModifier = item.modifier_1 || item.modifier_2 || item.modifier_3 || item.modifier_4;
+        if (hasAnyModifier) return false;
+      }
 
       return true;
     });
@@ -471,7 +557,8 @@ export default function HistoricalRates() {
     selectedProgram,
     selectedLocationRegion,
     selectedModifier,
-    selectedProviderType
+    selectedProviderType,
+    selectedServiceDescription
   ]);
 
   const getVisibleColumns = useMemo(() => {
@@ -488,23 +575,11 @@ export default function HistoricalRates() {
       modifier_4: false,
       duration_unit: false,
       rate: false,
-      rate_per_hour: false,
       rate_effective_date: false
     };
 
     if (filteredData.length > 0) {
       filteredData.forEach(item => {
-        const rateStr = (item.rate || '').replace('$', '');
-        const rate = parseFloat(rateStr);
-        const durationUnit = item.duration_unit?.toUpperCase();
-        
-        if (!isNaN(rate) && 
-            (durationUnit === '15 MINUTES' || 
-             durationUnit === '30 MINUTES' || 
-             durationUnit === 'PER HOUR')) {
-          columns.rate_per_hour = true;
-        }
-        
         Object.keys(columns).forEach(key => {
           if (item[key as keyof ServiceData] && item[key as keyof ServiceData] !== '-') {
             columns[key as keyof typeof columns] = true;
@@ -1071,10 +1146,7 @@ export default function HistoricalRates() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Modifier</label>
                     <Select
-                      options={modifiers.map((modifier) => ({
-                        value: modifier.value,
-                        label: `${modifier.value} - ${modifier.details || ''}`
-                      }))}
+                      options={getDropdownOptions(modifiers.map(m => m.value))}
                       value={selectedModifier ? { value: selectedModifier, label: selectedModifier } : null}
                       onChange={(option) => setSelectedModifier(option?.value || "")}
                       placeholder="Select Modifier"
@@ -1084,7 +1156,7 @@ export default function HistoricalRates() {
                       className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
                       classNamePrefix="react-select"
                     />
-                    {selectedModifier && (
+                    {selectedModifier && selectedModifier !== "-" && (
                       <button onClick={() => setSelectedModifier("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
                     )}
                   </div>
@@ -1094,15 +1166,18 @@ export default function HistoricalRates() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Program</label>
                     <Select
-                      options={programs.map((program) => ({ value: program, label: program }))}
+                      options={getDropdownOptions(programs)}
                       value={selectedProgram ? { value: selectedProgram, label: selectedProgram } : null}
                       onChange={(option) => setSelectedProgram(option?.value || "")}
                       placeholder="Select Program"
                       isSearchable
-                        filterOption={customFilterOption}
+                      filterOption={customFilterOption}
                       className="react-select-container"
                       classNamePrefix="react-select"
                     />
+                    {selectedProgram && selectedProgram !== "-" && (
+                      <button onClick={() => setSelectedProgram("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                    )}
                   </div>
                 )}
 
@@ -1110,15 +1185,18 @@ export default function HistoricalRates() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Location/Region</label>
                     <Select
-                      options={locationRegions.map((region) => ({ value: region, label: region }))}
+                      options={getDropdownOptions(locationRegions)}
                       value={selectedLocationRegion ? { value: selectedLocationRegion, label: selectedLocationRegion } : null}
                       onChange={(option) => setSelectedLocationRegion(option?.value || "")}
                       placeholder="Select Location/Region"
                       isSearchable
-                        filterOption={customFilterOption}
+                      filterOption={customFilterOption}
                       className="react-select-container"
                       classNamePrefix="react-select"
                     />
+                    {selectedLocationRegion && selectedLocationRegion !== "-" && (
+                      <button onClick={() => setSelectedLocationRegion("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                    )}
                   </div>
                 )}
 
@@ -1126,16 +1204,16 @@ export default function HistoricalRates() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Service Description</label>
                     <Select
-                      options={serviceDescriptions.map(desc => ({ value: desc, label: desc }))}
+                      options={getDropdownOptions(serviceDescriptions)}
                       value={selectedServiceDescription ? { value: selectedServiceDescription, label: selectedServiceDescription } : null}
                       onChange={(option) => handleServiceDescriptionChange(option?.value || "")}
                       placeholder="Select Service Description"
                       isSearchable
-                        filterOption={customFilterOption}
+                      filterOption={customFilterOption}
                       className="react-select-container"
                       classNamePrefix="react-select"
                     />
-                    {selectedServiceDescription && (
+                    {selectedServiceDescription && selectedServiceDescription !== "-" && (
                       <button onClick={() => setSelectedServiceDescription("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
                     )}
                   </div>
@@ -1145,17 +1223,17 @@ export default function HistoricalRates() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Provider Type</label>
                     <Select
-                      options={providerTypes.map(type => ({ value: type, label: type }))}
+                      options={getDropdownOptions(providerTypes)}
                       value={selectedProviderType ? { value: selectedProviderType, label: selectedProviderType } : null}
                       onChange={(option) => setSelectedProviderType(option?.value || "")}
                       placeholder="Select Provider Type"
                       isSearchable
-                        filterOption={customFilterOption}
+                      filterOption={customFilterOption}
                       isDisabled={!selectedServiceCode && !selectedServiceDescription}
                       className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
                       classNamePrefix="react-select"
                     />
-                    {selectedProviderType && (
+                    {selectedProviderType && selectedProviderType !== "-" && (
                       <button onClick={() => setSelectedProviderType("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
                     )}
                   </div>
@@ -1352,9 +1430,6 @@ export default function HistoricalRates() {
                       {getVisibleColumns.rate && (
                         <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Rate per Base Unit</th>
                       )}
-                      {getVisibleColumns.rate_per_hour && (
-                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Hourly Equivalent Rate</th>
-                      )}
                       {getVisibleColumns.modifier_1 && (
                         <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 1</th>
                       )}
@@ -1409,19 +1484,23 @@ export default function HistoricalRates() {
                       return (
                         <tr 
                           key={index} 
-                          className={`hover:bg-gray-50 transition-colors cursor-pointer ${
-                            isSelected ? 'bg-blue-50' : ''
+                          className={`group relative transition-all duration-200 ease-in-out cursor-pointer ${
+                            isSelected 
+                              ? 'bg-blue-50 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]' 
+                              : 'hover:bg-gray-50 hover:shadow-[0_2px_4px_rgba(0,0,0,0.05)] hover:scale-[1.01] hover:z-10'
                           }`}
-                            onClick={() => setSelectedEntry(entry)}
+                          onClick={() => setSelectedEntry(entry)}
                         >
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                                isSelected ? 'border-blue-500 bg-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.2)]' : 'border-gray-300 hover:border-gray-400'
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+                                isSelected 
+                                  ? 'border-blue-500 bg-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.2)]' 
+                                  : 'border-gray-300 group-hover:border-blue-300 group-hover:shadow-[0_0_0_2px_rgba(59,130,246,0.1)]'
                               }`}>
                                 {isSelected && (
                                   <svg 
-                                    className="w-3 h-3 text-white" 
+                                    className="w-3 h-3 text-white transition-transform duration-200" 
                                     fill="none" 
                                     stroke="currentColor" 
                                     viewBox="0 0 24 24"
@@ -1435,17 +1514,17 @@ export default function HistoricalRates() {
                                   </svg>
                                 )}
                               </div>
-                                {isSelected && (
-                                  <button
-                                    onClick={e => { e.stopPropagation(); setSelectedEntry(null); }}
-                                    className="ml-2 text-gray-400 hover:text-red-500"
-                                    title="Deselect"
-                                  >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                    </svg>
-                                  </button>
-                                )}
+                              {isSelected && (
+                                <button
+                                  onClick={e => { e.stopPropagation(); setSelectedEntry(null); }}
+                                  className="ml-2 text-gray-400 hover:text-red-500 transition-colors duration-200"
+                                  title="Deselect"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                  </svg>
+                                </button>
+                              )}
                             </div>
                           </td>
                           {getVisibleColumns.state_name && (
@@ -1462,13 +1541,16 @@ export default function HistoricalRates() {
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(entry.service_code)}</td>
                           )}
                           {getVisibleColumns.service_description && (
-                            <td
-                              className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 max-w-[220px] truncate"
-                              title={entry.service_description || '-'}
-                            >
-                              {entry.service_description && entry.service_description.length > 30
-                                ? entry.service_description.slice(0, 30) + '...'
-                                : entry.service_description || '-'}
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <CustomTooltip content={entry.service_description || '-'}>
+                                <div className="max-w-[220px] truncate cursor-pointer group">
+                                  <span className="group-hover:text-blue-600 transition-colors duration-200">
+                                    {entry.service_description && entry.service_description.length > 30
+                                      ? entry.service_description.slice(0, 30) + '...'
+                                      : entry.service_description || '-'}
+                                  </span>
+                                </div>
+                              </CustomTooltip>
                             </td>
                           )}
                           {getVisibleColumns.duration_unit && (
@@ -1479,26 +1561,6 @@ export default function HistoricalRates() {
                           {getVisibleColumns.rate && (
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {formatCurrency(entry.rate)}
-                            </td>
-                          )}
-                          {getVisibleColumns.rate_per_hour && (
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {(() => {
-                                  const rateStr = (entry.rate || '').replace('$', '');
-                                const rate = parseFloat(rateStr);
-                                  const durationUnit = entry.duration_unit?.toUpperCase();
-                                
-                                if (isNaN(rate)) return '-';
-                                
-                                if (durationUnit === '15 MINUTES') {
-                                  return `$${(rate * 4).toFixed(2)}`;
-                                } else if (durationUnit === '30 MINUTES') {
-                                  return `$${(rate * 2).toFixed(2)}`;
-                                } else if (durationUnit === 'PER HOUR') {
-                                  return `$${rate.toFixed(2)}`;
-                                }
-                                return 'N/A';
-                              })()}
                             </td>
                           )}
                           {getVisibleColumns.modifier_1 && (
