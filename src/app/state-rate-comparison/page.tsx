@@ -824,6 +824,56 @@ export default function StatePaymentComparison() {
       });
 
       const modifierKeys = Array.from(allModifierKeys);
+      
+      // Create a single series with all data, but structure it to group by state
+      const allData: Array<{
+        value: number;
+        state: string;
+        modifierKey: string;
+        entry: ServiceData | undefined;
+      }> = [];
+      const xAxisData: string[] = [];
+      
+      states.forEach(state => {
+        // Add the state name to x-axis
+        xAxisData.push(state);
+        
+        // For each modifier, add the data for this state
+        modifierKeys.forEach((modifierKey, modifierIndex) => {
+          const stateEntries = selectedEntries[state] || [];
+          const matchingEntry = stateEntries.find(item => {
+            const itemModifierKey = [
+              item.modifier_1?.trim().toUpperCase() || '',
+              item.modifier_2?.trim().toUpperCase() || '',
+              item.modifier_3?.trim().toUpperCase() || '',
+              item.modifier_4?.trim().toUpperCase() || '',
+              item.program?.trim().toUpperCase() || '',
+              item.location_region?.trim().toUpperCase() || ''
+            ].join('|');
+            return itemModifierKey === modifierKey;
+          });
+
+          let rateValue = 0;
+          if (matchingEntry) {
+            rateValue = parseFloat(matchingEntry.rate?.replace('$', '') || '0');
+            const durationUnit = matchingEntry.duration_unit?.toUpperCase();
+            if (showRatePerHour) {
+              if (durationUnit === '15 MINUTES') rateValue *= 4;
+              else if (durationUnit === '30 MINUTES') rateValue *= 2;
+              else if (durationUnit !== 'PER HOUR') rateValue = 0;
+            }
+            rateValue = Math.round(rateValue * 100) / 100;
+          }
+          
+          allData.push({
+            value: rateValue,
+            state: state,
+            modifierKey: modifierKey,
+            entry: matchingEntry
+          });
+        });
+      });
+
       const series = modifierKeys.map((modifierKey, index) => {
         const data = states.map(state => {
           const stateEntries = selectedEntries[state] || [];
@@ -854,7 +904,7 @@ export default function StatePaymentComparison() {
         return {
           name: modifierKey || 'No Modifiers',
           type: 'bar',
-          barGap: '0%',
+          barGap: '0%', // Bars within the same state will touch each other
           data: data,
           itemStyle: { color: chartJsColors[index % chartJsColors.length] },
           label: {
@@ -874,7 +924,7 @@ export default function StatePaymentComparison() {
       return {
         legend: { show: false },
         tooltip: {
-          trigger: 'item',
+          trigger: 'item', // Changed from 'axis' to 'item' for individual tooltips
           formatter: (params: any) => {
             const state = params.name;
             const seriesName = params.seriesName;
@@ -945,8 +995,9 @@ export default function StatePaymentComparison() {
         },
         xAxis: {
           type: 'category',
-          data: states,
-          axisLabel: { rotate: 45, fontSize: 10 }
+          data: xAxisData,
+          axisLabel: { rotate: 45, fontSize: 10 },
+          axisTick: { show: false }
         },
         yAxis: {
           type: 'value',
@@ -1026,6 +1077,8 @@ export default function StatePaymentComparison() {
     setIsAllStatesSelected(false);
     setSortOrder('default');
     setSelectedStateDetails(null);
+    setSelectedEntries({});         // <-- Clear selected entries
+    setChartRefreshKey(k => k + 1); // <-- Force chart to re-render/reset
   };
 
   // Calculate highest and lowest among currently selected bars
