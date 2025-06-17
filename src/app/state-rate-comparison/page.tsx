@@ -1264,6 +1264,23 @@ export default function StatePaymentComparison() {
     setChartRefreshKey(k => k + 1);
   };
 
+  // Add this handler near other filter handlers
+  const handleProviderTypeChange = async (providerType: string) => {
+    setSelectedProviderType(providerType);
+    if (typeof refreshData === 'function') {
+      await refreshData({
+        serviceCategory: selectedServiceCategory,
+        state: selectedState,
+        serviceCode: selectedServiceCode,
+        serviceDescription: selectedServiceDescription,
+        program: selectedProgram,
+        locationRegion: selectedLocationRegion,
+        modifier: selectedModifier,
+        providerType: providerType
+      });
+    }
+  };
+
   return (
     <AppLayout activeTab="stateRateComparison">
       <div className="p-4 sm:p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
@@ -1528,7 +1545,7 @@ export default function StatePaymentComparison() {
                               : []
                           }
                           value={selectedProviderType ? { value: selectedProviderType, label: selectedProviderType } : null}
-                          onChange={(option) => setSelectedProviderType(option?.value || "")}
+                          onChange={(option) => handleProviderTypeChange(option?.value || "")}
                           placeholder="Select Provider Type"
                           isSearchable
                           filterOption={customFilterOption}

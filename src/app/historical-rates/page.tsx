@@ -495,7 +495,9 @@ export default function HistoricalRates() {
           (item.modifier_4 && item.modifier_4.split(' - ')[0] === selectedModifierCode);
         if (!hasModifier) return false;
       }
-      if (selectedProviderType && selectedProviderType !== "-" && item.provider_type !== selectedProviderType) return false;
+      if (selectedProviderType && selectedProviderType !== "-") {
+        if (item.provider_type !== selectedProviderType) return false;
+      }
       if (selectedServiceDescription && selectedServiceDescription !== "-" && item.service_description !== selectedServiceDescription) return false;
 
       // Handle "-" selections (empty/null values)
@@ -1047,6 +1049,26 @@ export default function HistoricalRates() {
     return Object.values(grouped) as ServiceData[];
   }, [data, selectedServiceCategory, selectedState, selectedServiceCode, selectedProgram, selectedLocationRegion, selectedModifier, selectedProviderType]);
 
+  // Add this handler near other filter handlers
+  const handleProviderTypeChange = async (providerType: string) => {
+    setSelectedProviderType(providerType);
+    setCurrentPage(1);
+    if (typeof refreshData === 'function') {
+      await refreshData({
+        serviceCategory: selectedServiceCategory,
+        state: selectedState,
+        serviceCode: selectedServiceCode,
+        serviceDescription: selectedServiceDescription,
+        program: selectedProgram,
+        locationRegion: selectedLocationRegion,
+        modifier: selectedModifier,
+        providerType: providerType,
+        page: "1",
+        itemsPerPage: String(itemsPerPage)
+      });
+    }
+  };
+
   // Main render - all hooks have been called by this point
   return (
     <AppLayout activeTab="historicalRates">
@@ -1231,11 +1253,10 @@ export default function HistoricalRates() {
                     <Select
                       options={getDropdownOptions(providerTypes)}
                       value={selectedProviderType ? { value: selectedProviderType, label: selectedProviderType } : null}
-                      onChange={(option) => setSelectedProviderType(option?.value || "")}
+                      onChange={(option) => handleProviderTypeChange(option?.value || "")}
                       placeholder="Select Provider Type"
                       isSearchable
                       filterOption={customFilterOption}
-                      isDisabled={!selectedServiceCode && !selectedServiceDescription}
                       className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
                       classNamePrefix="react-select"
                     />

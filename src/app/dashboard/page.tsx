@@ -339,7 +339,7 @@ export default function Dashboard() {
 
   // Add Fee Schedule Dates Dropdown
   const [selectedFeeScheduleDate, setSelectedFeeScheduleDate] = useState("");
-  const [feeScheduleDates, setFeeScheduleDates] = useState<string[]>([]);
+  
 
   // Add this after other state declarations
   const [allFilterOptions, setAllFilterOptions] = useState<{
@@ -500,9 +500,7 @@ export default function Dashboard() {
       filtered = filtered.filter(item => item.location_region?.trim() === selectedLocationRegion.trim());
     }
 
-    if (selectedProviderType === '-') {
-      filtered = filtered.filter(item => !item.provider_type || item.provider_type.trim() === '');
-    } else if (selectedProviderType) {
+    if (selectedProviderType) {
       filtered = filtered.filter(item => item.provider_type?.trim() === selectedProviderType.trim());
     }
 
@@ -1074,48 +1072,24 @@ export default function Dashboard() {
   const locationRegionId = useId();
   const modifierId = useId();
 
-  useEffect(() => {
-    if (data.length > 0) {
-      // Comment out or remove this line
-      // console.log("Raw rate_effective_date values:", data.map(item => item.rate_effective_date));
-      extractFeeScheduleDates(data);
-    }
-  }, [data]);
-
-  const extractFeeScheduleDates = (data: ServiceData[]) => {
-    const filteredDates = data
-      .filter(item => 
-        (!selectedServiceCategory || item.service_category === selectedServiceCategory) &&
-        (!selectedState || item.state_name.toUpperCase() === selectedState.toUpperCase()) &&
-        (!selectedServiceCode || item.service_code === selectedServiceCode) &&
-        (!selectedServiceDescription || item.service_description === selectedServiceDescription)
-      )
-      .map(item => {
-        const parsedDate = parseDate(item.rate_effective_date);
-        if (!parsedDate) return null; // Skip invalid dates
-        return parsedDate.toISOString().split('T')[0]; // Use ISO format for consistency
-      })
-      .filter((date): date is string => !!date); // Filter out null values
-
-    // Comment out or remove this line
-    // console.log("Extracted Fee Schedule Dates:", filteredDates); // Log the extracted dates
-    setFeeScheduleDates(
-      [...new Set(filteredDates)].sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
-    );
-  };
-
-  useEffect(() => {
-    const loadFeeScheduleDates = async () => {
-      if (selectedState && selectedServiceCategory && selectedServiceCode) {
-        const dates = await fetchFeeScheduleDates(selectedState, selectedServiceCategory, selectedServiceCode);
-        setFeeScheduleDates(dates);
-      } else {
-        setFeeScheduleDates([]);
-      }
-    };
-
-    loadFeeScheduleDates();
-  }, [selectedState, selectedServiceCategory, selectedServiceCode, fetchFeeScheduleDates]);
+  // Remove extractFeeScheduleDates and setFeeScheduleDates, and replace with useMemo for feeScheduleDates
+  const feeScheduleDates = useMemo(() => {
+    return [...new Set(
+      data
+        .filter(item =>
+          (!selectedServiceCategory || item.service_category === selectedServiceCategory) &&
+          (!selectedState || item.state_name.toUpperCase() === selectedState.toUpperCase()) &&
+          (!selectedServiceCode || item.service_code === selectedServiceCode) &&
+          (!selectedServiceDescription || item.service_description === selectedServiceDescription)
+        )
+        .map(item => {
+          const parsedDate = parseDate(item.rate_effective_date);
+          if (!parsedDate) return null;
+          return parsedDate.toISOString().split('T')[0];
+        })
+        .filter((date): date is string => !!date)
+    )].sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+  }, [data, selectedServiceCategory, selectedState, selectedServiceCode, selectedServiceDescription, parseDate]);
 
   // Update the Date Range fields to disable them when a Fee Schedule Date is selected
   const isDateRangeDisabled = !!selectedFeeScheduleDate;
@@ -1396,6 +1370,22 @@ export default function Dashboard() {
     (!!startDate && !!endDate) ||
     !!selectedFeeScheduleDate;
 
+  // Add this handler near other filter handlers
+  const handleProviderTypeChange = async (providerType: string) => {
+    setSelectedProviderType(providerType);
+    setFilterStep(4);
+    await refreshData({
+      serviceCategory: selectedServiceCategory,
+      state: selectedState,
+      serviceCode: selectedServiceCode,
+      serviceDescription: selectedServiceDescription,
+      program: selectedProgram,
+      locationRegion: selectedLocationRegion,
+      modifier: selectedModifier,
+      providerType: providerType
+    });
+  };
+
   return (
     <AppLayout activeTab="dashboard">
       <div className="p-4 sm:p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
@@ -1418,22 +1408,10 @@ export default function Dashboard() {
                   selectsStart
                   startDate={startDate}
                   endDate={endDate}
-                  className={`w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 ${
-                    !isStateSelected || (hasAnyPrimaryFilter && !(startDate && endDate)) ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                  disabled={!isStateSelected || (hasAnyPrimaryFilter && !(startDate && endDate))}
-                  popperClassName="z-[900]" // Adjusted z-index
-                  popperModifiers={[
-                    {
-                      name: 'preventOverflow',
-                      options: {
-                        rootBoundary: 'viewport',
-                        tether: false,
-                        altAxis: true,
-                      },
-                      fn: (state) => state,
-                    },
-                  ]}
+                  className={`w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 ${!isStateSelected ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={!isStateSelected}
+                  popperClassName="z-[900]"
+                  popperModifiers={[{ name: 'preventOverflow', options: { rootBoundary: 'viewport', tether: false, altAxis: true }, fn: (state) => state }]}
                   popperPlacement="bottom-start"
                   portalId="datepicker-portal"
                 />
@@ -1455,22 +1433,10 @@ export default function Dashboard() {
                   startDate={startDate}
                   endDate={endDate}
                   minDate={startDate || undefined}
-                  className={`w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 ${
-                    !isStateSelected || (hasAnyPrimaryFilter && !(startDate && endDate)) ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                  disabled={!isStateSelected || (hasAnyPrimaryFilter && !(startDate && endDate))}
-                  popperClassName="z-[900]" // Adjusted z-index
-                  popperModifiers={[
-                    {
-                      name: 'preventOverflow',
-                      options: {
-                        rootBoundary: 'viewport',
-                        tether: false,
-                        altAxis: true,
-                      },
-                      fn: (state) => state,
-                    },
-                  ]}
+                  className={`w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2 text-gray-700 placeholder-gray-400 ${!isStateSelected ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={!isStateSelected}
+                  popperClassName="z-[900]"
+                  popperModifiers={[{ name: 'preventOverflow', options: { rootBoundary: 'viewport', tether: false, altAxis: true }, fn: (state) => state }]}
                   popperPlacement="bottom-start"
                   portalId="datepicker-portal"
                 />
@@ -1515,12 +1481,8 @@ export default function Dashboard() {
                 }}
                 placeholder="Select Fee Schedule Date"
                 isSearchable
-                isDisabled={
-                  !isStateSelected || (hasAnyPrimaryFilter && !selectedFeeScheduleDate)
-                }
-                className={`react-select-container ${
-                  !isStateSelected || (hasAnyPrimaryFilter && !selectedFeeScheduleDate) ? 'opacity-50' : ''
-                }`}
+                isDisabled={!isStateSelected}
+                className={`react-select-container ${!isStateSelected ? 'opacity-50' : ''}`}
                 classNamePrefix="react-select"
                 menuPortalTarget={document.body}
                 styles={{
@@ -1725,7 +1687,7 @@ export default function Dashboard() {
                 instanceId="providerTypeId"
                 options={getDropdownOptions(providerTypes, false)}
                 value={selectedProviderType ? { value: selectedProviderType, label: selectedProviderType } : null}
-                onChange={(option) => setSelectedProviderType(option?.value || '')}
+                onChange={(option) => handleProviderTypeChange(option?.value || '')}
                 placeholder="Select Provider Type"
                 isSearchable
                 filterOption={customFilterOption}
