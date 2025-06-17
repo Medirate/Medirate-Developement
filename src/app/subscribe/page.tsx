@@ -284,24 +284,32 @@ const StripePricingTableWithFooter = () => {
             <div className="p-8 bg-white rounded-2xl shadow-md border border-gray-200 flex flex-col items-center">
               <h3 className="text-2xl font-bold mb-6 text-[#012C61] font-lemonMilkRegular tracking-wide text-center">Professional Plan</h3>
               <ul className="space-y-5 w-full max-w-md">
-                {[
-                  "Three user accounts included",
-                  "Access to payment rate data for 50 states and the District of Columbia",
-                  `Access to MediRate's comprehensive reimbursement rate database and tracking tools including:\n  • Historical payment rate data\n  • Multi-state rate comparisons\n  • Provider bulletins and other payment rate-related communications\n  • Reimbursement-related legislative activity`,
-                  "Customizable email alerts for real-time updates on topics and states of your choice (In Development)"
-                ].map((feature, idx) => (
-                  <li key={idx} className="flex items-start gap-3 text-base text-gray-800">
-                    <CheckCircle className="text-blue-600 w-5 h-5 flex-shrink-0 mt-0.5" />
-                    <span className="text-left">
-                      {feature.includes("(In Development)") ? (
-                        <>
-                          {feature.replace(" (In Development)", "")}
-                          <span className="text-sm text-gray-400"> (In Development)</span>
-                        </>
-                      ) : feature}
-                    </span>
+                <li className="flex items-start gap-3 text-base text-gray-800">
+                  <CheckCircle className="text-blue-600 w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <span className="text-left">Three user accounts included</span>
                 </li>
-                ))}
+                <li className="flex items-start gap-3 text-base text-gray-800">
+                  <CheckCircle className="text-blue-600 w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <span className="text-left">Access to payment rate data for 50 states and the District of Columbia</span>
+                </li>
+                <li className="flex items-start gap-3 text-base text-gray-800">
+                  <CheckCircle className="text-blue-600 w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <span className="text-left">
+                    Access to MediRate's comprehensive reimbursement rate database and tracking tools including:
+                    <ul className="list-disc ml-8 mt-2 space-y-1 text-gray-700 text-base">
+                      <li>Historical payment rate data</li>
+                      <li>Multi-state rate comparisons</li>
+                      <li>Provider bulletins and other payment rate-related communications</li>
+                      <li>Reimbursement-related legislative activity</li>
+                    </ul>
+                  </span>
+                </li>
+                <li className="flex items-start gap-3 text-base text-gray-800">
+                  <CheckCircle className="text-blue-600 w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <span className="text-left">
+                    Customizable email alerts for real-time updates on topics and states of your choice <span className="text-sm text-gray-400">(In Development)</span>
+                  </span>
+                </li>
               </ul>
             </div>
           </div>
