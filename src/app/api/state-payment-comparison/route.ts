@@ -70,14 +70,9 @@ export async function GET(request: Request) {
         // Base query for filtering
         let baseWhereClause = `
           WHERE TRIM(UPPER(service_category)) = TRIM(UPPER($1))
+            AND TRIM(UPPER(state_name)) = TRIM(UPPER($2))
         `;
-        const baseParams = [serviceCategory];
-
-        // Only add state filter if not "ALL_STATES"
-        if (state !== "ALL_STATES") {
-          baseWhereClause += ` AND TRIM(UPPER(state_name)) = TRIM(UPPER($${baseParams.length + 1}))`;
-          baseParams.push(state);
-        }
+        const baseParams = [serviceCategory, state];
 
         // If service code is provided, add it to the filter
         if (serviceCode) {
