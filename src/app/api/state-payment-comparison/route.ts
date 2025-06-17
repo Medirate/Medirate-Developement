@@ -66,6 +66,19 @@ export async function GET(request: Request) {
         data: [] as any[]
       };
 
+      // --- ADDED: If serviceCategory is provided but no state, get all codes for the category ---
+      if (serviceCategory && !state) {
+        const allCodesQuery = `
+          SELECT DISTINCT service_code
+          FROM master_data_may_30_cleaned
+          WHERE TRIM(UPPER(service_category)) = TRIM(UPPER($1))
+          ORDER BY service_code
+        `;
+        const allCodesResult = await pool.query(allCodesQuery, [serviceCategory]);
+        serviceCodes = allCodesResult.rows.map(r => r.service_code).filter(Boolean);
+      }
+      // --- END ADDED ---
+
       if (serviceCategory && state) {
         // Base query for filtering
         let baseWhereClause = `
@@ -282,6 +295,35 @@ export async function GET(request: Request) {
       });
     }
 
+    // New: State averages for All States chart
+    if (mode === 'stateAverages') {
+      const serviceCategory = searchParams.get('serviceCategory');
+      const serviceCode = searchParams.get('serviceCode');
+      if (!serviceCategory || !serviceCode) {
+        return NextResponse.json({ error: 'Missing serviceCategory or serviceCode' }, { status: 400 });
+      }
+      const avgQuery = `
+        SELECT
+          state_name,
+          AVG(
+            CASE
+              WHEN duration_unit = '15 MINUTES' THEN CAST(REPLACE(rate, '$', '') AS NUMERIC) * 4
+              WHEN duration_unit = '30 MINUTES' THEN CAST(REPLACE(rate, '$', '') AS NUMERIC) * 2
+              WHEN duration_unit = 'PER HOUR' THEN CAST(REPLACE(rate, '$', '') AS NUMERIC)
+              ELSE 0
+            END
+          ) AS avg_rate
+        FROM master_data_may_30_cleaned
+        WHERE TRIM(service_code) = $1
+          AND TRIM(service_category) = $2
+          AND rate IS NOT NULL AND rate <> ''
+        GROUP BY state_name
+        ORDER BY state_name;
+      `;
+      const result = await pool.query(avgQuery, [serviceCode, serviceCategory]);
+      return NextResponse.json({ stateAverages: result.rows });
+    }
+
     // For data mode, get all filters
     const serviceCategory = searchParams.get("serviceCategory");
     const state = searchParams.get("state");
@@ -370,8 +412,8 @@ export async function GET(request: Request) {
     params.push(itemsPerPage, offset);
 
     // Debug logging
-    console.log('Data query:', dataQuery);
-    console.log('Params:', params);
+    console.log('Historical Rates API - Data Query:', dataQuery);
+    console.log('Historical Rates API - Params:', params);
 
     // Get total count for pagination
     const countQuery = `SELECT COUNT(*) FROM master_data_may_30_cleaned ${
@@ -381,6 +423,7 @@ export async function GET(request: Request) {
 
     // Execute data query
     const dataResult = await pool.query(dataQuery, params);
+    console.log('Historical Rates API - Rows returned:', dataResult.rows.length);
 
     // Get filter options for the current data set
     const filterQueries = {

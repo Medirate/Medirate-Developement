@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useId } from "react";
+import { useEffect, useState, useMemo, useId, useCallback } from "react";
 import { Bar } from "react-chartjs-2";
 import Select from "react-select";
 import DatePicker from "react-datepicker";
@@ -209,6 +209,8 @@ export default function StatePaymentComparison() {
   const [filterSetData, setFilterSetData] = useState<{ [index: number]: ServiceData[] }>({});
   const [selectedEntries, setSelectedEntries] = useState<{ [state: string]: ServiceData[] }>({});
   const [chartRefreshKey, setChartRefreshKey] = useState(0);
+  // State to hold all states averages for All States mode
+  const [allStatesAverages, setAllStatesAverages] = useState<{ state_name: string; avg_rate: number }[] | null>(null);
 
   // Existing useMemo hooks
   const areFiltersComplete = useMemo(() => 
@@ -359,8 +361,35 @@ export default function StatePaymentComparison() {
   const handleServiceCategoryChange = async (index: number, category: string) => {
     try {
       setFilterLoading(true);
-      // First update the filter set
     const newFilters = [...filterSets];
+      // If 'All States' is already selected for this filter set, set all states and all codes for the category
+      if (
+        newFilters[index].states.length === filterOptions.states.length ||
+        newFilters[index].states.includes("ALL_STATES")
+      ) {
+        // Set all states
+        const allStates = filterOptions.states;
+        newFilters[index] = {
+          ...newFilters[index],
+          serviceCategory: category,
+          states: allStates,
+          serviceCode: "",
+          serviceCodeOptions: []
+        };
+        // Get all codes for the selected category
+        const allCodes = Array.from(
+          new Set(
+            data
+              .filter(item => item.service_category?.trim() === category.trim())
+              .map(item => item.service_code?.trim())
+          )
+        ).filter(Boolean) as string[];
+        newFilters[index].serviceCodeOptions = allCodes;
+        setFilterSets(newFilters);
+        setFilterLoading(false);
+        return;
+      }
+      // Default: just update the category and clear dependent filters
     newFilters[index] = {
       ...newFilters[index],
       serviceCategory: category,
@@ -369,9 +398,7 @@ export default function StatePaymentComparison() {
         serviceCodeOptions: []
     };
     setFilterSets(newFilters);
-      // Then refresh filters with just the category
       await refreshFilters(category);
-      // Clear dependent filters for this filter set only
       if (index === filterSets.length - 1) {
         setServiceCodes([]);
     setPrograms([]);
@@ -393,6 +420,33 @@ export default function StatePaymentComparison() {
       setFilterLoading(true);
     const newFilters = [...filterSets];
       const selectedState = option?.value || "";
+
+      if (selectedState === "ALL_STATES") {
+        setIsAllStatesSelected(true);
+        // Set all states
+        const allStates = filterOptions.states;
+        newFilters[index] = {
+          ...newFilters[index],
+          states: allStates,
+          serviceCode: "",
+          serviceCodeOptions: []
+        };
+        // Query backend for all codes for the selected category
+        if (newFilters[index].serviceCategory) {
+          const result = await refreshFilters(newFilters[index].serviceCategory);
+          console.log('refreshFilters result:', result);
+          if (result && result.filterOptions && result.filterOptions.serviceCodes) {
+            newFilters[index].serviceCodeOptions = result.filterOptions.serviceCodes;
+          }
+          console.log('serviceCodeOptions after refresh:', newFilters[index].serviceCodeOptions);
+        }
+        setFilterSets(newFilters);
+        setSelectedState("ALL_STATES");
+        setFilterLoading(false);
+        return;
+      } else {
+        setIsAllStatesSelected(false);
+        // Existing logic for single state
     newFilters[index] = {
       ...newFilters[index],
         states: selectedState ? [selectedState] : [],
@@ -419,6 +473,7 @@ export default function StatePaymentComparison() {
         }
       }
       if (index === 0) setSelectedState(selectedState);
+      }
     } catch (error) {
       console.error("Error updating state filters:", error);
       setFilterError("Failed to update state filters. Please try again.");
@@ -427,6 +482,20 @@ export default function StatePaymentComparison() {
     }
   };
 
+  // Fetch state averages for All States mode
+  const fetchAllStatesAverages = useCallback(async (serviceCategory: string, serviceCode: string) => {
+    try {
+      const res = await fetch(`/api/state-payment-comparison?mode=stateAverages&serviceCategory=${encodeURIComponent(serviceCategory)}&serviceCode=${encodeURIComponent(serviceCode)}`);
+      if (!res.ok) throw new Error('Failed to fetch state averages');
+      const data = await res.json();
+      setAllStatesAverages(data.stateAverages || []);
+    } catch (err) {
+      setAllStatesAverages([]);
+      console.error('Error fetching state averages:', err);
+    }
+  }, []);
+
+  // Update handleServiceCodeChange to use the new API in All States mode
   const handleServiceCodeChange = async (index: number, code: string) => {
     try {
       setFilterLoading(true);
@@ -446,6 +515,21 @@ export default function StatePaymentComparison() {
     setServiceDescriptions([]);
       }
     const filterSet = newFilters[index];
+      if (isAllStatesSelected && filterSet.serviceCategory && filterSet.states.length > 0 && code) {
+        // Fetch all state averages for this category and code
+        await fetchAllStatesAverages(filterSet.serviceCategory, code);
+        // Fetch all data for this category and code, across all states
+        const result = await refreshData({
+          serviceCategory: filterSet.serviceCategory,
+          serviceCode: code,
+          itemsPerPage: '1000' // Only set a high limit in All States mode
+        });
+        if (result && result.data) {
+          setData(result.data); // This will update latestRates and the chart
+        }
+      } else {
+        setAllStatesAverages(null); // Clear averages if not in All States mode
+      }
       if (code && filterSet.serviceCategory && filterSet.states.length > 0) {
         // Refresh filters with service code to get all options and data
         const result = await refreshFilters(
@@ -653,126 +737,65 @@ export default function StatePaymentComparison() {
 
   // ✅ Prepare ECharts Data
   const echartOptions = useMemo(() => {
-    if (isAllStatesSelected && filterSets[0]?.serviceCode) {
-      // All States mode: show all states for the selected code
+    if (isAllStatesSelected && filterSets[0]?.serviceCode && allStatesAverages) {
+      // All States mode: use backend-aggregated averages
       const code = filterSets[0].serviceCode;
       const statesList = filterOptions.states;
-      // For each state, get all latest entries for that code
-      const stateAverages = statesList.map(state => {
-        const entries = latestRates.filter(item =>
-          item.state_name?.trim().toUpperCase() === state.trim().toUpperCase() &&
-          item.service_category?.trim() === filterSets[0].serviceCategory.trim() &&
-          item.service_code?.trim() === code.trim()
-        );
-        if (!entries.length) return null;
-        // If user selected entries for this state, use those
-        if (selectedEntries[state] && selectedEntries[state].length > 0) {
-          return selectedEntries[state].map(item => {
-            let rateValue = parseFloat(item.rate?.replace('$', '') || '0');
-            const durationUnit = item.duration_unit?.toUpperCase();
-            if (showRatePerHour) {
-              if (durationUnit === '15 MINUTES') rateValue *= 4;
-              else if (durationUnit === '30 MINUTES') rateValue *= 2;
-              else if (durationUnit !== 'PER HOUR') rateValue = 0;
-            }
-            return rateValue;
-          });
-        }
-        // Otherwise, use the average
-        const avg = entries.reduce((sum, item) => {
-          let rateValue = parseFloat(item.rate?.replace('$', '') || '0');
-          const durationUnit = item.duration_unit?.toUpperCase();
-          if (showRatePerHour) {
-            if (durationUnit === '15 MINUTES') rateValue *= 4;
-            else if (durationUnit === '30 MINUTES') rateValue *= 2;
-            else if (durationUnit !== 'PER HOUR') rateValue = 0;
-          }
-          return sum + rateValue;
-        }, 0) / entries.length;
-        return [avg];
+      // Map state averages to the order of statesList
+      const avgMap = new Map(
+        allStatesAverages.map(row => [row.state_name.trim().toUpperCase(), Number(row.avg_rate)])
+      );
+      const chartData = statesList.map(state => {
+        const avg = avgMap.get(state.trim().toUpperCase());
+        return typeof avg === 'number' && !isNaN(avg) ? avg : undefined;
       });
-      // Flatten for chart
-      const chartData = stateAverages.map(arr => arr ? arr[0] : undefined);
       return {
         legend: { show: false },
-        barCategoryGap: '0%',
-        tooltip: {
-          trigger: 'item',
-          formatter: (params: any) => {
+        barCategoryGap: '30%',
+      tooltip: {
+        trigger: 'item',
+          confine: true,
+          extraCssText: 'max-width: 350px; white-space: normal;',
+          position: (
+            point: any,
+            params: any,
+            dom: any,
+            rect: any,
+            size: any
+          ) => {
+            const [x, y] = point;
+            const chartWidth = size.viewSize[0];
+            const chartHeight = size.viewSize[1];
+            let posX = x;
+            let posY = y;
+            if (x + 350 > chartWidth) posX = chartWidth - 360;
+            if (y + 200 > chartHeight) posY = chartHeight - 210;
+            return [posX, posY];
+          },
+        formatter: (params: any) => {
             const state = params.name;
             const value = params.value;
-            
-            // Find the corresponding data entry for this state
-            const stateEntries = latestRates.filter(item =>
-              item.state_name?.trim().toUpperCase() === state.trim().toUpperCase() &&
-              item.service_category?.trim() === filterSets[0].serviceCategory.trim() &&
-              item.service_code?.trim() === code.trim()
-            );
-            
             let tooltipContent = `<strong>State:</strong> ${state}<br/>`;
             tooltipContent += `<strong>Rate:</strong> $${value?.toFixed(2)}<br/>`;
             tooltipContent += `<strong>Service Category:</strong> ${filterSets[0].serviceCategory}<br/>`;
             tooltipContent += `<strong>Service Code:</strong> ${code}<br/>`;
-            
-            if (stateEntries.length > 0) {
-              const entry = stateEntries[0];
-              if (entry.service_description) {
-                tooltipContent += `<strong>Service Description:</strong> ${entry.service_description}<br/>`;
-              }
-              if (entry.program) {
-                tooltipContent += `<strong>Program:</strong> ${entry.program}<br/>`;
-              }
-              if (entry.location_region) {
-                tooltipContent += `<strong>Location/Region:</strong> ${entry.location_region}<br/>`;
-              }
-              if (entry.provider_type) {
-                tooltipContent += `<strong>Provider Type:</strong> ${entry.provider_type}<br/>`;
-              }
-              if (entry.duration_unit) {
-                tooltipContent += `<strong>Duration Unit:</strong> ${entry.duration_unit}<br/>`;
-              }
-              if (entry.rate_effective_date) {
-                tooltipContent += `<strong>Effective Date:</strong> ${new Date(entry.rate_effective_date).toLocaleDateString()}<br/>`;
-              }
-              
-              // Add modifier information
-              const modifiers = [];
-              if (entry.modifier_1) {
-                modifiers.push(`Modifier 1: ${entry.modifier_1}${entry.modifier_1_details ? ` (${entry.modifier_1_details})` : ''}`);
-              }
-              if (entry.modifier_2) {
-                modifiers.push(`Modifier 2: ${entry.modifier_2}${entry.modifier_2_details ? ` (${entry.modifier_2_details})` : ''}`);
-              }
-              if (entry.modifier_3) {
-                modifiers.push(`Modifier 3: ${entry.modifier_3}${entry.modifier_3_details ? ` (${entry.modifier_3_details})` : ''}`);
-              }
-              if (entry.modifier_4) {
-                modifiers.push(`Modifier 4: ${entry.modifier_4}${entry.modifier_4_details ? ` (${entry.modifier_4_details})` : ''}`);
-              }
-              
-              if (modifiers.length > 0) {
-                tooltipContent += `<strong>Modifiers:</strong><br/>${modifiers.join('<br/>')}`;
-              }
-            }
-            
             return tooltipContent;
-          }
-        },
-        xAxis: {
-          type: 'category',
-          data: statesList,
+        }
+      },
+      xAxis: {
+        type: 'category',
+        data: statesList,
           axisLabel: { rotate: 45, fontSize: 10 }
-        },
-        yAxis: {
-          type: 'value',
-          name: showRatePerHour ? 'Rate ($ per hour)' : 'Rate ($ per base unit)',
-          nameLocation: 'middle',
-          nameGap: 30
-        },
+      },
+      yAxis: {
+        type: 'value',
+        name: showRatePerHour ? 'Rate ($ per hour)' : 'Rate ($ per base unit)',
+        nameLocation: 'middle',
+        nameGap: 30
+      },
         series: [{
           name: 'Rate',
           type: 'bar',
-          barGap: '0%',
           itemStyle: { color: chartJsColors[0] },
           data: chartData,
           label: {
@@ -784,34 +807,49 @@ export default function StatePaymentComparison() {
             fontWeight: 'bold'
           }
         }],
-        grid: {
-          containLabel: true,
-          left: '3%',
-          right: '3%',
-          bottom: '10%',
-          top: '5%'
+      grid: {
+        containLabel: true,
+        left: '3%',
+        right: '3%',
+          bottom: '16%',
+        top: '5%'
         }
       };
-    } else {
-      // Multi-select mode: show grouped bars for selected states and modifiers
-      const states = Object.keys(selectedEntries);
-      if (states.length === 0) {
-        // Return empty chart configuration when no data is selected
-        return {
-          legend: { show: false },
-          tooltip: { show: false },
-          xAxis: { type: 'category', data: [] },
-          yAxis: { type: 'value' },
-          series: [],
-          grid: { containLabel: true }
-        };
-      }
-
-      // Get all unique modifier keys across all states
-      const allModifierKeys = new Set<string>();
-      states.forEach(state => {
-        selectedEntries[state].forEach(item => {
-          const modifierKey = [
+    }
+    // Multi-select/table-driven chart logic
+    const states = Object.keys(selectedEntries);
+    if (states.length === 0) {
+      return {
+        legend: { show: false },
+        tooltip: { show: false },
+        xAxis: { type: 'category', data: [] },
+        yAxis: { type: 'value' },
+        series: [],
+        grid: { containLabel: true }
+      };
+    }
+    // Get all unique modifier keys across all states
+    const allModifierKeys = new Set<string>();
+    states.forEach(state => {
+      selectedEntries[state].forEach(item => {
+        const modifierKey = [
+          item.modifier_1?.trim().toUpperCase() || '',
+          item.modifier_2?.trim().toUpperCase() || '',
+          item.modifier_3?.trim().toUpperCase() || '',
+          item.modifier_4?.trim().toUpperCase() || '',
+          item.program?.trim().toUpperCase() || '',
+          item.location_region?.trim().toUpperCase() || ''
+        ].join('|');
+        allModifierKeys.add(modifierKey);
+      });
+    });
+    const modifierKeys = Array.from(allModifierKeys);
+    const xAxisData: string[] = states;
+    const series = modifierKeys.map((modifierKey, index) => {
+      const data = xAxisData.map(state => {
+        const stateEntries = selectedEntries[state] || [];
+        const matchingEntry = stateEntries.find(item => {
+          const itemModifierKey = [
             item.modifier_1?.trim().toUpperCase() || '',
             item.modifier_2?.trim().toUpperCase() || '',
             item.modifier_3?.trim().toUpperCase() || '',
@@ -819,213 +857,123 @@ export default function StatePaymentComparison() {
             item.program?.trim().toUpperCase() || '',
             item.location_region?.trim().toUpperCase() || ''
           ].join('|');
-          allModifierKeys.add(modifierKey);
+          return itemModifierKey === modifierKey;
         });
+        if (!matchingEntry) return 0; // Always return 0 for missing
+        let rateValue = parseFloat(matchingEntry.rate?.replace('$', '') || '0');
+        const durationUnit = matchingEntry.duration_unit?.toUpperCase();
+        if (showRatePerHour) {
+          if (durationUnit === '15 MINUTES') rateValue *= 4;
+          else if (durationUnit === '30 MINUTES') rateValue *= 2;
+          else if (durationUnit !== 'PER HOUR') rateValue = 0;
+        }
+        return Math.round(rateValue * 100) / 100;
       });
-
-      const modifierKeys = Array.from(allModifierKeys);
-      
-      // Create a single series with all data, but structure it to group by state
-      const allData: Array<{
-        value: number;
-        state: string;
-        modifierKey: string;
-        entry: ServiceData | undefined;
-      }> = [];
-      const xAxisData: string[] = [];
-      
-      states.forEach(state => {
-        // Add the state name to x-axis
-        xAxisData.push(state);
-        
-        // For each modifier, add the data for this state
-        modifierKeys.forEach((modifierKey, modifierIndex) => {
-          const stateEntries = selectedEntries[state] || [];
-          const matchingEntry = stateEntries.find(item => {
-            const itemModifierKey = [
-              item.modifier_1?.trim().toUpperCase() || '',
-              item.modifier_2?.trim().toUpperCase() || '',
-              item.modifier_3?.trim().toUpperCase() || '',
-              item.modifier_4?.trim().toUpperCase() || '',
-              item.program?.trim().toUpperCase() || '',
-              item.location_region?.trim().toUpperCase() || ''
-            ].join('|');
-            return itemModifierKey === modifierKey;
-          });
-
-          let rateValue = 0;
-          if (matchingEntry) {
-            rateValue = parseFloat(matchingEntry.rate?.replace('$', '') || '0');
-            const durationUnit = matchingEntry.duration_unit?.toUpperCase();
-            if (showRatePerHour) {
-              if (durationUnit === '15 MINUTES') rateValue *= 4;
-              else if (durationUnit === '30 MINUTES') rateValue *= 2;
-              else if (durationUnit !== 'PER HOUR') rateValue = 0;
-            }
-            rateValue = Math.round(rateValue * 100) / 100;
-          }
-          
-          allData.push({
-            value: rateValue,
-            state: state,
-            modifierKey: modifierKey,
-            entry: matchingEntry
-          });
-        });
-      });
-
-      const series = modifierKeys.map((modifierKey, index) => {
-        const data = states.map(state => {
-          const stateEntries = selectedEntries[state] || [];
-          const matchingEntry = stateEntries.find(item => {
-            const itemModifierKey = [
-              item.modifier_1?.trim().toUpperCase() || '',
-              item.modifier_2?.trim().toUpperCase() || '',
-              item.modifier_3?.trim().toUpperCase() || '',
-              item.modifier_4?.trim().toUpperCase() || '',
-              item.program?.trim().toUpperCase() || '',
-              item.location_region?.trim().toUpperCase() || ''
-            ].join('|');
-            return itemModifierKey === modifierKey;
-          });
-
-          if (!matchingEntry) return 0;
-
-          let rateValue = parseFloat(matchingEntry.rate?.replace('$', '') || '0');
-          const durationUnit = matchingEntry.duration_unit?.toUpperCase();
-          if (showRatePerHour) {
-            if (durationUnit === '15 MINUTES') rateValue *= 4;
-            else if (durationUnit === '30 MINUTES') rateValue *= 2;
-            else if (durationUnit !== 'PER HOUR') rateValue = 0;
-          }
-          return Math.round(rateValue * 100) / 100;
-        });
-
-        return {
-          name: modifierKey || 'No Modifiers',
-          type: 'bar',
-          barGap: '0%', // Bars within the same state will touch each other
-          data: data,
-          itemStyle: { color: chartJsColors[index % chartJsColors.length] },
-          label: {
-            show: true,
-            position: 'top',
-            formatter: (params: any) => params.value > 0 ? `$${Number(params.value).toFixed(2)}` : '',
-            fontSize: 10,
-            color: '#374151',
-            fontWeight: 'bold'
-          },
-          emphasis: {
-            focus: 'series'
-          }
-        };
-      });
-
       return {
-        legend: { show: false },
-        tooltip: {
-          trigger: 'item', // Changed from 'axis' to 'item' for individual tooltips
-          formatter: (params: any) => {
-            const state = params.name;
-            const seriesName = params.seriesName;
-            const value = params.value;
-            
-            if (value <= 0) return '';
-            
-            // Find the corresponding entry for this state and modifier combination
-            const stateEntries = selectedEntries[state] || [];
-            const matchingEntry = stateEntries.find(item => {
-              const itemModifierKey = [
-                item.modifier_1?.trim().toUpperCase() || '',
-                item.modifier_2?.trim().toUpperCase() || '',
-                item.modifier_3?.trim().toUpperCase() || '',
-                item.modifier_4?.trim().toUpperCase() || '',
-                item.program?.trim().toUpperCase() || '',
-                item.location_region?.trim().toUpperCase() || ''
-              ].join('|');
-              return itemModifierKey === seriesName;
-            });
-            
-            let result = `<strong>State:</strong> ${state}<br/>`;
-            result += `<strong>Series:</strong> ${seriesName}<br/>`;
-            result += `<strong>Rate:</strong> $${value.toFixed(2)}<br/>`;
-            
-            if (matchingEntry) {
-              if (matchingEntry.service_description) {
-                result += `<strong>Description:</strong> ${matchingEntry.service_description}<br/>`;
-              }
-              if (matchingEntry.program) {
-                result += `<strong>Program:</strong> ${matchingEntry.program}<br/>`;
-              }
-              if (matchingEntry.location_region) {
-                result += `<strong>Region:</strong> ${matchingEntry.location_region}<br/>`;
-              }
-              if (matchingEntry.provider_type) {
-                result += `<strong>Provider:</strong> ${matchingEntry.provider_type}<br/>`;
-              }
-              if (matchingEntry.duration_unit) {
-                result += `<strong>Unit:</strong> ${matchingEntry.duration_unit}<br/>`;
-              }
-              if (matchingEntry.rate_effective_date) {
-                result += `<strong>Effective:</strong> ${new Date(matchingEntry.rate_effective_date).toLocaleDateString()}<br/>`;
-              }
-              
-              // Add modifier details
-              const modifiers = [];
-              if (matchingEntry.modifier_1) {
-                modifiers.push(`Mod 1: ${matchingEntry.modifier_1}${matchingEntry.modifier_1_details ? ` (${matchingEntry.modifier_1_details})` : ''}`);
-              }
-              if (matchingEntry.modifier_2) {
-                modifiers.push(`Mod 2: ${matchingEntry.modifier_2}${matchingEntry.modifier_2_details ? ` (${matchingEntry.modifier_2_details})` : ''}`);
-              }
-              if (matchingEntry.modifier_3) {
-                modifiers.push(`Mod 3: ${matchingEntry.modifier_3}${matchingEntry.modifier_3_details ? ` (${matchingEntry.modifier_3_details})` : ''}`);
-              }
-              if (matchingEntry.modifier_4) {
-                modifiers.push(`Mod 4: ${matchingEntry.modifier_4}${matchingEntry.modifier_4_details ? ` (${matchingEntry.modifier_4_details})` : ''}`);
-              }
-              
-              if (modifiers.length > 0) {
-                result += `<strong>Modifiers:</strong><br/>${modifiers.join('<br/>')}`;
-              }
-            }
-            
-            return result;
-          }
+        name: modifierKey || 'No Modifiers',
+        type: 'bar',
+        barGap: '0%',
+        data: data,
+        itemStyle: { color: chartJsColors[index % chartJsColors.length] },
+        label: {
+          show: true,
+          position: 'top',
+          formatter: (params: any) => params.value > 0 ? `$${Number(params.value).toFixed(2)}` : '',
+          fontSize: 10,
+          color: '#374151',
+          fontWeight: 'bold'
         },
-        xAxis: {
-          type: 'category',
-          data: xAxisData,
-          axisLabel: { rotate: 45, fontSize: 10 },
-          axisTick: { show: false }
-        },
-        yAxis: {
-          type: 'value',
-          name: showRatePerHour ? 'Rate ($ per hour)' : 'Rate ($ per base unit)',
-          nameLocation: 'middle',
-          nameGap: 30
-        },
-        series: series,
-        grid: {
-          containLabel: true,
-          left: '3%',
-          right: '3%',
-          bottom: '15%',
-          top: '15%'
+        emphasis: {
+          focus: 'series'
         }
       };
-    }
-    
-    // Fallback: return empty chart configuration if no conditions are met
+    });
     return {
       legend: { show: false },
-      tooltip: { show: false },
-      xAxis: { type: 'category', data: [] },
-      yAxis: { type: 'value' },
-      series: [],
-      grid: { containLabel: true }
+      tooltip: {
+        trigger: 'item',
+        formatter: (params: any) => {
+          const state = params.name;
+          const seriesName = params.seriesName;
+          const value = params.value;
+          if (value <= 0) return '';
+          const stateEntries = selectedEntries[state] || [];
+          const matchingEntry = stateEntries.find(item => {
+            const itemModifierKey = [
+              item.modifier_1?.trim().toUpperCase() || '',
+              item.modifier_2?.trim().toUpperCase() || '',
+              item.modifier_3?.trim().toUpperCase() || '',
+              item.modifier_4?.trim().toUpperCase() || '',
+              item.program?.trim().toUpperCase() || '',
+              item.location_region?.trim().toUpperCase() || ''
+            ].join('|');
+            return itemModifierKey === seriesName;
+          });
+          let result = `<strong>State:</strong> ${state}<br/>`;
+          result += `<strong>Series:</strong> ${seriesName}<br/>`;
+          result += `<strong>Rate:</strong> $${value.toFixed(2)}<br/>`;
+          if (matchingEntry) {
+            if (matchingEntry.service_description) {
+              result += `<strong>Description:</strong> ${matchingEntry.service_description}<br/>`;
+            }
+            if (matchingEntry.program) {
+              result += `<strong>Program:</strong> ${matchingEntry.program}<br/>`;
+            }
+            if (matchingEntry.location_region) {
+              result += `<strong>Region:</strong> ${matchingEntry.location_region}<br/>`;
+            }
+            if (matchingEntry.provider_type) {
+              result += `<strong>Provider:</strong> ${matchingEntry.provider_type}<br/>`;
+            }
+            if (matchingEntry.duration_unit) {
+              result += `<strong>Unit:</strong> ${matchingEntry.duration_unit}<br/>`;
+            }
+            if (matchingEntry.rate_effective_date) {
+              result += `<strong>Effective:</strong> ${new Date(matchingEntry.rate_effective_date).toLocaleDateString()}<br/>`;
+            }
+            const modifiers = [];
+            if (matchingEntry.modifier_1) {
+              modifiers.push(`Mod 1: ${matchingEntry.modifier_1}${matchingEntry.modifier_1_details ? ` (${matchingEntry.modifier_1_details})` : ''}`);
+            }
+            if (matchingEntry.modifier_2) {
+              modifiers.push(`Mod 2: ${matchingEntry.modifier_2}${matchingEntry.modifier_2_details ? ` (${matchingEntry.modifier_2_details})` : ''}`);
+            }
+            if (matchingEntry.modifier_3) {
+              modifiers.push(`Mod 3: ${matchingEntry.modifier_3}${matchingEntry.modifier_3_details ? ` (${matchingEntry.modifier_3_details})` : ''}`);
+            }
+            if (matchingEntry.modifier_4) {
+              modifiers.push(`Mod 4: ${matchingEntry.modifier_4}${matchingEntry.modifier_4_details ? ` (${matchingEntry.modifier_4_details})` : ''}`);
+            }
+            if (modifiers.length > 0) {
+              result += `<strong>Modifiers:</strong><br/>${modifiers.join('<br/>')}`;
+            }
+          }
+          return result;
+        }
+      },
+      xAxis: {
+        type: 'category',
+        data: xAxisData,
+        axisLabel: { rotate: 45, fontSize: 10 },
+        axisTick: { show: false }
+      },
+      yAxis: {
+        type: 'value',
+        name: showRatePerHour ? 'Rate ($ per hour)' : 'Rate ($ per base unit)',
+        nameLocation: 'middle',
+        nameGap: 30
+      },
+      series: series,
+      barCategoryGap: '10%',
+      grid: {
+        containLabel: true,
+        left: '3%',
+        right: '3%',
+        bottom: '15%',
+        top: '15%'
+      }
     };
-  }, [selectedEntries, showRatePerHour, isAllStatesSelected, filterSets, filterOptions.states, latestRates]);
+  }, [selectedEntries, showRatePerHour, isAllStatesSelected, filterSets, filterOptions.states, latestRates, allStatesAverages]);
 
   const ChartWithErrorBoundary = () => {
     try {
@@ -1083,6 +1031,18 @@ export default function StatePaymentComparison() {
 
   // Calculate highest and lowest among currently selected bars
   const selectedRates = useMemo(() => {
+    if (isAllStatesSelected && filterSets[0]?.serviceCode && allStatesAverages) {
+      // Use the chartData for metrics (matches the bars shown)
+      const statesList = filterOptions.states;
+      const avgMap = new Map(
+        allStatesAverages.map(row => [row.state_name.trim().toUpperCase(), Number(row.avg_rate)])
+      );
+      const chartData = statesList.map(state => {
+        const avg = avgMap.get(state.trim().toUpperCase());
+        return typeof avg === 'number' && !isNaN(avg) ? avg : undefined;
+      });
+      return chartData.filter((rate): rate is number => typeof rate === 'number' && !isNaN(rate));
+    }
     // Flatten all selected entries and extract the rate value as a number
     return Object.values(selectedEntries)
       .flat()
@@ -1097,11 +1057,15 @@ export default function StatePaymentComparison() {
         return rateValue;
       })
       .filter(rate => rate > 0);
-  }, [selectedEntries, showRatePerHour]);
+  }, [selectedEntries, showRatePerHour, isAllStatesSelected, filterSets, allStatesAverages, filterOptions.states]);
 
-  const maxRate = useMemo(() => selectedRates.length > 0 ? Math.max(...selectedRates) : 0, [selectedRates]);
-  const minRate = useMemo(() => selectedRates.length > 0 ? Math.min(...selectedRates) : 0, [selectedRates]);
-  const avgRate = useMemo(() => selectedRates.length > 0 ? selectedRates.reduce((sum, rate) => sum + rate, 0) / selectedRates.length : 0, [selectedRates]);
+  const filteredRates = useMemo(
+    () => selectedRates.filter((rate): rate is number => typeof rate === 'number' && !isNaN(rate)),
+    [selectedRates]
+  );
+  const maxRate = useMemo(() => filteredRates.length > 0 ? Math.max(...filteredRates) : 0, [filteredRates]);
+  const minRate = useMemo(() => filteredRates.length > 0 ? Math.min(...filteredRates) : 0, [filteredRates]);
+  const avgRate = useMemo(() => filteredRates.length > 0 ? filteredRates.reduce((sum, rate) => sum + rate, 0) / filteredRates.length : 0, [filteredRates]);
 
   // Calculate national average
   const nationalAverage = useMemo(() => {
@@ -1331,10 +1295,13 @@ export default function StatePaymentComparison() {
         </div>
 
         {/* Loading State */}
-        {dataLoading && (
-          <div className="flex justify-center items-center h-64">
-            <FaSpinner className="animate-spin h-12 w-12 text-blue-500" />
-            <p className="ml-4 text-gray-600">Loading data...</p>
+        {(filterLoading || dataLoading) && (
+          <div className="loader-overlay">
+            <div className="cssloader">
+              <div className="sh1"></div>
+              <div className="sh2"></div>
+              <h4 className="lt">loading</h4>
+            </div>
           </div>
         )}
 
@@ -1427,7 +1394,7 @@ export default function StatePaymentComparison() {
                           instanceId={`service-code-select-${index}`}
                           options={
                             isAllStatesSelected
-                              ? Array.from(new Set(data.filter(item => item.service_category?.trim() === filterSet.serviceCategory.trim()).map(item => item.service_code?.trim()))).filter(Boolean).map(code => ({ value: code, label: code }))
+                              ? filterSet.serviceCodeOptions.map(code => ({ value: code, label: code }))
                               : (filterOptions.serviceCodes || []).map((code) => ({ value: code, label: code }))
                           }
                           value={filterSet.serviceCode ? { value: filterSet.serviceCode, label: filterSet.serviceCode } : null}
@@ -1647,7 +1614,7 @@ export default function StatePaymentComparison() {
             )}
 
             {/* Graph Component */}
-            {Object.values(selectedEntries).length > 0 && echartOptions && (
+            {(isAllStatesSelected && filterSets[0]?.serviceCode && echartOptions) || (Object.values(selectedEntries).length > 0 && echartOptions) ? (
               <>
                 {/* Display the comment above the graph */}
                 {comments.length > 0 && (
@@ -1661,7 +1628,6 @@ export default function StatePaymentComparison() {
                     ))}
                   </div>
                 )}
-
                 {/* Chart component */}
                 <ReactECharts
                   key={JSON.stringify(Object.keys(selectedEntries).sort()) + '-' + chartRefreshKey}
@@ -1669,7 +1635,7 @@ export default function StatePaymentComparison() {
                   style={{ height: '400px', width: '100%' }}
                 />
               </>
-            )}
+            ) : null}
 
             {/* Empty State */}
             {shouldShowEmptyState && (

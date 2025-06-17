@@ -561,6 +561,12 @@ export default function HistoricalRates() {
     selectedServiceDescription
   ]);
 
+  useEffect(() => {
+    if (filteredData.length > 0) {
+      console.log('Sample filteredData:', filteredData.slice(0, 5));
+    }
+  }, [filteredData]);
+
   const getVisibleColumns = useMemo(() => {
     const columns = {
       state_name: false,
@@ -832,7 +838,7 @@ export default function HistoricalRates() {
     setProviderTypes([]);
     setCurrentPage(1); // Reset to first page when filter changes
     if (typeof refreshFilters === 'function') {
-      await refreshFilters(selectedServiceCategory);
+      await refreshFilters(selectedServiceCategory, state);
     }
   };
 
@@ -951,8 +957,8 @@ export default function HistoricalRates() {
 
     let xAxis = entries.map(entry => entry.rate_effective_date);
     let series = entries.map(entry => {
-      const rateValue = parseFloat(entry.rate.replace('$', '') || '0');
-        const durationUnit = entry.duration_unit?.toUpperCase();
+      const rateValue = typeof entry.rate === 'string' ? parseFloat(entry.rate.replace('$', '')) : 0;
+      const durationUnit = entry.duration_unit?.toUpperCase();
       let value = rateValue;
       let displayValue: string | null = null;
 
@@ -1477,7 +1483,7 @@ export default function HistoricalRates() {
                           selectedEntry.provider_type === entry.provider_type &&
                           selectedEntry.rate_effective_date === entry.rate_effective_date;
 
-                        const rateValue = parseFloat(entry.rate.replace('$', '') || '0');
+                        const rateValue = typeof entry.rate === 'string' ? parseFloat(entry.rate.replace('$', '')) : 0;
                         const durationUnit = entry.duration_unit?.toUpperCase();
                       const hourlyRate = durationUnit === '15 MINUTES' ? rateValue * 4 : rateValue;
 
