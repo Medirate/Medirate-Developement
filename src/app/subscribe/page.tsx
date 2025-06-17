@@ -286,8 +286,8 @@ const StripePricingTableWithFooter = () => {
               <ul className="space-y-5 w-full max-w-md">
                 {[
                   "Three user accounts included",
-                  "Ability to add up to ten users on one subscription (In Development)",
-                  "Access to MediRate's comprehensive reimbursement rate database and tracking tools",
+                  "Access to payment rate data for 50 states and the District of Columbia",
+                  `Access to MediRate's comprehensive reimbursement rate database and tracking tools including:\n  • Historical payment rate data\n  • Multi-state rate comparisons\n  • Provider bulletins and other payment rate-related communications\n  • Reimbursement-related legislative activity`,
                   "Customizable email alerts for real-time updates on topics and states of your choice (In Development)"
                 ].map((feature, idx) => (
                   <li key={idx} className="flex items-start gap-3 text-base text-gray-800">
@@ -321,14 +321,6 @@ const StripePricingTableWithFooter = () => {
               Schedule a Demo
             </a>
           </div>
-        </div>
-
-        {/* Professional Discount Banner - Always Visible */}
-        <div className="w-full max-w-4xl mb-8 p-6 bg-gradient-to-r from-blue-700 to-indigo-700 rounded-lg shadow-lg text-white text-center animate-pulse">
-          <h2 className="text-2xl font-bold mb-2">✨ Limited Time Offer ✨</h2>
-          <p className="text-lg mb-4">
-            Use code <span className="font-bold bg-white text-blue-700 px-2 py-1 rounded">MEDICAID20</span> at checkout to get <span className="font-bold">20% off</span> your annual subscription!
-          </p>
         </div>
 
         {/* Registration Form - Show only when authenticated but form not filled and not subscribed */}
