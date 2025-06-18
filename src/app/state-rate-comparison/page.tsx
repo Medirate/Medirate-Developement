@@ -14,6 +14,14 @@ import * as echarts from 'echarts';
 import { useData } from "@/context/DataContext";
 import { useRouter } from "next/navigation";
 import { DataTable } from './DataTable';
+import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
+import { createClient } from "@supabase/supabase-js";
+
+// Initialize Supabase Client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -150,7 +158,7 @@ function getRowKey(item: ServiceData) {
 }
 
 export default function StatePaymentComparison() {
-  // Update useData hook to include all needed functions
+  const { isAuthenticated, isLoading, user } = useKindeBrowserClient();
   const { 
     data, 
     loading: dataLoading, 
@@ -161,6 +169,124 @@ export default function StatePaymentComparison() {
     setData
   } = useData();
   const router = useRouter();
+
+  // Add authentication check
+  useEffect(() => {
+    console.log('Auth State:', { isLoading, isAuthenticated, userEmail: user?.email });
+    if (!isLoading && !isAuthenticated) {
+      console.log('❌ Not authenticated, redirecting to login');
+      router.push("/api/auth/login");
+    } else if (isAuthenticated) {
+      console.log('✅ Authenticated, checking subscription');
+      checkSubscriptionAndSubUser();
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  // Add subscription check function
+  const checkSubscriptionAndSubUser = async () => {
+    const userEmail = user?.email ?? "";
+    const kindeUserId = user?.id ?? "";
+    console.log('🔍 Checking subscription for:', { userEmail, kindeUserId });
+    
+    if (!userEmail || !kindeUserId) {
+      console.log('❌ Missing user email or ID');
+      return;
+    }
+
+    try {
+      // Check if the user is a sub-user
+      console.log('🔍 Checking if user is a sub-user...');
+      const { data: subUserData, error: subUserError } = await supabase
+        .from("subscription_users")
+        .select("sub_users")
+        .contains("sub_users", JSON.stringify([userEmail]));
+
+      if (subUserError) {
+        console.error("❌ Error checking sub-user:", subUserError);
+        console.error("Full error object:", JSON.stringify(subUserError, null, 2));
+        return;
+      }
+
+      console.log('📊 Sub-user check result:', { subUserData });
+
+      if (subUserData && subUserData.length > 0) {
+        console.log('✅ User is a sub-user, checking User table...');
+        // Check if the user already exists in the User table
+        const { data: existingUser, error: fetchError } = await supabase
+          .from("User")
+          .select("Email")
+          .eq("Email", userEmail)
+          .single();
+
+        if (fetchError && fetchError.code !== "PGRST116") { // Ignore "no rows found" error
+          console.error("❌ Error fetching user:", fetchError);
+          return;
+        }
+
+        console.log('📊 Existing user check result:', { existingUser });
+
+        if (existingUser) {
+          console.log('🔄 Updating existing user role to sub-user...');
+          // User exists, update their role to "sub-user"
+          const { error: updateError } = await supabase
+            .from("User")
+            .update({ Role: "sub-user", UpdatedAt: new Date().toISOString() })
+            .eq("Email", userEmail);
+
+          if (updateError) {
+            console.error("❌ Error updating user role:", updateError);
+          } else {
+            console.log("✅ User role updated to sub-user:", userEmail);
+          }
+        } else {
+          console.log('➕ Inserting new sub-user...');
+          // User does not exist, insert them as a sub-user
+          const { error: insertError } = await supabase
+            .from("User")
+            .insert({
+              KindeUserID: kindeUserId,
+              Email: userEmail,
+              Role: "sub-user",
+              UpdatedAt: new Date().toISOString(),
+            });
+
+          if (insertError) {
+            console.error("❌ Error inserting sub-user:", insertError);
+          } else {
+            console.log("✅ Sub-user inserted successfully:", userEmail);
+          }
+        }
+
+        // Allow sub-user to access the dashboard
+        console.log('✅ Sub-user access granted');
+        setIsSubscriptionCheckComplete(true);
+        return;
+      }
+
+      // If not a sub-user, check for an active subscription
+      console.log('🔍 Checking for active subscription...');
+      const response = await fetch("/api/stripe/subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: userEmail }),
+      });
+
+      const data = await response.json();
+      console.log('📊 Subscription check result:', data);
+
+      if (data.error || data.status === 'no_customer' || data.status === 'no_subscription' || data.status === 'no_items') {
+        console.log('❌ No active subscription, redirecting to subscribe page');
+        router.push("/subscribe");
+      } else {
+        console.log('✅ Active subscription found');
+        setIsSubscriptionCheckComplete(true);
+      }
+    } catch (error) {
+      console.error("❌ Error in subscription check:", error);
+      console.log('❌ Redirecting to subscribe page due to error');
+      router.push("/subscribe");
+    }
+  };
 
   // State hooks
   const [filterLoading, setFilterLoading] = useState(false);
@@ -211,6 +337,7 @@ export default function StatePaymentComparison() {
   const [chartRefreshKey, setChartRefreshKey] = useState(0);
   // State to hold all states averages for All States mode
   const [allStatesAverages, setAllStatesAverages] = useState<{ state_name: string; avg_rate: number }[] | null>(null);
+  const [isSubscriptionCheckComplete, setIsSubscriptionCheckComplete] = useState(false);
 
   // Existing useMemo hooks
   const areFiltersComplete = useMemo(() => 
@@ -1280,6 +1407,19 @@ export default function StatePaymentComparison() {
       });
     }
   };
+
+  // Don't render anything until the subscription check is complete
+  if (isLoading || !isAuthenticated || !isSubscriptionCheckComplete) {
+    return (
+      <div className="loader-overlay">
+        <div className="cssloader">
+          <div className="sh1"></div>
+          <div className="sh2"></div>
+          <h4 className="lt">loading</h4>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AppLayout activeTab="stateRateComparison">
