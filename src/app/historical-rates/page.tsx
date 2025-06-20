@@ -457,6 +457,9 @@ export default function HistoricalRates() {
     }
   }, [isAuthenticated, isLoading, router]);
 
+  // Add state to track authentication errors specifically
+  const [authError, setAuthError] = useState<string | null>(null);
+
   // Add pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalCount, setTotalCount] = useState<number>(0);
@@ -712,6 +715,48 @@ export default function HistoricalRates() {
       router.push("/subscribe");
     }
   };
+
+  // Add periodic authentication check for long-running sessions
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const checkAuthStatus = async () => {
+      try {
+        // Make a simple authenticated request to verify the session is still valid
+        const response = await fetch('/api/user');
+        if (response.status === 401) {
+          console.warn('🔄 Session expired, redirecting to login...');
+          setAuthError('Your session has expired. Please sign in again.');
+          router.push("/api/auth/login");
+        }
+      } catch (error) {
+        console.error('Error checking auth status:', error);
+      }
+    };
+
+    // Check authentication status every 5 minutes
+    const authCheckInterval = setInterval(checkAuthStatus, 5 * 60 * 1000);
+
+    // Also check when the page becomes visible again (user returns from another tab)
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isAuthenticated) {
+        checkAuthStatus();
+        
+        // Refresh data if filters are applied
+        if (areFiltersApplied) {
+          console.log('🔄 Tab became visible, refreshing data...');
+          // Since this page uses the shared DataContext, it will auto-refresh
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(authCheckInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isAuthenticated, router, areFiltersApplied]);
 
   // Now the useEffect can safely use checkSubscriptionAndSubUser
   useEffect(() => {
@@ -1084,13 +1129,13 @@ export default function HistoricalRates() {
   // Don't render anything until the subscription check is complete
   if (isLoading || !isAuthenticated || !isSubscriptionCheckComplete) {
     return (
-      <div className="loader-overlay">
-        <div className="cssloader">
-          <div className="sh1"></div>
-          <div className="sh2"></div>
-          <h4 className="lt">loading</h4>
-        </div>
-      </div>
+          <div className="loader-overlay">
+            <div className="cssloader">
+              <div className="sh1"></div>
+              <div className="sh2"></div>
+              <h4 className="lt">loading</h4>
+            </div>
+          </div>
     );
   }
 
@@ -1098,6 +1143,22 @@ export default function HistoricalRates() {
     <AppLayout activeTab="historicalRates">
       <div className="p-4 sm:p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
         <ErrorMessage error={error} />
+        {authError && (
+          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
+            <div className="flex items-center">
+              <div className="h-5 w-5 text-yellow-500 mr-2">⚠️</div>
+              <div>
+                <p className="text-yellow-700 font-medium">{authError}</p>
+                <button
+                  onClick={() => router.push('/api/auth/login')}
+                  className="mt-2 px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors text-sm"
+                >
+                  Sign In Again
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8">
           <h1 className="text-3xl sm:text-5xl md:text-6xl text-[#012C61] font-lemonMilkRegular uppercase mb-3 sm:mb-0">
@@ -1116,575 +1177,575 @@ export default function HistoricalRates() {
           </div>
         </div>
 
-        <button
-          onClick={resetFilters}
+          <button
+            onClick={resetFilters}
           className="px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base bg-[#012C61] text-white rounded-lg hover:bg-blue-800 transition-colors mb-4"
-        >
-          Reset All Filters
-        </button>
+          >
+            Reset All Filters
+          </button>
 
-        <div className="space-y-8">
-          <div className="p-4 sm:p-6 bg-white rounded-xl shadow-lg">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Service Line</label>
-                <Select
-                  options={serviceCategories.map(category => ({ value: category, label: category }))}
-                  value={selectedServiceCategory ? { value: selectedServiceCategory, label: selectedServiceCategory } : null}
-                  onChange={(option) => handleServiceCategoryChange(option?.value || "")}
-                  placeholder="Select Service Line"
-                  isSearchable
-                    filterOption={customFilterOption}
-                  className="react-select-container"
-                  classNamePrefix="react-select"
-                />
-                {selectedServiceCategory && (
-                  <button onClick={() => setSelectedServiceCategory("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
-                )}
-              </div>
-
-              {selectedServiceCategory ? (
+          <div className="space-y-8">
+            <div className="p-4 sm:p-6 bg-white rounded-xl shadow-lg">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">State</label>
+                  <label className="text-sm font-medium text-gray-700">Service Line</label>
                   <Select
-                    options={states.map(state => ({ value: state, label: state }))}
-                    value={selectedState ? { value: selectedState, label: selectedState } : null}
-                    onChange={(option) => handleStateChange(option?.value || "")}
-                    placeholder="Select State"
+                    options={serviceCategories.map(category => ({ value: category, label: category }))}
+                    value={selectedServiceCategory ? { value: selectedServiceCategory, label: selectedServiceCategory } : null}
+                    onChange={(option) => handleServiceCategoryChange(option?.value || "")}
+                    placeholder="Select Service Line"
                     isSearchable
                       filterOption={customFilterOption}
                     className="react-select-container"
                     classNamePrefix="react-select"
                   />
-                  {selectedState && (
-                    <button onClick={() => setSelectedState("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                  {selectedServiceCategory && (
+                    <button onClick={() => setSelectedServiceCategory("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
                   )}
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">State</label>
-                  <div className="text-gray-400 text-sm">
-                    Select a service line first
+
+                {selectedServiceCategory ? (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">State</label>
+                    <Select
+                      options={states.map(state => ({ value: state, label: state }))}
+                      value={selectedState ? { value: selectedState, label: selectedState } : null}
+                      onChange={(option) => handleStateChange(option?.value || "")}
+                      placeholder="Select State"
+                      isSearchable
+                        filterOption={customFilterOption}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                    />
+                    {selectedState && (
+                      <button onClick={() => setSelectedState("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                    )}
                   </div>
-                </div>
-              )}
-
-              {selectedServiceCategory && selectedState ? (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Service Code</label>
-                  <Select
-                    options={filterOptions.serviceCodes?.map(code => ({ value: code, label: code })) || []}
-                    value={selectedServiceCode ? { value: selectedServiceCode, label: selectedServiceCode } : null}
-                    onChange={(option) => handleServiceCodeChange(option?.value || "")}
-                    placeholder={"Select Service Code"}
-                    isDisabled={false}
-                    isSearchable
-                    filterOption={customFilterOption}
-                    className="react-select-container"
-                    classNamePrefix="react-select"
-                  />
-                  {selectedServiceCode && (
-                    <button onClick={() => setSelectedServiceCode("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Service Code</label>
-                  <div className="text-gray-400 text-sm">
-                    {selectedServiceCategory ? "Select a state to see available service codes" : "Select a service line first"}
+                ) : (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">State</label>
+                    <div className="text-gray-400 text-sm">
+                      Select a service line first
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {selectedServiceCategory && selectedState && (selectedServiceCode || selectedServiceDescription) && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Modifier</label>
-                  <Select
-                    options={getDropdownOptions(modifiers.map(m => m.value))}
-                    value={selectedModifier ? { value: selectedModifier, label: selectedModifier } : null}
-                    onChange={(option) => setSelectedModifier(option?.value || "")}
-                    placeholder="Select Modifier"
-                    isSearchable
-                    filterOption={customFilterOption}
-                    isDisabled={!selectedServiceCode && !selectedServiceDescription}
-                    className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
-                    classNamePrefix="react-select"
-                  />
-                  {selectedModifier && selectedModifier !== "-" && (
-                    <button onClick={() => setSelectedModifier("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
-                  )}
-                </div>
-              )}
+                {selectedServiceCategory && selectedState ? (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Service Code</label>
+                    <Select
+                      options={filterOptions.serviceCodes?.map(code => ({ value: code, label: code })) || []}
+                      value={selectedServiceCode ? { value: selectedServiceCode, label: selectedServiceCode } : null}
+                      onChange={(option) => handleServiceCodeChange(option?.value || "")}
+                      placeholder={"Select Service Code"}
+                      isDisabled={false}
+                      isSearchable
+                      filterOption={customFilterOption}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                    />
+                    {selectedServiceCode && (
+                      <button onClick={() => setSelectedServiceCode("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Service Code</label>
+                    <div className="text-gray-400 text-sm">
+                      {selectedServiceCategory ? "Select a state to see available service codes" : "Select a service line first"}
+                    </div>
+                  </div>
+                )}
 
-              {selectedServiceCategory && selectedState && selectedServiceCode && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Program</label>
-                  <Select
-                    options={getDropdownOptions(programs)}
-                    value={selectedProgram ? { value: selectedProgram, label: selectedProgram } : null}
-                    onChange={(option) => setSelectedProgram(option?.value || "")}
-                    placeholder="Select Program"
-                    isSearchable
-                    filterOption={customFilterOption}
-                    className="react-select-container"
-                    classNamePrefix="react-select"
-                  />
-                  {selectedProgram && selectedProgram !== "-" && (
-                    <button onClick={() => setSelectedProgram("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
-                  )}
-                </div>
-              )}
+                {selectedServiceCategory && selectedState && (selectedServiceCode || selectedServiceDescription) && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Modifier</label>
+                    <Select
+                      options={getDropdownOptions(modifiers.map(m => m.value))}
+                      value={selectedModifier ? { value: selectedModifier, label: selectedModifier } : null}
+                      onChange={(option) => setSelectedModifier(option?.value || "")}
+                      placeholder="Select Modifier"
+                      isSearchable
+                      filterOption={customFilterOption}
+                      isDisabled={!selectedServiceCode && !selectedServiceDescription}
+                      className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                      classNamePrefix="react-select"
+                    />
+                    {selectedModifier && selectedModifier !== "-" && (
+                      <button onClick={() => setSelectedModifier("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                    )}
+                  </div>
+                )}
 
-              {selectedServiceCategory && selectedState && selectedServiceCode && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Location/Region</label>
-                  <Select
-                    options={getDropdownOptions(locationRegions)}
-                    value={selectedLocationRegion ? { value: selectedLocationRegion, label: selectedLocationRegion } : null}
-                    onChange={(option) => setSelectedLocationRegion(option?.value || "")}
-                    placeholder="Select Location/Region"
-                    isSearchable
-                    filterOption={customFilterOption}
-                    className="react-select-container"
-                    classNamePrefix="react-select"
-                  />
-                  {selectedLocationRegion && selectedLocationRegion !== "-" && (
-                    <button onClick={() => setSelectedLocationRegion("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
-                  )}
-                </div>
-              )}
+                {selectedServiceCategory && selectedState && selectedServiceCode && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Program</label>
+                    <Select
+                      options={getDropdownOptions(programs)}
+                      value={selectedProgram ? { value: selectedProgram, label: selectedProgram } : null}
+                      onChange={(option) => setSelectedProgram(option?.value || "")}
+                      placeholder="Select Program"
+                      isSearchable
+                      filterOption={customFilterOption}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                    />
+                    {selectedProgram && selectedProgram !== "-" && (
+                      <button onClick={() => setSelectedProgram("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                    )}
+                  </div>
+                )}
 
-              {selectedServiceCategory && selectedState && selectedServiceCode && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Service Description</label>
-                  <Select
-                    options={getDropdownOptions(serviceDescriptions)}
-                    value={selectedServiceDescription ? { value: selectedServiceDescription, label: selectedServiceDescription } : null}
-                    onChange={(option) => handleServiceDescriptionChange(option?.value || "")}
-                    placeholder="Select Service Description"
-                    isSearchable
-                    filterOption={customFilterOption}
-                    className="react-select-container"
-                    classNamePrefix="react-select"
-                  />
-                  {selectedServiceDescription && selectedServiceDescription !== "-" && (
-                    <button onClick={() => setSelectedServiceDescription("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
-                  )}
-                </div>
-              )}
+                {selectedServiceCategory && selectedState && selectedServiceCode && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Location/Region</label>
+                    <Select
+                      options={getDropdownOptions(locationRegions)}
+                      value={selectedLocationRegion ? { value: selectedLocationRegion, label: selectedLocationRegion } : null}
+                      onChange={(option) => setSelectedLocationRegion(option?.value || "")}
+                      placeholder="Select Location/Region"
+                      isSearchable
+                      filterOption={customFilterOption}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                    />
+                    {selectedLocationRegion && selectedLocationRegion !== "-" && (
+                      <button onClick={() => setSelectedLocationRegion("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                    )}
+                  </div>
+                )}
 
-              {selectedServiceCategory && selectedState && selectedServiceCode && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Provider Type</label>
-                  <Select
-                    options={getDropdownOptions(providerTypes)}
-                    value={selectedProviderType ? { value: selectedProviderType, label: selectedProviderType } : null}
+                {selectedServiceCategory && selectedState && selectedServiceCode && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Service Description</label>
+                    <Select
+                      options={getDropdownOptions(serviceDescriptions)}
+                      value={selectedServiceDescription ? { value: selectedServiceDescription, label: selectedServiceDescription } : null}
+                      onChange={(option) => handleServiceDescriptionChange(option?.value || "")}
+                      placeholder="Select Service Description"
+                      isSearchable
+                      filterOption={customFilterOption}
+                      className="react-select-container"
+                      classNamePrefix="react-select"
+                    />
+                    {selectedServiceDescription && selectedServiceDescription !== "-" && (
+                      <button onClick={() => setSelectedServiceDescription("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                    )}
+                  </div>
+                )}
+
+                {selectedServiceCategory && selectedState && selectedServiceCode && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Provider Type</label>
+                    <Select
+                      options={getDropdownOptions(providerTypes)}
+                      value={selectedProviderType ? { value: selectedProviderType, label: selectedProviderType } : null}
                     onChange={(option) => handleProviderTypeChange(option?.value || "")}
-                    placeholder="Select Provider Type"
-                    isSearchable
-                    filterOption={customFilterOption}
-                    className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
-                    classNamePrefix="react-select"
-                  />
-                  {selectedProviderType && selectedProviderType !== "-" && (
-                    <button onClick={() => setSelectedProviderType("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {!areFiltersApplied && (
-            <div className="p-6 bg-white rounded-xl shadow-lg text-center">
-              <div className="flex justify-center items-center mb-4">
-                <FaFilter className="h-8 w-8 text-blue-500" />
+                      placeholder="Select Provider Type"
+                      isSearchable
+                      filterOption={customFilterOption}
+                      className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                      classNamePrefix="react-select"
+                    />
+                    {selectedProviderType && selectedProviderType !== "-" && (
+                      <button onClick={() => setSelectedProviderType("")} className="text-xs text-blue-500 hover:underline mt-1">Clear</button>
+                    )}
+                  </div>
+                )}
               </div>
-              <p className="text-lg font-medium text-gray-700 mb-2">
-                Please select filters to view historical rates
-              </p>
-              <p className="text-sm text-gray-500">
-                Choose a service line, state, and service code to see available rate history
-              </p>
             </div>
-          )}
 
-          {selectedEntry && (
-            <>
-              {comment && (
-                <div className="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-200">
-                  <p className="text-sm text-blue-700">
-                    <strong>Comment:</strong> {comment}
-                  </p>
+            {!areFiltersApplied && (
+              <div className="p-6 bg-white rounded-xl shadow-lg text-center">
+                <div className="flex justify-center items-center mb-4">
+                  <FaFilter className="h-8 w-8 text-blue-500" />
                 </div>
-              )}
+                <p className="text-lg font-medium text-gray-700 mb-2">
+                  Please select filters to view historical rates
+                </p>
+                <p className="text-sm text-gray-500">
+                  Choose a service line, state, and service code to see available rate history
+                </p>
+              </div>
+            )}
 
-              <div className="p-6 bg-white rounded-xl shadow-lg">
-                <h2 className="text-xl font-semibold mb-4 text-gray-800">Rate History</h2>
-                
-                <div className="flex justify-center items-center mb-6">
-                  <div className="flex items-center bg-gray-100 p-1 rounded-lg">
-                    <button
-                      onClick={() => setShowRatePerHour(false)}
-                      className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                        !showRatePerHour
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'text-gray-500 hover:bg-gray-200'
-                      }`}
-                    >
-                      Base Rate
-                    </button>
-                    <button
-                      onClick={() => setShowRatePerHour(true)}
-                      className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                        showRatePerHour
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'text-gray-500 hover:bg-gray-200'
-                      }`}
-                    >
-                      Hourly Equivalent Rate
-                    </button>
+            {selectedEntry && (
+              <>
+                {comment && (
+                  <div className="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-200">
+                    <p className="text-sm text-blue-700">
+                      <strong>Comment:</strong> {comment}
+                    </p>
+                  </div>
+                )}
+
+                <div className="p-6 bg-white rounded-xl shadow-lg">
+                  <h2 className="text-xl font-semibold mb-4 text-gray-800">Rate History</h2>
+                  
+                  <div className="flex justify-center items-center mb-6">
+                    <div className="flex items-center bg-gray-100 p-1 rounded-lg">
+                      <button
+                        onClick={() => setShowRatePerHour(false)}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                          !showRatePerHour
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-gray-500 hover:bg-gray-200'
+                        }`}
+                      >
+                        Base Rate
+                      </button>
+                      <button
+                        onClick={() => setShowRatePerHour(true)}
+                        className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                          showRatePerHour
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-gray-500 hover:bg-gray-200'
+                        }`}
+                      >
+                        Hourly Equivalent Rate
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="w-full h-80">
+                    <ReactECharts
+                      option={{
+                        tooltip: {
+                          trigger: 'axis',
+                          formatter: (params: any) => {
+                            const data = params[0].data;
+                            if (data.displayValue) {
+                              return data.displayValue;
+                            }
+                            const rate = data.value ? `$${data.value.toFixed(2)}` : '-';
+                            
+                            const modifiers = [
+                              data.modifier1 ? `${data.modifier1}${data.modifier1Details ? ` - ${data.modifier1Details}` : ''}` : null,
+                              data.modifier2 ? `${data.modifier2}${data.modifier2Details ? ` - ${data.modifier2Details}` : ''}` : null,
+                              data.modifier3 ? `${data.modifier3}${data.modifier3Details ? ` - ${data.modifier3Details}` : ''}` : null,
+                              data.modifier4 ? `${data.modifier4}${data.modifier4Details ? ` - ${data.modifier4Details}` : ''}` : null
+                            ].filter(Boolean).join('<br>');
+
+                            return `
+                              <b>State:</b> ${data.state || '-'}<br>
+                              <b>Service Code:</b> ${data.serviceCode || '-'}<br>
+                              <b>Program:</b> ${data.program || '-'}<br>
+                              <b>Location/Region:</b> ${data.locationRegion || '-'}<br>
+                              <b>${showRatePerHour ? 'Hourly Equivalent Rate' : 'Rate Per Base Unit'}:</b> ${rate}<br>
+                              <b>Duration Unit:</b> ${data.durationUnit || '-'}<br>
+                              <b>Effective Date:</b> ${data.date || '-'}<br>
+                              ${modifiers ? `<b>Modifiers:</b><br>${modifiers}` : ''}
+                            `;
+                          }
+                        },
+                        xAxis: {
+                          type: 'category',
+                          data: getGraphData().xAxis,
+                          name: 'Effective Date',
+                          nameLocation: 'middle',
+                          nameGap: 30,
+                          axisLabel: {
+                            formatter: (value: string) => value
+                          }
+                        },
+                        yAxis: {
+                          type: 'value',
+                          name: showRatePerHour ? 'Hourly Equivalent Rate ($)' : 'Rate Per Base Unit ($)',
+                          nameLocation: 'middle',
+                          nameGap: 40,
+                          scale: true,
+                          min: (value: { min: number }) => value.min * 0.95,
+                          max: (value: { max: number }) => value.max * 1.05,
+                          axisLabel: {
+                            formatter: (value: number) => value.toFixed(2)
+                          }
+                        },
+                        series: [
+                          {
+                            data: getGraphData().series,
+                            type: 'line',
+                            smooth: false,
+                            itemStyle: {
+                              color: showRatePerHour ? '#ef4444' : '#3b82f6'
+                            },
+                            label: {
+                              show: true,
+                              position: 'top',
+                              formatter: (params: any) => {
+                                if (params.data.displayValue) {
+                                  return params.data.displayValue;
+                                }
+                                return `$${params.value.toFixed(2)}`;
+                              },
+                              fontSize: 12,
+                              color: '#374151'
+                            }
+                          }
+                        ],
+                        graphic: getGraphData().series.some(data => data.displayValue) ? [
+                          {
+                            type: 'text',
+                            left: 'center',
+                            top: 'middle',
+                            style: {
+                              text: `Hourly equivalent rates not available as the duration unit is "${getGraphData().series.find(data => data.displayValue)?.durationUnit || 'Unknown'}"`,
+                              fontSize: 16,
+                              fontWeight: 'bold',
+                              fill: '#666'
+                            }
+                          }
+                        ] : [],
+                        grid: {
+                          containLabel: true,
+                          left: '10%',
+                          right: '3%',
+                          bottom: '10%',
+                          top: '10%'
+                        }
+                      }}
+                      style={{ height: '100%', width: '100%' }}
+                      notMerge={true}
+                      showLoading={filteredData.length === 0}
+                      loadingOption={{
+                        text: 'No data available',
+                        color: '#3b82f6',
+                        textColor: '#374151',
+                        maskColor: 'rgba(255, 255, 255, 0.8)',
+                        zlevel: 0
+                      }}
+                    />
                   </div>
                 </div>
+              </>
+            )}
 
-                <div className="w-full h-80">
-                  <ReactECharts
-                    option={{
-                      tooltip: {
-                        trigger: 'axis',
-                        formatter: (params: any) => {
-                          const data = params[0].data;
-                          if (data.displayValue) {
-                            return data.displayValue;
-                          }
-                          const rate = data.value ? `$${data.value.toFixed(2)}` : '-';
-                          
-                          const modifiers = [
-                            data.modifier1 ? `${data.modifier1}${data.modifier1Details ? ` - ${data.modifier1Details}` : ''}` : null,
-                            data.modifier2 ? `${data.modifier2}${data.modifier2Details ? ` - ${data.modifier2Details}` : ''}` : null,
-                            data.modifier3 ? `${data.modifier3}${data.modifier3Details ? ` - ${data.modifier3Details}` : ''}` : null,
-                            data.modifier4 ? `${data.modifier4}${data.modifier4Details ? ` - ${data.modifier4Details}` : ''}` : null
-                          ].filter(Boolean).join('<br>');
+            {areFiltersApplied && (
+              <div className="overflow-hidden rounded-lg shadow-lg">
+                <div className="overflow-x-auto">
+                <table className="min-w-full bg-white">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider"></th>
+                      {getVisibleColumns.state_name && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">State</th>
+                      )}
+                      {getVisibleColumns.service_category && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Category</th>
+                      )}
+                      {getVisibleColumns.service_code && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Code</th>
+                      )}
+                      {getVisibleColumns.service_description && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Description</th>
+                      )}
+                      {getVisibleColumns.duration_unit && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Duration Unit</th>
+                      )}
+                      {getVisibleColumns.rate && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Rate per Base Unit</th>
+                      )}
+                      {getVisibleColumns.modifier_1 && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 1</th>
+                      )}
+                      {getVisibleColumns.modifier_2 && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 2</th>
+                      )}
+                      {getVisibleColumns.modifier_3 && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
+                      )}
+                      {getVisibleColumns.modifier_4 && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
+                      )}
+                      {getVisibleColumns.rate_effective_date && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Effective Date</th>
+                      )}
+                      {getVisibleColumns.program && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Program</th>
+                      )}
+                      {getVisibleColumns.location_region && (
+                        <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Location/Region</th>
+                      )}
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Provider Type</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                      {tableData.map((item, index) => {
+                        const entry = item as ServiceData;
+                        const isSelected =
+                          selectedEntry &&
+                          selectedEntry.state_name === entry.state_name &&
+                          selectedEntry.service_category === entry.service_category &&
+                          selectedEntry.service_code === entry.service_code &&
+                          selectedEntry.service_description === entry.service_description &&
+                          selectedEntry.program === entry.program &&
+                          selectedEntry.location_region === entry.location_region &&
+                          selectedEntry.modifier_1 === entry.modifier_1 &&
+                          selectedEntry.modifier_1_details === entry.modifier_1_details &&
+                          selectedEntry.modifier_2 === entry.modifier_2 &&
+                          selectedEntry.modifier_2_details === entry.modifier_2_details &&
+                          selectedEntry.modifier_3 === entry.modifier_3 &&
+                          selectedEntry.modifier_3_details === entry.modifier_3_details &&
+                          selectedEntry.modifier_4 === entry.modifier_4 &&
+                          selectedEntry.modifier_4_details === entry.modifier_4_details &&
+                          selectedEntry.duration_unit === entry.duration_unit &&
+                          selectedEntry.provider_type === entry.provider_type &&
+                          selectedEntry.rate_effective_date === entry.rate_effective_date;
 
-                          return `
-                            <b>State:</b> ${data.state || '-'}<br>
-                            <b>Service Code:</b> ${data.serviceCode || '-'}<br>
-                            <b>Program:</b> ${data.program || '-'}<br>
-                            <b>Location/Region:</b> ${data.locationRegion || '-'}<br>
-                            <b>${showRatePerHour ? 'Hourly Equivalent Rate' : 'Rate Per Base Unit'}:</b> ${rate}<br>
-                            <b>Duration Unit:</b> ${data.durationUnit || '-'}<br>
-                            <b>Effective Date:</b> ${data.date || '-'}<br>
-                            ${modifiers ? `<b>Modifiers:</b><br>${modifiers}` : ''}
-                          `;
-                        }
-                      },
-                      xAxis: {
-                        type: 'category',
-                        data: getGraphData().xAxis,
-                        name: 'Effective Date',
-                        nameLocation: 'middle',
-                        nameGap: 30,
-                        axisLabel: {
-                          formatter: (value: string) => value
-                        }
-                      },
-                      yAxis: {
-                        type: 'value',
-                        name: showRatePerHour ? 'Hourly Equivalent Rate ($)' : 'Rate Per Base Unit ($)',
-                        nameLocation: 'middle',
-                        nameGap: 40,
-                        scale: true,
-                        min: (value: { min: number }) => value.min * 0.95,
-                        max: (value: { max: number }) => value.max * 1.05,
-                        axisLabel: {
-                          formatter: (value: number) => value.toFixed(2)
-                        }
-                      },
-                      series: [
-                        {
-                          data: getGraphData().series,
-                          type: 'line',
-                          smooth: false,
-                          itemStyle: {
-                            color: showRatePerHour ? '#ef4444' : '#3b82f6'
-                          },
-                          label: {
-                            show: true,
-                            position: 'top',
-                            formatter: (params: any) => {
-                              if (params.data.displayValue) {
-                                return params.data.displayValue;
-                              }
-                              return `$${params.value.toFixed(2)}`;
-                            },
-                            fontSize: 12,
-                            color: '#374151'
-                          }
-                        }
-                      ],
-                      graphic: getGraphData().series.some(data => data.displayValue) ? [
-                        {
-                          type: 'text',
-                          left: 'center',
-                          top: 'middle',
-                          style: {
-                            text: `Hourly equivalent rates not available as the duration unit is "${getGraphData().series.find(data => data.displayValue)?.durationUnit || 'Unknown'}"`,
-                            fontSize: 16,
-                            fontWeight: 'bold',
-                            fill: '#666'
-                          }
-                        }
-                      ] : [],
-                      grid: {
-                        containLabel: true,
-                        left: '10%',
-                        right: '3%',
-                        bottom: '10%',
-                        top: '10%'
-                      }
-                    }}
-                    style={{ height: '100%', width: '100%' }}
-                    notMerge={true}
-                    showLoading={filteredData.length === 0}
-                    loadingOption={{
-                      text: 'No data available',
-                      color: '#3b82f6',
-                      textColor: '#374151',
-                      maskColor: 'rgba(255, 255, 255, 0.8)',
-                      zlevel: 0
-                    }}
-                  />
-                </div>
-              </div>
-            </>
-          )}
+                        const rateValue = typeof entry.rate === 'string' ? parseFloat(entry.rate.replace('$', '')) : 0;
+                        const durationUnit = entry.duration_unit?.toUpperCase();
+                      const hourlyRate = durationUnit === '15 MINUTES' ? rateValue * 4 : rateValue;
 
-          {areFiltersApplied && (
-            <div className="overflow-hidden rounded-lg shadow-lg">
-              <div className="overflow-x-auto">
-              <table className="min-w-full bg-white">
-                <thead className="bg-gray-50 sticky top-0">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider"></th>
-                    {getVisibleColumns.state_name && (
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">State</th>
-                    )}
-                    {getVisibleColumns.service_category && (
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Category</th>
-                    )}
-                    {getVisibleColumns.service_code && (
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Code</th>
-                    )}
-                    {getVisibleColumns.service_description && (
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Service Description</th>
-                    )}
-                    {getVisibleColumns.duration_unit && (
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Duration Unit</th>
-                    )}
-                    {getVisibleColumns.rate && (
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Rate per Base Unit</th>
-                    )}
-                    {getVisibleColumns.modifier_1 && (
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 1</th>
-                    )}
-                    {getVisibleColumns.modifier_2 && (
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 2</th>
-                    )}
-                    {getVisibleColumns.modifier_3 && (
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 3</th>
-                    )}
-                    {getVisibleColumns.modifier_4 && (
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Modifier 4</th>
-                    )}
-                    {getVisibleColumns.rate_effective_date && (
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Effective Date</th>
-                    )}
-                    {getVisibleColumns.program && (
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Program</th>
-                    )}
-                    {getVisibleColumns.location_region && (
-                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Location/Region</th>
-                    )}
-                    <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Provider Type</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                    {tableData.map((item, index) => {
-                      const entry = item as ServiceData;
-                      const isSelected =
-                        selectedEntry &&
-                        selectedEntry.state_name === entry.state_name &&
-                        selectedEntry.service_category === entry.service_category &&
-                        selectedEntry.service_code === entry.service_code &&
-                        selectedEntry.service_description === entry.service_description &&
-                        selectedEntry.program === entry.program &&
-                        selectedEntry.location_region === entry.location_region &&
-                        selectedEntry.modifier_1 === entry.modifier_1 &&
-                        selectedEntry.modifier_1_details === entry.modifier_1_details &&
-                        selectedEntry.modifier_2 === entry.modifier_2 &&
-                        selectedEntry.modifier_2_details === entry.modifier_2_details &&
-                        selectedEntry.modifier_3 === entry.modifier_3 &&
-                        selectedEntry.modifier_3_details === entry.modifier_3_details &&
-                        selectedEntry.modifier_4 === entry.modifier_4 &&
-                        selectedEntry.modifier_4_details === entry.modifier_4_details &&
-                        selectedEntry.duration_unit === entry.duration_unit &&
-                        selectedEntry.provider_type === entry.provider_type &&
-                        selectedEntry.rate_effective_date === entry.rate_effective_date;
-
-                      const rateValue = typeof entry.rate === 'string' ? parseFloat(entry.rate.replace('$', '')) : 0;
-                      const durationUnit = entry.duration_unit?.toUpperCase();
-                    const hourlyRate = durationUnit === '15 MINUTES' ? rateValue * 4 : rateValue;
-
-                    return (
-                      <tr 
-                        key={index} 
-                        className={`group relative transition-all duration-200 ease-in-out cursor-pointer ${
-                          isSelected 
-                            ? 'bg-blue-50 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]' 
-                            : 'hover:bg-gray-50 hover:shadow-[0_2px_4px_rgba(0,0,0,0.05)] hover:scale-[1.01] hover:z-10'
-                        }`}
-                        onClick={() => setSelectedEntry(entry)}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
-                              isSelected 
-                                ? 'border-blue-500 bg-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.2)]' 
-                                : 'border-gray-300 group-hover:border-blue-300 group-hover:shadow-[0_0_0_2px_rgba(59,130,246,0.1)]'
-                            }`}>
+                      return (
+                        <tr 
+                          key={index} 
+                          className={`group relative transition-all duration-200 ease-in-out cursor-pointer ${
+                            isSelected 
+                              ? 'bg-blue-50 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]' 
+                              : 'hover:bg-gray-50 hover:shadow-[0_2px_4px_rgba(0,0,0,0.05)] hover:scale-[1.01] hover:z-10'
+                          }`}
+                          onClick={() => setSelectedEntry(entry)}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+                                isSelected 
+                                  ? 'border-blue-500 bg-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.2)]' 
+                                  : 'border-gray-300 group-hover:border-blue-300 group-hover:shadow-[0_0_0_2px_rgba(59,130,246,0.1)]'
+                              }`}>
+                                {isSelected && (
+                                  <svg 
+                                    className="w-3 h-3 text-white transition-transform duration-200" 
+                                    fill="none" 
+                                    stroke="currentColor" 
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path 
+                                      strokeLinecap="round" 
+                                      strokeLinejoin="round" 
+                                      strokeWidth={2} 
+                                      d="M5 13l4 4L19 7" 
+                                    />
+                                  </svg>
+                                )}
+                              </div>
                               {isSelected && (
-                                <svg 
-                                  className="w-3 h-3 text-white transition-transform duration-200" 
-                                  fill="none" 
-                                  stroke="currentColor" 
-                                  viewBox="0 0 24 24"
+                                <button
+                                  onClick={e => { e.stopPropagation(); setSelectedEntry(null); }}
+                                  className="ml-2 text-gray-400 hover:text-red-500 transition-colors duration-200"
+                                  title="Deselect"
                                 >
-                                  <path 
-                                    strokeLinecap="round" 
-                                    strokeLinejoin="round" 
-                                    strokeWidth={2} 
-                                    d="M5 13l4 4L19 7" 
-                                  />
-                                </svg>
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                  </svg>
+                                </button>
                               )}
                             </div>
-                            {isSelected && (
-                              <button
-                                onClick={e => { e.stopPropagation(); setSelectedEntry(null); }}
-                                className="ml-2 text-gray-400 hover:text-red-500 transition-colors duration-200"
-                                title="Deselect"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                </svg>
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                        {getVisibleColumns.state_name && (
+                          </td>
+                          {getVisibleColumns.state_name && (
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {STATE_ABBREVIATIONS[entry.state_name?.toUpperCase() || ""] || entry.state_name || '-'}
+                              </td>
+                          )}
+                          {getVisibleColumns.service_category && (
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {SERVICE_CATEGORY_ABBREVIATIONS[entry.service_category?.trim().toUpperCase() || ""] || entry.service_category || '-'}
+                              </td>
+                          )}
+                          {getVisibleColumns.service_code && (
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(entry.service_code)}</td>
+                          )}
+                          {getVisibleColumns.service_description && (
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {STATE_ABBREVIATIONS[entry.state_name?.toUpperCase() || ""] || entry.state_name || '-'}
+                              <CustomTooltip content={entry.service_description || '-'}>
+                                <div className="max-w-[220px] truncate cursor-pointer group">
+                                  <span className="group-hover:text-blue-600 transition-colors duration-200">
+                                    {entry.service_description && entry.service_description.length > 30
+                                      ? entry.service_description.slice(0, 30) + '...'
+                                      : entry.service_description || '-'}
+                                  </span>
+                                </div>
+                              </CustomTooltip>
                             </td>
-                        )}
-                        {getVisibleColumns.service_category && (
+                          )}
+                          {getVisibleColumns.duration_unit && (
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {SERVICE_CATEGORY_ABBREVIATIONS[entry.service_category?.trim().toUpperCase() || ""] || entry.service_category || '-'}
+                                {entry.duration_unit || '-'}
                             </td>
-                        )}
-                        {getVisibleColumns.service_code && (
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatText(entry.service_code)}</td>
-                        )}
-                        {getVisibleColumns.service_description && (
+                          )}
+                          {getVisibleColumns.rate && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {formatCurrency(entry.rate)}
+                            </td>
+                          )}
+                          {getVisibleColumns.modifier_1 && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {entry.modifier_1 ? `${entry.modifier_1}${entry.modifier_1_details ? ` - ${entry.modifier_1_details}` : ''}` : '-'}
+                            </td>
+                          )}
+                          {getVisibleColumns.modifier_2 && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {entry.modifier_2 ? `${entry.modifier_2}${entry.modifier_2_details ? ` - ${entry.modifier_2_details}` : ''}` : '-'}
+                            </td>
+                          )}
+                          {getVisibleColumns.modifier_3 && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {entry.modifier_3 ? `${entry.modifier_3}${entry.modifier_3_details ? ` - ${entry.modifier_3_details}` : ''}` : '-'}
+                            </td>
+                          )}
+                          {getVisibleColumns.modifier_4 && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {entry.modifier_4 ? `${entry.modifier_4}${entry.modifier_4_details ? ` - ${entry.modifier_4_details}` : ''}` : '-'}
+                            </td>
+                          )}
+                          {getVisibleColumns.rate_effective_date && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {entry.rate_effective_date ? new Date(entry.rate_effective_date).toLocaleDateString() : '-'}
+                            </td>
+                          )}
+                          {getVisibleColumns.program && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {entry.program}
+                            </td>
+                          )}
+                          {getVisibleColumns.location_region && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {formatText(entry.location_region)}
+                            </td>
+                          )}
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            <CustomTooltip content={entry.service_description || '-'}>
-                              <div className="max-w-[220px] truncate cursor-pointer group">
-                                <span className="group-hover:text-blue-600 transition-colors duration-200">
-                                  {entry.service_description && entry.service_description.length > 30
-                                    ? entry.service_description.slice(0, 30) + '...'
-                                    : entry.service_description || '-'}
-                                </span>
-                              </div>
-                            </CustomTooltip>
+                              {formatText(entry.provider_type)}
                           </td>
-                        )}
-                        {getVisibleColumns.duration_unit && (
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {entry.duration_unit || '-'}
-                          </td>
-                        )}
-                        {getVisibleColumns.rate && (
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {formatCurrency(entry.rate)}
-                          </td>
-                        )}
-                        {getVisibleColumns.modifier_1 && (
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {entry.modifier_1 ? `${entry.modifier_1}${entry.modifier_1_details ? ` - ${entry.modifier_1_details}` : ''}` : '-'}
-                          </td>
-                        )}
-                        {getVisibleColumns.modifier_2 && (
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {entry.modifier_2 ? `${entry.modifier_2}${entry.modifier_2_details ? ` - ${entry.modifier_2_details}` : ''}` : '-'}
-                          </td>
-                        )}
-                        {getVisibleColumns.modifier_3 && (
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {entry.modifier_3 ? `${entry.modifier_3}${entry.modifier_3_details ? ` - ${entry.modifier_3_details}` : ''}` : '-'}
-                          </td>
-                        )}
-                        {getVisibleColumns.modifier_4 && (
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {entry.modifier_4 ? `${entry.modifier_4}${entry.modifier_4_details ? ` - ${entry.modifier_4_details}` : ''}` : '-'}
-                          </td>
-                        )}
-                        {getVisibleColumns.rate_effective_date && (
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {entry.rate_effective_date ? new Date(entry.rate_effective_date).toLocaleDateString() : '-'}
-                          </td>
-                        )}
-                        {getVisibleColumns.program && (
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {entry.program}
-                          </td>
-                        )}
-                        {getVisibleColumns.location_region && (
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {formatText(entry.location_region)}
-                          </td>
-                        )}
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {formatText(entry.provider_type)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                </div>
+                {totalCount > 0 && (
+                  <PaginationControls 
+                    currentPage={currentPage}
+                    setCurrentPage={setCurrentPage}
+                    totalCount={totalCount}
+                    itemsPerPage={itemsPerPage}
+                  />
+                )}
               </div>
-              {totalCount > 0 && (
-                <PaginationControls 
-                  currentPage={currentPage}
-                  setCurrentPage={setCurrentPage}
-                  totalCount={totalCount}
-                  itemsPerPage={itemsPerPage}
-                />
-              )}
-            </div>
-          )}
+            )}
 
-          {areFiltersApplied && !selectedEntry && (
-            <div className="p-6 bg-white rounded-xl shadow-lg text-center">
-              <div className="flex justify-center items-center mb-4">
-                <FaChartLine className="h-8 w-8 text-blue-500" />
+            {areFiltersApplied && !selectedEntry && (
+              <div className="p-6 bg-white rounded-xl shadow-lg text-center">
+                <div className="flex justify-center items-center mb-4">
+                  <FaChartLine className="h-8 w-8 text-blue-500" />
+                </div>
+                <p className="text-lg font-medium text-gray-700 mb-2">
+                  Select a rate entry to view its historical data
+                </p>
+                <p className="text-sm text-gray-500">
+                  Click on any row in the table above to see the rate history graph
+                </p>
               </div>
-              <p className="text-lg font-medium text-gray-700 mb-2">
-                Select a rate entry to view its historical data
-              </p>
-              <p className="text-sm text-gray-500">
-                Click on any row in the table above to see the rate history graph
-              </p>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
       </div>
     </AppLayout>
   );

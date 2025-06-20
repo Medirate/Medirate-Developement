@@ -182,6 +182,8 @@ export default function StatePaymentComparison() {
     }
   }, [isAuthenticated, isLoading, router]);
 
+  // Will add authentication monitoring after function definitions
+
   // Add subscription check function
   const checkSubscriptionAndSubUser = async () => {
     const userEmail = user?.email ?? "";
@@ -288,6 +290,8 @@ export default function StatePaymentComparison() {
     }
   };
 
+  // Will add periodic authentication check after other hooks
+
   // State hooks
   const [filterLoading, setFilterLoading] = useState(false);
   const [chartLoading, setChartLoading] = useState(false);
@@ -338,8 +342,11 @@ export default function StatePaymentComparison() {
   // State to hold all states averages for All States mode
   const [allStatesAverages, setAllStatesAverages] = useState<{ state_name: string; avg_rate: number }[] | null>(null);
   const [isSubscriptionCheckComplete, setIsSubscriptionCheckComplete] = useState(false);
+  
+  // Add state to track authentication errors specifically
+  const [authError, setAuthError] = useState<string | null>(null);
 
-  // Existing useMemo hooks
+  // Add areFiltersComplete before it's used in useEffect
   const areFiltersComplete = useMemo(() => 
     filterSets.every(filterSet => 
       filterSet.serviceCategory && 
@@ -453,6 +460,49 @@ export default function StatePaymentComparison() {
       return newData;
     });
   };
+
+  // Add periodic authentication check for long-running sessions
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const checkAuthStatus = async () => {
+      try {
+        // Make a simple authenticated request to verify the session is still valid
+        const response = await fetch('/api/user');
+        if (response.status === 401) {
+          console.warn('🔄 Session expired, redirecting to login...');
+          setAuthError('Your session has expired. Please sign in again.');
+          router.push("/api/auth/login");
+        }
+      } catch (error) {
+        console.error('Error checking auth status:', error);
+      }
+    };
+
+    // Check authentication status every 5 minutes
+    const authCheckInterval = setInterval(checkAuthStatus, 5 * 60 * 1000);
+
+    // Also check when the page becomes visible again (user returns from another tab)
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isAuthenticated) {
+        checkAuthStatus();
+        
+        // Refresh data if filters are complete
+        if (areFiltersComplete) {
+          console.log('🔄 Tab became visible, refreshing data...');
+          // Trigger a data refresh for all filter sets
+          setChartRefreshKey(prev => prev + 1);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(authCheckInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isAuthenticated, router, areFiltersComplete]);
 
   // Update useEffect to use refreshData
   useEffect(() => {
@@ -1433,6 +1483,22 @@ export default function StatePaymentComparison() {
           <ErrorMessage error={filterError} />
           <ErrorMessage error={chartError} />
           <ErrorMessage error={tableError} />
+          {authError && (
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
+              <div className="flex items-center">
+                <div className="h-5 w-5 text-yellow-500 mr-2">⚠️</div>
+                <div>
+                  <p className="text-yellow-700 font-medium">{authError}</p>
+                  <button
+                    onClick={() => router.push('/api/auth/login')}
+                    className="mt-2 px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors text-sm"
+                  >
+                    Sign In Again
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Heading with Reset Button */}

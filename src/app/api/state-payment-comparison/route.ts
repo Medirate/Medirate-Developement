@@ -1,8 +1,20 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 
 export async function GET(request: Request) {
   try {
+    // Validate authentication
+    const { getUser } = getKindeServerSession();
+    const user = await getUser();
+    
+    if (!user || !user.email) {
+      console.log('❌ Unauthorized API access attempt');
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    console.log('✅ Authenticated API request from:', user.email);
+
     const { searchParams } = new URL(request.url);
     const mode = searchParams.get("mode"); // New parameter to determine API mode
 
@@ -335,6 +347,7 @@ export async function GET(request: Request) {
     const providerType = searchParams.get("providerType");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
+    const feeScheduleDate = searchParams.get("feeScheduleDate");
     const page = parseInt(searchParams.get("page") || "1");
     const itemsPerPage = parseInt(searchParams.get("itemsPerPage") || "50");
 
@@ -390,9 +403,19 @@ export async function GET(request: Request) {
       params.push(modifier);
     }
 
-    if (startDate && endDate) {
+    // Date filters - prioritize feeScheduleDate over date range
+    if (feeScheduleDate) {
+      whereClause.push(`rate_effective_date = $${params.length + 1}`);
+      params.push(feeScheduleDate);
+    } else if (startDate && endDate) {
       whereClause.push(`rate_effective_date BETWEEN $${params.length + 1} AND $${params.length + 2}`);
       params.push(startDate, endDate);
+    } else if (startDate) {
+      whereClause.push(`rate_effective_date >= $${params.length + 1}`);
+      params.push(startDate);
+    } else if (endDate) {
+      whereClause.push(`rate_effective_date <= $${params.length + 1}`);
+      params.push(endDate);
     }
 
     // Construct the base queries for data

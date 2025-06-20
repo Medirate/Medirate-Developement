@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef, useId } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import AppLayout from "@/app/components/applayout";
-import { FaSpinner, FaExclamationCircle, FaChevronDown, FaFilter } from 'react-icons/fa';
+import { FaExclamationCircle, FaFilter } from 'react-icons/fa';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useData, ServiceData } from "@/context/DataContext";
@@ -17,21 +17,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// Update the useClickOutside hook to use HTMLDivElement
-const useClickOutside = (ref: React.RefObject<HTMLDivElement | null>, callback: () => void) => {
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
-        callback();
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [ref, callback]);
-};
+// Removed unused useClickOutside hook - React-select handles dropdown behavior
 
 const FilterNote = ({ step }: { step: number }) => {
   const messages = [
@@ -168,6 +154,47 @@ export default function Dashboard() {
     }
   }, [isAuthenticated, isLoading, router]);
 
+  // Add a periodic authentication check for long-running sessions
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const checkAuthStatus = async () => {
+      try {
+        // Make a simple authenticated request to verify the session is still valid
+        const response = await fetch('/api/user');
+        if (response.status === 401) {
+          console.warn('🔄 Session expired, redirecting to login...');
+          router.push("/api/auth/login");
+        }
+      } catch (error) {
+        console.error('Error checking auth status:', error);
+      }
+    };
+
+    // Check authentication status every 5 minutes
+    const authCheckInterval = setInterval(checkAuthStatus, 5 * 60 * 1000);
+
+    // Also check when the page becomes visible again (user returns from another tab)
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isAuthenticated) {
+        checkAuthStatus();
+        
+        // If user has searched before and no auth errors, refresh the current data
+        if (hasSearched && !authError && getAreFiltersApplied()) {
+          console.log('🔄 Tab became visible, refreshing current search...');
+          handleSearch();
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(authCheckInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isAuthenticated, router]);
+
   const checkSubscriptionAndSubUser = async () => {
     const userEmail = user?.email ?? "";
     const kindeUserId = user?.id ?? "";
@@ -274,7 +301,10 @@ export default function Dashboard() {
   };
 
   // Update useData destructuring to include refreshFilters
-  const { data, loading, error, filterOptions, refreshData, refreshFilters, fetchFeeScheduleDates } = useData();
+  const { data, loading, error, filterOptions, refreshData, refreshFilters } = useData();
+
+  // Add state to track authentication errors specifically
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Filter states
   const [selectedServiceCategory, setSelectedServiceCategory] = useState("");
@@ -289,14 +319,8 @@ export default function Dashboard() {
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  // Visibility states for dropdowns
-  const [showServiceCategoryDropdown, setShowServiceCategoryDropdown] = useState(false);
-  const [showStateDropdown, setShowStateDropdown] = useState(false);
-  const [showServiceCodeDropdown, setShowServiceCodeDropdown] = useState(false);
-  const [showServiceDescriptionDropdown, setShowServiceDescriptionDropdown] = useState(false);
-  const [showProgramDropdown, setShowProgramDropdown] = useState(false);
-  const [showLocationRegionDropdown, setShowLocationRegionDropdown] = useState(false);
-  const [showModifierDropdown, setShowModifierDropdown] = useState(false);
+  // Dropdown visibility states - now handled by react-select component
+  // Removed unused visibility state variables for cleaner code
 
   // Unique filter options
   const [serviceCategories, setServiceCategories] = useState<string[]>([]);
@@ -308,28 +332,12 @@ export default function Dashboard() {
   const [providerTypes, setProviderTypes] = useState<string[]>([]);
   const [modifiers, setModifiers] = useState<{ value: string; label: string }[]>([]);
 
-  // Calculate dynamic height based on window size
-  const [visibleRows, setVisibleRows] = useState(5); // Default to a minimum number of rows
+  // Add missing variables that are referenced but not declared
+  const [hasSearched, setHasSearched] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
 
-  // Add refs for each dropdown
-  const serviceCategoryRef = useRef<HTMLDivElement>(null);
-  const stateRef = useRef<HTMLDivElement>(null);
-  const serviceCodeRef = useRef<HTMLDivElement>(null);
-  const serviceDescriptionRef = useRef<HTMLDivElement>(null);
-  const programRef = useRef<HTMLDivElement>(null);
-  const locationRegionRef = useRef<HTMLDivElement>(null);
-  const modifierRef = useRef<HTMLDivElement>(null);
-
-  // Use the click-outside hook for each dropdown
-  useClickOutside(serviceCategoryRef, () => setShowServiceCategoryDropdown(false));
-  useClickOutside(stateRef, () => setShowStateDropdown(false));
-  useClickOutside(serviceCodeRef, () => setShowServiceCodeDropdown(false));
-  useClickOutside(serviceDescriptionRef, () => setShowServiceDescriptionDropdown(false));
-  useClickOutside(programRef, () => setShowProgramDropdown(false));
-  useClickOutside(locationRegionRef, () => setShowLocationRegionDropdown(false));
-  useClickOutside(modifierRef, () => setShowModifierDropdown(false));
-
-  const areFiltersApplied = selectedState && selectedServiceCategory;
+  // Removed unused dropdown refs and click-outside handlers
+  // React-select handles dropdown behavior internally
 
   // Add new state for selected year
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
@@ -339,7 +347,6 @@ export default function Dashboard() {
 
   // Add Fee Schedule Dates Dropdown
   const [selectedFeeScheduleDate, setSelectedFeeScheduleDate] = useState("");
-  
 
   // Add this after other state declarations
   const [allFilterOptions, setAllFilterOptions] = useState<{
@@ -371,7 +378,7 @@ export default function Dashboard() {
     preloadFilterOptions();
   }, []);
 
-  // Update handleServiceCategoryChange to use preloaded data
+  // Update handleServiceCategoryChange to properly refresh filter options
   const handleServiceCategoryChange = async (category: string) => {
     console.log('=== Service Category Change ===');
     console.log('Selected category:', category);
@@ -396,15 +403,25 @@ export default function Dashboard() {
     setModifiers([]);
     setProviderTypes([]);
 
-    // Use preloaded states
-    if (allFilterOptions.states) {
-      setStates(allFilterOptions.states);
+    // Refresh filter options for the selected service category
+    try {
+      console.log('🔄 Refreshing filters for service category:', category);
+      await refreshFilters(category);
+      console.log('✅ Filter options refreshed');
+    } catch (error) {
+      console.error('❌ Error refreshing filters:', error);
+      // Fallback to preloaded states if refresh fails
+      if (allFilterOptions.states) {
+        setStates(allFilterOptions.states);
+      }
     }
   };
 
-  // Update useEffect to handle initial filter options
+  // Update useEffect to handle filter options changes
   useEffect(() => {
-    if (filterOptions?.serviceCategories) {
+    console.log('📊 Filter options updated:', filterOptions);
+    
+    if (filterOptions?.serviceCategories && filterOptions.serviceCategories.length > 0) {
       // Deduplicate and sort service categories, but do not change case
       const normalizedCategories = Array.from(
         new Set(
@@ -413,9 +430,11 @@ export default function Dashboard() {
             .filter(Boolean)
         )
       ).sort((a, b) => a.localeCompare(b));
+      console.log('🔄 Setting service categories:', normalizedCategories.length);
       setServiceCategories(normalizedCategories);
     }
-    if (filterOptions?.states) {
+    
+    if (filterOptions?.states && filterOptions.states.length > 0) {
       // Deduplicate and sort states, but do not change case
       const normalizedStates = Array.from(
         new Set(
@@ -424,6 +443,7 @@ export default function Dashboard() {
             .filter(Boolean)
         )
       ).sort((a, b) => a.localeCompare(b));
+      console.log('🔄 Setting states:', normalizedStates.length);
       setStates(normalizedStates);
     }
   }, [filterOptions]);
@@ -439,6 +459,22 @@ export default function Dashboard() {
       setModifiers(filterOptions.modifiers || []);
     }
   }, [filterOptions]);
+
+  // Force re-render of state dropdown when service category changes
+  useEffect(() => {
+    if (selectedServiceCategory && filterOptions?.states && filterOptions.states.length > 0) {
+      console.log('🔄 Service category changed, updating states for:', selectedServiceCategory);
+      const normalizedStates = Array.from(
+        new Set(
+          filterOptions.states
+            .map(state => state?.trim())
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b));
+      setStates(normalizedStates);
+      console.log('✅ States updated:', normalizedStates.length);
+    }
+  }, [selectedServiceCategory, filterOptions?.states]);
 
   // Move the parseDate function here, before filteredData
   const parseDate = (dateString: string | null) => {
@@ -474,91 +510,14 @@ export default function Dashboard() {
     return date;
   };
 
-  // Now the filteredData useMemo hook can safely use parseDate
-  const filteredData = useMemo(() => {
-    if (!selectedState) return [];
-    
-    console.log('=== Filtering Data ===');
-    console.log('Initial data length:', data.length);
-
-    let filtered = data;
-
-    // Apply additional filters if they are selected
-    if (selectedServiceCode) {
-      filtered = filtered.filter(item => item.service_code?.trim() === selectedServiceCode.trim());
-    }
-
-    if (selectedProgram === '-') {
-      filtered = filtered.filter(item => !item.program || item.program.trim() === '');
-    } else if (selectedProgram) {
-      filtered = filtered.filter(item => item.program?.trim() === selectedProgram.trim());
-    }
-
-    if (selectedLocationRegion === '-') {
-      filtered = filtered.filter(item => !item.location_region || item.location_region.trim() === '');
-    } else if (selectedLocationRegion) {
-      filtered = filtered.filter(item => item.location_region?.trim() === selectedLocationRegion.trim());
-    }
-
-    if (selectedProviderType) {
-      filtered = filtered.filter(item => item.provider_type?.trim() === selectedProviderType.trim());
-    }
-
-    if (selectedModifier === '-') {
-      filtered = filtered.filter(item =>
-        (!item.modifier_1 || item.modifier_1.trim() === '') &&
-        (!item.modifier_2 || item.modifier_2.trim() === '') &&
-        (!item.modifier_3 || item.modifier_3.trim() === '') &&
-        (!item.modifier_4 || item.modifier_4.trim() === '')
-      );
-    } else if (selectedModifier) {
-        const selectedModifierCode = selectedModifier.split(' - ')[0];
-      filtered = filtered.filter(item => 
-          (item.modifier_1 && item.modifier_1.split(' - ')[0] === selectedModifierCode) ||
-          (item.modifier_2 && item.modifier_2.split(' - ')[0] === selectedModifierCode) ||
-          (item.modifier_3 && item.modifier_3.split(' - ')[0] === selectedModifierCode) ||
-        (item.modifier_4 && item.modifier_4.split(' - ')[0] === selectedModifierCode)
-      );
-    }
-
-    // Apply date filters
-    filtered = filtered.filter(item => {
-      const parsedDate = parseDate(item.rate_effective_date);
-      if (!parsedDate) return true;
-
-      if (selectedFeeScheduleDate) {
-        const itemDate = parsedDate.toISOString().split('T')[0];
-        return itemDate === selectedFeeScheduleDate;
-      }
-
-      if (selectedYear) {
-        return parsedDate.getFullYear() === selectedYear;
-      }
-
-      if (startDate && endDate) {
-        return parsedDate >= startDate && parsedDate <= endDate;
-      }
-
-      return true;
-    });
-
-    return filtered;
-  }, [
-    data,
-    selectedState,
-    selectedServiceCode,
-    selectedProgram,
-    selectedLocationRegion,
-    selectedModifier,
-    selectedProviderType,
-    selectedFeeScheduleDate,
-    selectedYear,
-    startDate,
-    endDate
-  ]);
+  // Since backend handles all filtering, we use the data directly
+  // No need for complex frontend filtering that duplicates backend work
 
   // Update the sortConfig state initialization
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }[]>([]);
+
+  // Function to check if filters are applied - avoids variable declaration order issues
+  const getAreFiltersApplied = () => selectedState && selectedServiceCategory && (selectedServiceCode || selectedServiceDescription || selectedFeeScheduleDate || (startDate && endDate));
 
   // Update the handleSort function
   const handleSort = (key: string, event: React.MouseEvent) => {
@@ -632,17 +591,22 @@ export default function Dashboard() {
     );
   };
 
-  // Update the sortedData calculation
+  // Simplified sorting using backend-filtered data directly
   const sortedData = useMemo(() => {
-    if (sortConfig.length === 0) return filteredData;
+    if (sortConfig.length === 0) return data;
 
-    return [...filteredData].sort((a, b) => {
+    return [...data].sort((a, b) => {
       for (const sort of sortConfig) {
         let valueA: string | number | Date = a[sort.key] || '';
         let valueB: string | number | Date = b[sort.key] || '';
         
-        // Handle numeric strings
-        if (typeof valueA === 'string' && !isNaN(Number(valueA))) {
+        // Handle rate column specifically
+        if (sort.key === 'rate') {
+          valueA = Number((valueA as string)?.replace(/[^0-9.]/g, "") || 0);
+          valueB = Number((valueB as string)?.replace(/[^0-9.]/g, "") || 0);
+        }
+        // Handle other numeric strings
+        else if (typeof valueA === 'string' && !isNaN(Number(valueA))) {
           valueA = Number(valueA);
           valueB = Number(valueB);
         }
@@ -658,70 +622,11 @@ export default function Dashboard() {
       }
       return 0;
     });
-  }, [filteredData, sortConfig]);
+  }, [data, sortConfig]);
 
-  useEffect(() => {
-    const calculateTableHeight = () => {
-      const windowHeight = window.innerHeight;
-      const headerHeight = 200; // Approximate height of header and other elements
-      const rowHeight = 50; // Approximate height of each row
-      const maxRows = Math.floor((windowHeight - headerHeight) / rowHeight);
-      
-      setVisibleRows(maxRows); // Show all rows that fit
-    };
+  // Removed unused table height calculation
 
-    calculateTableHeight(); // Initial calculation
-
-    const handleResize = () => {
-      calculateTableHeight();
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
-    if (data.length > 0) {
-      // Add data analysis
-      console.log('=== Data Analysis ===');
-      console.log('Total data items:', data.length);
-      
-      // Check specifically for ABA
-      const abaData = data.filter(item => 
-        item.service_category?.trim().toUpperCase() === 'APPLIED BEHAVIOR ANALYSIS'
-      );
-      console.log('ABA entries:', abaData.length);
-      if (abaData.length > 0) {
-        console.log('Sample ABA entries:', abaData.slice(0, 3));
-        console.log('States with ABA:', 
-          [...new Set(abaData.map(item => item.state_name?.trim().toUpperCase()))].sort()
-        );
-      }
-
-      // Check all service categories
-      const allCategories = [...new Set(data.map(item => item.service_category?.trim().toUpperCase()))].filter(Boolean);
-      console.log('All available service categories:', allCategories);
-      
-      // Check data for each category
-      allCategories.forEach(category => {
-        const categoryData = data.filter(item => 
-          item.service_category?.trim().toUpperCase() === category
-        );
-        console.log(`Category "${category}":`, {
-          count: categoryData.length,
-          sampleStates: [...new Set(categoryData.map(item => item.state_name?.trim().toUpperCase()))].slice(0, 3),
-          sampleServiceCodes: [...new Set(categoryData.map(item => item.service_code?.trim()))].slice(0, 3)
-        });
-      });
-      
-      extractFilters(data);
-    }
-  }, [data]);
-
-  useEffect(() => {
-    console.log('Total data:', data.length);
-    console.log('Filtered data:', filteredData.length);
-  }, [data, filteredData]);
+  // Removed expensive data analysis and logging that was causing performance issues
 
   // Update ErrorMessage component to handle null
   const ErrorMessage = ({ error }: { error: string | null }) => {
@@ -737,48 +642,8 @@ export default function Dashboard() {
     );
   };
 
-  const extractFilters = (data: ServiceData[]) => {
-    // Get service categories
-    const categories = data
-      .map((item) => item.service_category?.trim())
-      .filter((category): category is string => !!category);
-    const uniqueCategories = [...new Set(categories)].sort((a, b) => a.localeCompare(b));
-    console.log('Available service categories (with string details):', 
-      uniqueCategories.map(cat => ({
-        category: cat,
-        length: cat.length,
-        charCodes: Array.from(cat).map(c => c.charCodeAt(0))
-      }))
-    );
-    setServiceCategories(uniqueCategories);
-
-    // Get states
-    const states = data
-      .map((item) => item.state_name?.trim().toUpperCase())
-      .filter((state): state is string => !!state);
-    setStates([...new Set(states)].sort((a, b) => a.localeCompare(b)));
-
-    // Get provider types
-    const types = data
-      .map((item) => item.provider_type?.trim())
-      .filter((type): type is string => !!type);
-    setProviderTypes([...new Set(types)].sort((a, b) => a.localeCompare(b)));
-  };
-
-  const toggleDropdown = (dropdownSetter: React.Dispatch<React.SetStateAction<boolean>>, otherSetters: React.Dispatch<React.SetStateAction<boolean>>[]) => {
-    // Close all other dropdowns
-    otherSetters.forEach(setter => setter(false));
-    // Toggle the current dropdown
-    dropdownSetter(prev => !prev);
-  };
-
-  // Utility to ensure selected value is always in options
-  function ensureOptionInList(options: string[], selected: string): string[] {
-    if (selected && !options.includes(selected)) {
-      return [selected, ...options];
-    }
-    return options;
-      }
+  // All filtering now handled by backend for optimal performance
+  // Removed unused dropdown utility functions
 
   const handleServiceCodeChange = async (code: string) => {
     // Find the matching item for this code
@@ -795,11 +660,12 @@ export default function Dashboard() {
     setLocationRegions([]);
     setModifiers([]);
     setProviderTypes([]);
-    await refreshData({
+    const filters = addDateFilters({
       serviceCategory: selectedServiceCategory,
       state: selectedState,
       serviceCode: code // Only use code for backend filtering
     });
+    await refreshData(filters);
   };
 
   const handleServiceDescriptionChange = async (desc: string) => {
@@ -823,11 +689,12 @@ export default function Dashboard() {
     setLocationRegions([]);
     setModifiers([]);
     setProviderTypes([]);
-    await refreshData({
+    const filters = addDateFilters({
       serviceCategory: selectedServiceCategory,
       state: selectedState,
       serviceCode: matchingCode // Only use code for backend filtering
     });
+    await refreshData(filters);
   };
 
   const handleProgramChange = async (program: string) => {
@@ -842,13 +709,14 @@ export default function Dashboard() {
     setProviderTypes([]);
 
     try {
-      await refreshData({
+      const filters = addDateFilters({
         serviceCategory: selectedServiceCategory,
         state: selectedState,
         serviceCode: selectedServiceCode,
         serviceDescription: selectedServiceDescription,
         program: program
       });
+      await refreshData(filters);
     } catch (error) {
       console.error('Error updating program filter:', error);
       setLocalError('Failed to update program filter. Please try again.');
@@ -865,7 +733,7 @@ export default function Dashboard() {
     setProviderTypes([]);
 
     try {
-      await refreshData({
+      const filters = addDateFilters({
         serviceCategory: selectedServiceCategory,
         state: selectedState,
         serviceCode: selectedServiceCode,
@@ -873,6 +741,7 @@ export default function Dashboard() {
         program: selectedProgram,
         locationRegion: region
       });
+      await refreshData(filters);
     } catch (error) {
       console.error('Error updating location/region filter:', error);
       setLocalError('Failed to update location/region filter. Please try again.');
@@ -897,6 +766,7 @@ export default function Dashboard() {
     setSelectedProgram("");
     setSelectedLocationRegion("");
     setSelectedModifier("");
+    setSelectedProviderType("");
     setSelectedFeeScheduleDate("");
     setStartDate(null);
     setEndDate(null);
@@ -905,7 +775,10 @@ export default function Dashboard() {
     setPrograms([]);
     setLocationRegions([]);
     setModifiers([]);
+    setProviderTypes([]);
     setFilterStep(1);
+    setCurrentPage(1);
+    setHasSearched(false);
 
     // Reset to initial filter options
     await refreshFilters();
@@ -944,12 +817,12 @@ export default function Dashboard() {
       await refreshFilters(selectedServiceCategory);
       
       // Then fetch the data with the new state filter
-      const filters = {
+      const filters = addDateFilters({
         serviceCategory: selectedServiceCategory,
         state: state,
         page: "1",
         itemsPerPage: String(itemsPerPage)
-      };
+      });
       
       console.log('Fetching data with filters:', filters);
       const result = await refreshData(filters);
@@ -968,43 +841,8 @@ export default function Dashboard() {
     }
   };
 
-  // Update the dropdown selection logic
-  const handleDropdownSelection = (setter: React.Dispatch<React.SetStateAction<string>>, value: string, type: string) => {
-    setter(value);
-    
-    // Call the appropriate handler based on the filter type
-    switch (type) {
-      case 'serviceCategory':
-        handleServiceCategoryChange(value);
-        break;
-      case 'state':
-        handleStateChange(value);
-        break;
-      case 'serviceCode':
-        handleServiceCodeChange(value);
-        break;
-      case 'program':
-        handleProgramChange(value);
-        break;
-      case 'locationRegion':
-        handleLocationRegionChange(value);
-        break;
-      case 'modifier':
-        // Add modifier-specific logic if needed
-        break;
-      default:
-        break;
-    }
-    
-    // Close all dropdowns
-    setShowServiceCategoryDropdown(false);
-    setShowStateDropdown(false);
-    setShowServiceCodeDropdown(false);
-    setShowServiceDescriptionDropdown(false);
-    setShowProgramDropdown(false);
-    setShowLocationRegionDropdown(false);
-    setShowModifierDropdown(false);
-  };
+  // Removed unused dropdown selection logic
+  // React-select components handle their own dropdown behavior
 
   // Update the handleYearSelect function
   const handleYearSelect = (year: number) => {
@@ -1021,87 +859,65 @@ export default function Dashboard() {
     }
   };
 
-  // Update getVisibleColumns to use the backend data array (data) instead of filteredData
-  const getVisibleColumns = useMemo(() => {
-    const columns = {
-      state_name: false,
-      service_category: false,
-      service_code: false,
-      service_description: false,
-      program: false,
-      location_region: false,
-      modifier_1: false,
-      modifier_2: false,
-      modifier_3: false,
-      modifier_4: false,
-      duration_unit: false,
-      rate: false,
-      rate_effective_date: false,
-      provider_type: false
-    };
-
-    if (data.length > 0) {
-      data.forEach(item => {
-        const rateStr = (item.rate || '').replace('$', '');
-        const rate = parseFloat(rateStr);
-        const durationUnit = item.duration_unit?.toUpperCase();
-        
-        Object.keys(columns).forEach((key) => {
-          const columnKey = key as keyof typeof columns;
-          if (item[columnKey] && item[columnKey] !== '-') {
-            columns[columnKey] = true;
-          }
-        });
-      });
-    }
-
-    return columns;
-  }, [data]);
+  // Removed getVisibleColumns - now using static column layout for better performance
 
   // Create a utility function to format text
   const formatText = (text: string | null | undefined) => {
     return text || '-';
   };
 
-  // Inside your Dashboard component, add this before the return statement
-  const serviceCategoryId = useId();
-  const stateId = useId();
-  const serviceCodeId = useId();
-  const serviceDescriptionId = useId();
-  const programId = useId();
-  const locationRegionId = useId();
-  const modifierId = useId();
+  // Static IDs for form elements (no need for useId() overhead)
+  const serviceCategoryId = "serviceCategorySelect";
+  const stateId = "stateSelect";
+  const serviceCodeId = "serviceCodeSelect";
+  const serviceDescriptionId = "serviceDescriptionSelect";
+  const programId = "programSelect";
+  const locationRegionId = "locationRegionSelect";
+  const modifierId = "modifierSelect";
 
-  // Remove extractFeeScheduleDates and setFeeScheduleDates, and replace with useMemo for feeScheduleDates
+  // Simplified fee schedule dates - let backend handle the filtering
   const feeScheduleDates = useMemo(() => {
+    if (!data.length) return [];
+    
     return [...new Set(
       data
-        .filter(item =>
-          (!selectedServiceCategory || item.service_category === selectedServiceCategory) &&
-          (!selectedState || item.state_name.toUpperCase() === selectedState.toUpperCase()) &&
-          (!selectedServiceCode || item.service_code === selectedServiceCode) &&
-          (!selectedServiceDescription || item.service_description === selectedServiceDescription)
-        )
-        .map(item => {
-          const parsedDate = parseDate(item.rate_effective_date);
-          if (!parsedDate) return null;
-          return parsedDate.toISOString().split('T')[0];
-        })
-        .filter((date): date is string => !!date)
+        .map(item => item.rate_effective_date)
+        .filter((date): date is string => !!date && date.trim() !== '')
     )].sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-  }, [data, selectedServiceCategory, selectedState, selectedServiceCode, selectedServiceDescription, parseDate]);
+  }, [data]);
+
+  // Optimized data processing - pre-compute expensive operations
+  const optimizedData = useMemo(() => {
+    return sortedData.map((item: ServiceData, index: number) => {
+      const num = item.rate ? Number(item.rate.replace(/[^0-9.]/g, "")) : NaN;
+      return {
+        ...item,
+        // Pre-compute expensive string operations
+        stateDisplay: STATE_ABBREVIATIONS[item.state_name?.toUpperCase() || ""] || item.state_name || '-',
+        categoryDisplay: SERVICE_CATEGORY_ABBREVIATIONS[item.service_category?.trim().toUpperCase() || ""] || item.service_category || '-',
+        rateDisplay: item.rate ? (isNaN(num) ? (item.rate.startsWith('$') ? item.rate : ('$' + item.rate)) : `$${num.toFixed(2)}`) : '-',
+        modifier1Display: item.modifier_1 ? `${item.modifier_1}${item.modifier_1_details ? ` - ${item.modifier_1_details}` : ''}` : '-',
+        modifier2Display: item.modifier_2 ? `${item.modifier_2}${item.modifier_2_details ? ` - ${item.modifier_2_details}` : ''}` : '-',
+        modifier3Display: item.modifier_3 ? `${item.modifier_3}${item.modifier_3_details ? ` - ${item.modifier_3_details}` : ''}` : '-',
+        modifier4Display: item.modifier_4 ? `${item.modifier_4}${item.modifier_4_details ? ` - ${item.modifier_4_details}` : ''}` : '-',
+        // Use index as key for better performance
+        rowKey: `row-${index}`
+      };
+    });
+  }, [sortedData]);
 
   // Update the Date Range fields to disable them when a Fee Schedule Date is selected
   const isDateRangeDisabled = !!selectedFeeScheduleDate;
 
-  // Add this after other state declarations
-  const [hasSearched, setHasSearched] = useState(false);
-  const [totalCount, setTotalCount] = useState(0);
-  const handleSearch = async () => {
+  // Variables were moved up to prevent duplication
+  
+  // Remove this definition and define it inline where needed
+  
+  const handleSearch = useCallback(async () => {
     setIsSearching(true);
     try {
       console.log('handleSearch called. currentPage:', currentPage);
-      const filters = {
+      const filters: any = {
         serviceCategory: selectedServiceCategory,
         state: selectedState,
         serviceCode: selectedServiceCode,
@@ -1113,6 +929,18 @@ export default function Dashboard() {
         page: String(currentPage),
         itemsPerPage: String(itemsPerPage)
       };
+
+      // Add date filters if they are set
+      if (selectedFeeScheduleDate) {
+        filters.feeScheduleDate = selectedFeeScheduleDate;
+      } else if (startDate && endDate) {
+        filters.startDate = startDate.toISOString().split('T')[0];
+        filters.endDate = endDate.toISOString().split('T')[0];
+      } else if (startDate) {
+        filters.startDate = startDate.toISOString().split('T')[0];
+      } else if (endDate) {
+        filters.endDate = endDate.toISOString().split('T')[0];
+      }
       
       // Log the filters being sent
       console.log('Filters sent to refreshData:', filters);
@@ -1131,25 +959,52 @@ export default function Dashboard() {
         console.log('Search successful. Data length:', result.data.length);
         setTotalCount(result.totalCount);
         setHasSearched(true);
+        setAuthError(null); // Clear any previous auth errors on success
       } else {
         console.error('Invalid response format:', result);
         setLocalError('Received invalid data format from server');
       }
     } catch (error) {
       console.error('Error fetching data:', error);
-      setLocalError('Failed to fetch data. Please try again.');
+      
+      // Check if it's an authentication error
+      if (error instanceof Error && error.message.includes('Authentication')) {
+        setAuthError('Your session has expired. Please sign in again.');
+        setLocalError(null);
+      } else {
+        setLocalError('Failed to fetch data. Please try again.');
+        setAuthError(null);
+      }
     } finally {
       setIsSearching(false);
     }
-  };
+  }, [
+    currentPage,
+    selectedServiceCategory,
+    selectedState,
+    selectedServiceCode,
+    selectedServiceDescription,
+    selectedProgram,
+    selectedLocationRegion,
+    selectedModifier,
+    selectedProviderType,
+    selectedFeeScheduleDate,
+    startDate,
+    endDate,
+    itemsPerPage,
+    refreshData,
+    setIsSearching,
+    setLocalError,
+    setTotalCount,
+    setHasSearched
+  ]);
 
   // Fetch new data when the page changes (after a search)
   useEffect(() => {
     if (hasSearched) {
       handleSearch();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage]);
+  }, [currentPage, hasSearched, handleSearch]);
 
   // Add pagination controls component
   const PaginationControls = () => {
@@ -1247,11 +1102,7 @@ export default function Dashboard() {
     );
   };
 
-  // Add this before the return statement
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return sortedData.slice(startIndex, startIndex + itemsPerPage);
-  }, [sortedData, currentPage, itemsPerPage]);
+  // Backend handles pagination, so we use sortedData directly
 
   // Don't render anything until the subscription check is complete
   if (isLoading || !isAuthenticated || !isSubscriptionCheckComplete) {
@@ -1271,90 +1122,7 @@ export default function Dashboard() {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   };
 
-  // Add a function to extract filter options from data
-  function extractFilterOptionsFromData(data: ServiceData[]) {
-    const isValidString = (value: any): value is string => 
-      typeof value === 'string' && value.length > 0;
-
-    // Get unique service codes
-    const uniqueServiceCodes = [...new Set(data
-      .map(item => item.service_code?.trim())
-      .filter(isValidString)
-    )].sort() as string[];
-    setServiceCodes(uniqueServiceCodes);
-
-    // Get unique service descriptions
-    const uniqueDescriptions = [...new Set(data
-      .map(item => item.service_description?.trim())
-      .filter(isValidString)
-    )].sort() as string[];
-    setServiceDescriptions(uniqueDescriptions);
-
-    // Get unique programs
-    const uniquePrograms = [...new Set(data
-      .map(item => item.program?.trim())
-      .filter(isValidString)
-    )].sort() as string[];
-    setPrograms(uniquePrograms);
-
-    // Get unique location regions
-    const uniqueRegions = [...new Set(data
-      .map(item => item.location_region?.trim())
-      .filter(isValidString)
-    )].sort() as string[];
-    setLocationRegions(uniqueRegions);
-
-    // Get unique provider types
-    const uniqueProviderTypes = [...new Set(data
-      .map(item => item.provider_type?.trim())
-      .filter(isValidString)
-    )].sort() as string[];
-    setProviderTypes(uniqueProviderTypes);
-
-    // Get unique modifiers
-    const allModifiers = data.flatMap(item => {
-      const modifiers = [];
-      if (item.modifier_1) {
-        modifiers.push({
-          value: item.modifier_1.trim(),
-          details: item.modifier_1_details?.trim() || '',
-          fullText: `${item.modifier_1.trim()}${item.modifier_1_details ? ` - ${item.modifier_1_details.trim()}` : ''}`
-        });
-      }
-      if (item.modifier_2) {
-        modifiers.push({
-          value: item.modifier_2.trim(),
-          details: item.modifier_2_details?.trim() || '',
-          fullText: `${item.modifier_2.trim()}${item.modifier_2_details ? ` - ${item.modifier_2_details.trim()}` : ''}`
-        });
-      }
-      if (item.modifier_3) {
-        modifiers.push({
-          value: item.modifier_3.trim(),
-          details: item.modifier_3_details?.trim() || '',
-          fullText: `${item.modifier_3.trim()}${item.modifier_3_details ? ` - ${item.modifier_3_details.trim()}` : ''}`
-        });
-      }
-      if (item.modifier_4) {
-        modifiers.push({
-          value: item.modifier_4.trim(),
-          details: item.modifier_4_details?.trim() || '',
-          fullText: `${item.modifier_4.trim()}${item.modifier_4_details ? ` - ${item.modifier_4_details.trim()}` : ''}`
-        });
-      }
-      return modifiers;
-    });
-
-    const uniqueModifiers = [...new Set(allModifiers.map(mod => mod.fullText))].map(fullText => {
-      const mod = allModifiers.find(m => m.fullText === fullText);
-      return {
-        value: fullText,
-        label: fullText,
-        details: mod?.details || ''
-      };
-    });
-    setModifiers(uniqueModifiers);
-  }
+  // Filter options are now handled by the backend API
 
   // Replace the getDropdownOptions function with the following:
   const getDropdownOptions = (options: (Option | string)[], isMandatory: boolean): readonly Option[] => {
@@ -1370,11 +1138,26 @@ export default function Dashboard() {
     (!!startDate && !!endDate) ||
     !!selectedFeeScheduleDate;
 
+  // Helper function to add date filters to any filter object
+  const addDateFilters = (filters: any) => {
+    if (selectedFeeScheduleDate) {
+      filters.feeScheduleDate = selectedFeeScheduleDate;
+    } else if (startDate && endDate) {
+      filters.startDate = startDate.toISOString().split('T')[0];
+      filters.endDate = endDate.toISOString().split('T')[0];
+    } else if (startDate) {
+      filters.startDate = startDate.toISOString().split('T')[0];
+    } else if (endDate) {
+      filters.endDate = endDate.toISOString().split('T')[0];
+    }
+    return filters;
+  };
+
   // Add this handler near other filter handlers
   const handleProviderTypeChange = async (providerType: string) => {
     setSelectedProviderType(providerType);
     setFilterStep(4);
-    await refreshData({
+    const filters = addDateFilters({
       serviceCategory: selectedServiceCategory,
       state: selectedState,
       serviceCode: selectedServiceCode,
@@ -1384,13 +1167,166 @@ export default function Dashboard() {
       modifier: selectedModifier,
       providerType: providerType
     });
+    await refreshData(filters);
   };
+
+  // Add date filter handlers
+  const handleStartDateChange = async (date: Date | null) => {
+    setStartDate(date);
+    if (date && !endDate) {
+      // If only start date is set, don't trigger refresh yet
+      return;
+    }
+    if (date && endDate) {
+      // Both dates are set, trigger refresh
+      await refreshData({
+        serviceCategory: selectedServiceCategory,
+        state: selectedState,
+        serviceCode: selectedServiceCode,
+        serviceDescription: selectedServiceDescription,
+        program: selectedProgram,
+        locationRegion: selectedLocationRegion,
+        modifier: selectedModifier,
+        providerType: selectedProviderType,
+        startDate: date.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0]
+      });
+    }
+  };
+
+  const handleEndDateChange = async (date: Date | null) => {
+    setEndDate(date);
+    if (date && startDate) {
+      // Both dates are set, trigger refresh
+      await refreshData({
+        serviceCategory: selectedServiceCategory,
+        state: selectedState,
+        serviceCode: selectedServiceCode,
+        serviceDescription: selectedServiceDescription,
+        program: selectedProgram,
+        locationRegion: selectedLocationRegion,
+        modifier: selectedModifier,
+        providerType: selectedProviderType,
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: date.toISOString().split('T')[0]
+      });
+    }
+  };
+
+  const handleFeeScheduleDateChange = async (feeScheduleDate: string) => {
+    setSelectedFeeScheduleDate(feeScheduleDate);
+    if (feeScheduleDate) {
+      setStartDate(null);
+      setEndDate(null);
+      await refreshData({
+        serviceCategory: selectedServiceCategory,
+        state: selectedState,
+        serviceCode: selectedServiceCode,
+        serviceDescription: selectedServiceDescription,
+        program: selectedProgram,
+        locationRegion: selectedLocationRegion,
+        modifier: selectedModifier,
+        providerType: selectedProviderType,
+        feeScheduleDate: feeScheduleDate
+      });
+    } else {
+      // Clear fee schedule date filter
+      await refreshData({
+        serviceCategory: selectedServiceCategory,
+        state: selectedState,
+        serviceCode: selectedServiceCode,
+        serviceDescription: selectedServiceDescription,
+        program: selectedProgram,
+        locationRegion: selectedLocationRegion,
+        modifier: selectedModifier,
+        providerType: selectedProviderType
+      });
+    }
+  };
+
+  const handleStartDateClear = async () => {
+    setStartDate(null);
+    if (endDate) {
+      // If end date is still set, just clear start date from backend
+      await refreshData({
+        serviceCategory: selectedServiceCategory,
+        state: selectedState,
+        serviceCode: selectedServiceCode,
+        serviceDescription: selectedServiceDescription,
+        program: selectedProgram,
+        locationRegion: selectedLocationRegion,
+        modifier: selectedModifier,
+        providerType: selectedProviderType,
+        endDate: endDate.toISOString().split('T')[0]
+      });
+    } else {
+      // Clear all date filters
+      await refreshData({
+        serviceCategory: selectedServiceCategory,
+        state: selectedState,
+        serviceCode: selectedServiceCode,
+        serviceDescription: selectedServiceDescription,
+        program: selectedProgram,
+        locationRegion: selectedLocationRegion,
+        modifier: selectedModifier,
+        providerType: selectedProviderType
+      });
+    }
+  };
+
+  const handleEndDateClear = async () => {
+    setEndDate(null);
+    if (startDate) {
+      // If start date is still set, just clear end date from backend
+      await refreshData({
+        serviceCategory: selectedServiceCategory,
+        state: selectedState,
+        serviceCode: selectedServiceCode,
+        serviceDescription: selectedServiceDescription,
+        program: selectedProgram,
+        locationRegion: selectedLocationRegion,
+        modifier: selectedModifier,
+        providerType: selectedProviderType,
+        startDate: startDate.toISOString().split('T')[0]
+      });
+    } else {
+      // Clear all date filters
+      await refreshData({
+        serviceCategory: selectedServiceCategory,
+        state: selectedState,
+        serviceCode: selectedServiceCode,
+        serviceDescription: selectedServiceDescription,
+        program: selectedProgram,
+        locationRegion: selectedLocationRegion,
+        modifier: selectedModifier,
+        providerType: selectedProviderType
+      });
+    }
+  };
+
+  // All hooks properly organized at component top level
 
   return (
     <AppLayout activeTab="dashboard">
       <div className="p-4 sm:p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
-        {/* Error Message */}
+        {/* Error Messages */}
         <ErrorMessage error={localError} />
+        {authError && (
+          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
+            <div className="flex items-center">
+              <FaExclamationCircle className="h-5 w-5 text-yellow-500 mr-2" />
+              <div>
+                <p className="text-yellow-700 font-medium">{authError}</p>
+                <button
+                  onClick={() => router.push('/api/auth/login')}
+                  className="mt-2 px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors text-sm"
+                >
+                  Sign In Again
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Heading and Date Range */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8">
@@ -1404,7 +1340,7 @@ export default function Dashboard() {
                 <label className="block text-sm font-medium text-[#012C61] mb-2">Start Date</label>
                 <DatePicker
                   selected={startDate}
-                  onChange={(date: Date | null) => date && setStartDate(date)}
+                  onChange={handleStartDateChange}
                   selectsStart
                   startDate={startDate}
                   endDate={endDate}
@@ -1417,7 +1353,7 @@ export default function Dashboard() {
                 />
                 {startDate && (
                   <button
-                    onClick={() => setStartDate(null)}
+                    onClick={handleStartDateClear}
                     className="text-xs text-blue-500 hover:underline mt-1"
                   >
                     Clear
@@ -1428,7 +1364,7 @@ export default function Dashboard() {
                 <label className="block text-sm font-medium text-[#012C61] mb-2">End Date</label>
                 <DatePicker
                   selected={endDate}
-                  onChange={(date: Date | null) => date && setEndDate(date)}
+                  onChange={handleEndDateChange}
                   selectsEnd
                   startDate={startDate}
                   endDate={endDate}
@@ -1442,7 +1378,7 @@ export default function Dashboard() {
                 />
                 {endDate && (
                   <button
-                    onClick={() => setEndDate(null)}
+                    onClick={handleEndDateClear}
                     className="text-xs text-blue-500 hover:underline mt-1"
                   >
                     Clear
@@ -1472,13 +1408,7 @@ export default function Dashboard() {
                     return `${month}/${day}/${year}`;
                   })()
                 } : null}
-                onChange={(option) => {
-                  setSelectedFeeScheduleDate(option?.value || "");
-                  if (option?.value) {
-                    setStartDate(null);
-                    setEndDate(null);
-                  }
-                }}
+                onChange={(option) => handleFeeScheduleDateChange(option?.value || "")}
                 placeholder="Select Fee Schedule Date"
                 isSearchable
                 isDisabled={!isStateSelected}
@@ -1490,7 +1420,7 @@ export default function Dashboard() {
                 }}
               />
               {selectedFeeScheduleDate && (
-                <ClearButton onClick={() => setSelectedFeeScheduleDate("")} />
+                <ClearButton onClick={() => handleFeeScheduleDateChange("")} />
               )}
             </div>
           </div>
@@ -1708,7 +1638,7 @@ export default function Dashboard() {
         </div>
 
         {/* Sorting Instructions - Show above table when filters aren't applied */}
-        {!loading && !areFiltersApplied && (
+        {!loading && !(selectedState && selectedServiceCategory && (selectedServiceCode || selectedServiceDescription || selectedFeeScheduleDate || (startDate && endDate))) && (
         <div className="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-200">
           <div className="flex items-center space-x-2 mb-2">
             <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1738,22 +1668,22 @@ export default function Dashboard() {
         )}
 
         {/* Empty State Message */}
-        {!loading && !areFiltersApplied && (
+        {!loading && !getAreFiltersApplied() && (
           <div className="p-6 bg-white rounded-xl shadow-lg text-center">
             <div className="flex justify-center items-center mb-4">
               <FaFilter className="h-8 w-8 text-blue-500" />
             </div>
             <p className="text-lg font-medium text-gray-700 mb-2">
-              Please select a state to view dashboard data
+              Please select filters to view dashboard data
             </p>
             <p className="text-sm text-gray-500">
-              Choose a state to see the dashboard information
+              Choose a state and one of: service code, service description, fee schedule date, or date range
             </p>
           </div>
         )}
 
         {/* Only show the table after Search has been clicked and data is loaded */}
-        {!loading && areFiltersApplied && hasSearched && (
+        {!loading && getAreFiltersApplied() && hasSearched && (
           <>
           <div 
             className="rounded-lg shadow-lg bg-white relative z-30 overflow-x-auto"
@@ -1765,204 +1695,67 @@ export default function Dashboard() {
             <table className="min-w-full">
               <thead className="bg-gray-50 sticky top-[5.5rem] z-20">
                 <tr>
-                  {getVisibleColumns.state_name && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('state_name', e)}
-                    >
-                      State
-                      <SortIndicator sortKey="state_name" />
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={(e) => handleSort('state_name', e)}>
+                    State<SortIndicator sortKey="state_name" />
                     </th>
-                  )}
-                  {getVisibleColumns.service_category && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('service_category', e)}
-                    >
-                      Service Category
-                      <SortIndicator sortKey="service_category" />
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={(e) => handleSort('service_category', e)}>
+                    Service Category<SortIndicator sortKey="service_category" />
                     </th>
-                  )}
-                  {getVisibleColumns.service_code && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('service_code', e)}
-                    >
-                      Service Code
-                      <SortIndicator sortKey="service_code" />
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={(e) => handleSort('service_code', e)}>
+                    Service Code<SortIndicator sortKey="service_code" />
                     </th>
-                  )}
-                  {getVisibleColumns.service_description && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('service_description', e)}
-                    >
-                      Service Description
-                      <SortIndicator sortKey="service_description" />
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={(e) => handleSort('service_description', e)}>
+                    Service Description<SortIndicator sortKey="service_description" />
                     </th>
-                  )}
-                  {getVisibleColumns.duration_unit && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('duration_unit', e)}
-                    >
-                      Duration Unit
-                      <SortIndicator sortKey="duration_unit" />
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={(e) => handleSort('duration_unit', e)}>
+                    Duration Unit<SortIndicator sortKey="duration_unit" />
                     </th>
-                  )}
-                  {getVisibleColumns.rate && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('rate', e)}
-                    >
-                      Rate per Base Unit
-                      <SortIndicator sortKey="rate" />
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={(e) => handleSort('rate', e)}>
+                    Rate per Base Unit<SortIndicator sortKey="rate" />
                     </th>
-                  )}
-                  {getVisibleColumns.rate_effective_date && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('rate_effective_date', e)}
-                    >
-                      Effective Date
-                      <SortIndicator sortKey="rate_effective_date" />
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={(e) => handleSort('rate_effective_date', e)}>
+                    Effective Date<SortIndicator sortKey="rate_effective_date" />
                     </th>
-                  )}
-                  {getVisibleColumns.modifier_1 && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('modifier_1', e)}
-                    >
-                      Modifier 1
-                      <SortIndicator sortKey="modifier_1" />
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={(e) => handleSort('modifier_1', e)}>
+                    Modifier 1<SortIndicator sortKey="modifier_1" />
                     </th>
-                  )}
-                  {getVisibleColumns.modifier_2 && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('modifier_2', e)}
-                    >
-                      Modifier 2
-                      <SortIndicator sortKey="modifier_2" />
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={(e) => handleSort('modifier_2', e)}>
+                    Modifier 2<SortIndicator sortKey="modifier_2" />
                     </th>
-                  )}
-                  {getVisibleColumns.modifier_3 && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('modifier_3', e)}
-                    >
-                      Modifier 3
-                      <SortIndicator sortKey="modifier_3" />
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={(e) => handleSort('modifier_3', e)}>
+                    Modifier 3<SortIndicator sortKey="modifier_3" />
                     </th>
-                  )}
-                  {getVisibleColumns.modifier_4 && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('modifier_4', e)}
-                    >
-                      Modifier 4
-                      <SortIndicator sortKey="modifier_4" />
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={(e) => handleSort('modifier_4', e)}>
+                    Modifier 4<SortIndicator sortKey="modifier_4" />
                     </th>
-                  )}
-                  {getVisibleColumns.program && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('program', e)}
-                    >
-                      Program
-                      <SortIndicator sortKey="program" />
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={(e) => handleSort('program', e)}>
+                    Program<SortIndicator sortKey="program" />
                     </th>
-                  )}
-                  {getVisibleColumns.location_region && (
-                    <th
-                      className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                      onClick={(e) => handleSort('location_region', e)}
-                    >
-                      Location/Region
-                      <SortIndicator sortKey="location_region" />
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={(e) => handleSort('location_region', e)}>
+                    Location/Region<SortIndicator sortKey="location_region" />
                     </th>
-                  )}
-                  {getVisibleColumns.provider_type && (
-                      <th
-                        className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                        onClick={(e) => handleSort('provider_type', e)}
-                      >
-                      Provider Type
-                        <SortIndicator sortKey="provider_type" />
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={(e) => handleSort('provider_type', e)}>
+                    Provider Type<SortIndicator sortKey="provider_type" />
                     </th>
-                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {data.map((item, index) => (
-                  <tr key={index} className="hover:bg-gray-50 transition-colors">
-                    {getVisibleColumns.state_name && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {STATE_ABBREVIATIONS[item.state_name?.toUpperCase() || ""] || item.state_name || '-'}
-                        </td>
-                    )}
-                    {getVisibleColumns.service_category && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {SERVICE_CATEGORY_ABBREVIATIONS[item.service_category?.trim().toUpperCase() || ""] || item.service_category || '-'}
-                        </td>
-                    )}
-                    {getVisibleColumns.service_code && (
+                {optimizedData.map((item) => (
+                  <tr key={item.rowKey} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.stateDisplay}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.categoryDisplay}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.service_code || '-'}</td>
-                    )}
-                    {getVisibleColumns.service_description && (
-                      <td
-                        className="px-6 py-4 text-sm text-gray-900 max-w-[220px] truncate"
-                        title={item.service_description || '-'}
-                      >
-                        {item.service_description || '-'}
-                      </td>
-                    )}
-                    {getVisibleColumns.duration_unit && (
+                    <td className="px-6 py-4 text-sm text-gray-900 max-w-[220px] truncate" title={item.service_description || '-'}>{item.service_description || '-'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.duration_unit || '-'}</td>
-                    )}
-                    {getVisibleColumns.rate && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.rate
-                          ? (() => {
-                              const num = Number(item.rate.replace(/[^0-9.]/g, ""));
-                              if (isNaN(num)) return item.rate.startsWith('$') ? item.rate : ('$' + item.rate);
-                              return `$${num.toFixed(2)}`;
-                            })()
-                          : '-'}
-                      </td>
-                    )}
-                    {getVisibleColumns.rate_effective_date && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rateDisplay}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.rate_effective_date || '-'}</td>
-                    )}
-                    {getVisibleColumns.modifier_1 && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.modifier_1 ? `${item.modifier_1}${item.modifier_1_details ? ` - ${item.modifier_1_details}` : ''}` : '-'}
-                      </td>
-                    )}
-                    {getVisibleColumns.modifier_2 && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.modifier_2 ? `${item.modifier_2}${item.modifier_2_details ? ` - ${item.modifier_2_details}` : ''}` : '-'}
-                      </td>
-                    )}
-                    {getVisibleColumns.modifier_3 && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.modifier_3 ? `${item.modifier_3}${item.modifier_3_details ? ` - ${item.modifier_3_details}` : ''}` : '-'}
-                      </td>
-                    )}
-                    {getVisibleColumns.modifier_4 && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.modifier_4 ? `${item.modifier_4}${item.modifier_4_details ? ` - ${item.modifier_4_details}` : ''}` : '-'}
-                      </td>
-                    )}
-                    {getVisibleColumns.program && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.modifier1Display}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.modifier2Display}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.modifier3Display}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.modifier4Display}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.program || '-'}</td>
-                    )}
-                    {getVisibleColumns.location_region && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.location_region || '-'}</td>
-                    )}
-                    {getVisibleColumns.provider_type && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.provider_type || '-'}</td>
-                    )}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{(item as any).provider_type || '-'}</td>
                   </tr>
                 ))}
               </tbody>

@@ -79,7 +79,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     providerTypes: [],
     modifiers: []
   });
-  const { isAuthenticated } = useKindeBrowserClient();
+  const { isAuthenticated, isLoading } = useKindeBrowserClient();
 
   const buildQueryString = (filters: Record<string, string>) => {
     const params = new URLSearchParams();
@@ -89,9 +89,52 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return params.toString();
   };
 
+  // Enhanced fetch with authentication error handling and retry logic
+  const authenticatedFetch = async (url: string, retryCount = 0): Promise<Response> => {
+    const maxRetries = 2;
+    
+    try {
+      const response = await fetch(url);
+      
+      // If unauthorized and we haven't exceeded retries
+      if (response.status === 401 && retryCount < maxRetries) {
+        console.warn(`Authentication failed, attempt ${retryCount + 1}/${maxRetries + 1}. Retrying...`);
+        
+        // Wait a moment before retry
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Force a page refresh to re-authenticate if this is the last retry
+        if (retryCount === maxRetries - 1) {
+          console.error('Authentication failed after retries. Redirecting to login...');
+          window.location.href = '/api/auth/login';
+          throw new Error('Authentication required');
+        }
+        
+        return authenticatedFetch(url, retryCount + 1);
+      }
+      
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      }
+      
+      return response;
+    } catch (error) {
+      if (retryCount < maxRetries && !(error instanceof TypeError)) {
+        console.warn(`Request failed, retrying... (${retryCount + 1}/${maxRetries + 1})`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return authenticatedFetch(url, retryCount + 1);
+      }
+      throw error;
+    }
+  };
+
   // Update refreshFilters to handle service code
   const refreshFilters = useCallback(async (serviceCategory?: string, state?: string, serviceCode?: string) => {
-    if (!isAuthenticated) return null;
+    // Don't make requests if not authenticated or still loading
+    if (!isAuthenticated || isLoading) {
+      console.log('🔄 Skipping filter refresh - authentication pending');
+      return null;
+    }
 
     try {
       setLoading(true);
@@ -101,12 +144,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (serviceCode) filters.serviceCode = serviceCode;
       
       const queryString = buildQueryString(filters);
-      const response = await fetch(`/api/state-payment-comparison?${queryString}`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch filter options');
-      }
-
+      const response = await authenticatedFetch(`/api/state-payment-comparison?${queryString}`);
       const result = await response.json();
       
       // Update filter options, preserving existing service codes if not provided in response
@@ -120,58 +158,65 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return result;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
-      setError(errorMessage);
       console.error('Error fetching filter options:', err);
+      
+      // Don't set error for authentication issues - let the auth redirect handle it
+      if (!errorMessage.includes('Authentication')) {
+        setError(errorMessage);
+      }
       return null;
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isLoading]);
 
   // Updated function to fetch data
   const refreshData = useCallback(async (filters: Record<string, string> = {}) => {
-    if (!isAuthenticated) return;
+    // Don't make requests if not authenticated or still loading
+    if (!isAuthenticated || isLoading) {
+      console.log('🔄 Skipping data refresh - authentication pending');
+      return null;
+    }
 
     try {
       setLoading(true);
       const queryString = buildQueryString(filters);
-      const response = await fetch(`/api/state-payment-comparison?${queryString}`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch data');
-      }
-
+      const response = await authenticatedFetch(`/api/state-payment-comparison?${queryString}`);
       const result = await response.json();
+      
       // Only update data if we got a valid response
       if (result && Array.isArray(result.data)) {
-      setDataState(result.data);
-      setFilterOptions(prev => ({
-        ...prev,
-        ...result.filterOptions
-      }));
-      setError(null);
+        setDataState(result.data);
+        setFilterOptions(prev => ({
+          ...prev,
+          ...result.filterOptions
+        }));
+        setError(null);
       } else {
         throw new Error('Invalid data format received');
       }
       return result;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
-      setError(errorMessage);
       console.error('Error fetching data:', err);
+      
+      // Don't set error for authentication issues - let the auth redirect handle it
+      if (!errorMessage.includes('Authentication')) {
+        setError(errorMessage);
+      }
       // Don't clear the data on error, just return null
       return null;
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isLoading]);
 
   const fetchFeeScheduleDates = async (state: string, serviceCategory: string, serviceCode: string): Promise<string[]> => {
-    if (!state || !serviceCategory || !serviceCode) return [];
+    if (!state || !serviceCategory || !serviceCode || !isAuthenticated) return [];
     try {
-      const response = await fetch(
+      const response = await authenticatedFetch(
         `/api/state-payment-comparison?mode=feeScheduleDates&state=${encodeURIComponent(state)}&serviceCategory=${encodeURIComponent(serviceCategory)}&serviceCode=${encodeURIComponent(serviceCode)}`
       );
-      if (!response.ok) throw new Error('Failed to fetch fee schedule dates');
       const data = await response.json();
       return (data.dates || []).sort((a: string, b: string) => new Date(b).getTime() - new Date(a).getTime());
     } catch (error) {
@@ -180,10 +225,31 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Initial load - only fetch filter options
+  // Enhanced initial load with better authentication handling
   useEffect(() => {
-    refreshFilters();
-  }, [refreshFilters]);
+    // Only attempt to load data when authentication is settled
+    if (!isLoading) {
+      if (isAuthenticated) {
+        console.log('🔄 Authentication confirmed, loading filters...');
+        refreshFilters();
+      } else {
+        console.log('❌ Not authenticated, clearing data...');
+        // Clear data when not authenticated
+        setDataState([]);
+        setFilterOptions({
+          serviceCategories: [],
+          states: [],
+          serviceCodes: [],
+          serviceDescriptions: [],
+          programs: [],
+          locationRegions: [],
+          providerTypes: [],
+          modifiers: []
+        });
+        setLoading(false);
+      }
+    }
+  }, [isAuthenticated, isLoading, refreshFilters]);
 
   // Add setData function
   const setData = useCallback((newData: ServiceData[]) => {
