@@ -75,6 +75,7 @@ export async function GET(request: Request) {
         providerTypes: [] as string[],
         serviceDescriptions: [] as string[],
         modifiers: [] as { value: string; label: string }[],
+        feeScheduleDates: [] as string[],
         data: [] as any[]
       };
 
@@ -119,6 +120,20 @@ export async function GET(request: Request) {
 
         const serviceCodesResult = await pool.query(serviceCodesQuery, baseParams);
         serviceCodes = serviceCodesResult.rows.map(r => r.service_code).filter(Boolean);
+
+        // Also get service descriptions for the state + category combination (without service code filter)
+        const serviceDescriptionsQuery = `
+          SELECT DISTINCT service_description 
+          FROM master_data_may_30_cleaned 
+          WHERE TRIM(UPPER(service_category)) = TRIM(UPPER($1))
+            AND TRIM(UPPER(state_name)) = TRIM(UPPER($2))
+            AND service_description IS NOT NULL 
+            AND service_description != ''
+          ORDER BY service_description
+        `;
+        
+        const serviceDescriptionsResult = await pool.query(serviceDescriptionsQuery, [serviceCategory, state]);
+        otherFilterOptions.serviceDescriptions = serviceDescriptionsResult.rows.map(r => r.service_description).filter(Boolean);
 
         // If service code is selected, get all other filter options and data
         if (serviceCode) {
@@ -284,6 +299,7 @@ export async function GET(request: Request) {
                 providerTypes: providerTypesResult.rows.map(r => r.provider_type).filter(Boolean),
                 serviceDescriptions: serviceDescriptionsResult.rows.map(r => r.service_description).filter(Boolean),
                 modifiers: modifiersResult.rows.map(r => ({ value: r.modifier, label: r.modifier })).filter(Boolean),
+                feeScheduleDates: [],
                 data: dataResult.rows
               };
             } catch (queryError) {
@@ -294,6 +310,20 @@ export async function GET(request: Request) {
             console.error('Error in filter queries:', error);
             throw error;
           }
+        }
+
+        // Also get fee schedule dates when we have service category and state
+        if (serviceCategory && state) {
+          const feeScheduleDatesQuery = `
+            SELECT DISTINCT rate_effective_date
+            FROM master_data_may_30_cleaned
+            WHERE TRIM(UPPER(state_name)) = TRIM(UPPER($1))
+              AND TRIM(UPPER(service_category)) = TRIM(UPPER($2))
+              AND rate_effective_date IS NOT NULL
+            ORDER BY rate_effective_date DESC
+          `;
+          const feeScheduleDatesResult = await pool.query(feeScheduleDatesQuery, [state, serviceCategory]);
+          otherFilterOptions.feeScheduleDates = feeScheduleDatesResult.rows.map(r => r.rate_effective_date).filter(Boolean);
         }
       }
 

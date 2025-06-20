@@ -160,8 +160,8 @@ export default function Dashboard() {
 
     const checkAuthStatus = async () => {
       try {
-        // Make a simple authenticated request to verify the session is still valid
-        const response = await fetch('/api/user');
+        // Make a lightweight authenticated request to verify the session is still valid
+        const response = await fetch('/api/auth-check');
         if (response.status === 401) {
           console.warn('🔄 Session expired, redirecting to login...');
           router.push("/api/auth/login");
@@ -335,6 +335,7 @@ export default function Dashboard() {
   // Add missing variables that are referenced but not declared
   const [hasSearched, setHasSearched] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
+  const [isLoadingFilters, setIsLoadingFilters] = useState(false);
 
   // Removed unused dropdown refs and click-outside handlers
   // React-select handles dropdown behavior internally
@@ -347,42 +348,39 @@ export default function Dashboard() {
 
   // Add Fee Schedule Dates Dropdown
   const [selectedFeeScheduleDate, setSelectedFeeScheduleDate] = useState("");
+  const [feeScheduleDates, setFeeScheduleDates] = useState<string[]>([]);
 
-  // Add this after other state declarations
+  // Simplified state for filter options
   const [allFilterOptions, setAllFilterOptions] = useState<{
     [key: string]: string[];
   }>({});
 
-  // Add this after other useEffect hooks
+  // Simple initial load - no complex preloading
   useEffect(() => {
-    const preloadFilterOptions = async () => {
+    const loadInitialOptions = async () => {
       try {
         const response = await fetch('/api/state-payment-comparison?mode=filters');
         if (!response.ok) throw new Error('Failed to fetch filter options');
         const data = await response.json();
         
-        // Store all filter options
+        setServiceCategories(data.filterOptions.serviceCategories);
+        setStates(data.filterOptions.states);
+        
         setAllFilterOptions({
           serviceCategories: data.filterOptions.serviceCategories,
           states: data.filterOptions.states
         });
-        
-        // Set initial service categories
-        setServiceCategories(data.filterOptions.serviceCategories);
       } catch (error) {
-        console.error('Error preloading filter options:', error);
+        console.error('Error loading filter options:', error);
         setLocalError('Failed to load filter options. Please refresh the page.');
       }
     };
 
-    preloadFilterOptions();
+    loadInitialOptions();
   }, []);
 
-  // Update handleServiceCategoryChange to properly refresh filter options
-  const handleServiceCategoryChange = async (category: string) => {
-    console.log('=== Service Category Change ===');
-    console.log('Selected category:', category);
-    
+  // Ultra-fast service category change - no API calls needed
+  const handleServiceCategoryChange = (category: string) => {
     setSelectedServiceCategory(category);
     setSelectedState("");
     setSelectedServiceCode("");
@@ -395,7 +393,6 @@ export default function Dashboard() {
     setCurrentPage(1);
 
     // Reset all dependent filter options
-    setStates([]);
     setServiceCodes([]);
     setServiceDescriptions([]);
     setPrograms([]);
@@ -403,78 +400,15 @@ export default function Dashboard() {
     setModifiers([]);
     setProviderTypes([]);
 
-    // Refresh filter options for the selected service category
-    try {
-      console.log('🔄 Refreshing filters for service category:', category);
-      await refreshFilters(category);
-      console.log('✅ Filter options refreshed');
-    } catch (error) {
-      console.error('❌ Error refreshing filters:', error);
-      // Fallback to preloaded states if refresh fails
-      if (allFilterOptions.states) {
-        setStates(allFilterOptions.states);
-      }
-    }
+    // No API call needed - states are already loaded!
+    // The states dropdown will show all available states
   };
 
-  // Update useEffect to handle filter options changes
-  useEffect(() => {
-    console.log('📊 Filter options updated:', filterOptions);
-    
-    if (filterOptions?.serviceCategories && filterOptions.serviceCategories.length > 0) {
-      // Deduplicate and sort service categories, but do not change case
-      const normalizedCategories = Array.from(
-        new Set(
-          filterOptions.serviceCategories
-            .map(cat => cat?.trim())
-            .filter(Boolean)
-        )
-      ).sort((a, b) => a.localeCompare(b));
-      console.log('🔄 Setting service categories:', normalizedCategories.length);
-      setServiceCategories(normalizedCategories);
-    }
-    
-    if (filterOptions?.states && filterOptions.states.length > 0) {
-      // Deduplicate and sort states, but do not change case
-      const normalizedStates = Array.from(
-        new Set(
-          filterOptions.states
-            .map(state => state?.trim())
-            .filter(Boolean)
-        )
-      ).sort((a, b) => a.localeCompare(b));
-      console.log('🔄 Setting states:', normalizedStates.length);
-      setStates(normalizedStates);
-    }
-  }, [filterOptions]);
+  // Removed automatic filter options syncing to avoid conflicts with manual loading
 
-  // Place this useEffect immediately after all useState declarations
-  useEffect(() => {
-    if (filterOptions) {
-      setServiceCodes(filterOptions.serviceCodes || []);
-      setServiceDescriptions(filterOptions.serviceDescriptions || []);
-      setPrograms(filterOptions.programs || []);
-      setLocationRegions(filterOptions.locationRegions || []);
-      setProviderTypes(filterOptions.providerTypes || []);
-      setModifiers(filterOptions.modifiers || []);
-    }
-  }, [filterOptions]);
+  // Removed automatic syncing to prevent conflicts with manual API calls
 
-  // Force re-render of state dropdown when service category changes
-  useEffect(() => {
-    if (selectedServiceCategory && filterOptions?.states && filterOptions.states.length > 0) {
-      console.log('🔄 Service category changed, updating states for:', selectedServiceCategory);
-      const normalizedStates = Array.from(
-        new Set(
-          filterOptions.states
-            .map(state => state?.trim())
-            .filter(Boolean)
-        )
-      ).sort((a, b) => a.localeCompare(b));
-      setStates(normalizedStates);
-      console.log('✅ States updated:', normalizedStates.length);
-    }
-  }, [selectedServiceCategory, filterOptions?.states]);
+  // Removed state syncing to avoid conflicts
 
   // Move the parseDate function here, before filteredData
   const parseDate = (dateString: string | null) => {
@@ -646,55 +580,93 @@ export default function Dashboard() {
   // Removed unused dropdown utility functions
 
   const handleServiceCodeChange = async (code: string) => {
-    // Find the matching item for this code
-    const matchingItem = data.find(item => item.service_code?.trim() === code.trim());
-    const matchingDescription = matchingItem?.service_description?.trim() || '';
     setSelectedServiceCode(code);
-    setSelectedServiceDescription(matchingDescription);
+    setSelectedServiceDescription("");
     setSelectedProgram("");
     setSelectedLocationRegion("");
     setSelectedModifier("");
     setSelectedProviderType("");
     setFilterStep(4);
+    setCurrentPage(1);
+
+    // Clear other filter options
     setPrograms([]);
     setLocationRegions([]);
     setModifiers([]);
     setProviderTypes([]);
-    const filters = addDateFilters({
+
+    if (code) {
+      // NOW load the full table data
+      console.log('🔄 Loading table data for service code:', code);
+      setIsSearching(true);
+      try {
+        const filters = addDateFilters({
       serviceCategory: selectedServiceCategory,
       state: selectedState,
-      serviceCode: code // Only use code for backend filtering
-    });
-    await refreshData(filters);
+          serviceCode: code,
+          page: "1",
+          itemsPerPage: String(itemsPerPage)
+        });
+        
+        const result = await refreshData(filters);
+        
+        if (result?.data && Array.isArray(result.data)) {
+          console.log('✅ Table data loaded:', result.data.length, 'rows');
+          setTotalCount(result.totalCount);
+          setHasSearched(true);
+        }
+      } catch (error) {
+        console.error('Error loading table data:', error);
+        setLocalError('Failed to load data for selected service code.');
+      } finally {
+        setIsSearching(false);
+      }
+    }
   };
 
   const handleServiceDescriptionChange = async (desc: string) => {
-    // If the current code already matches this description, do nothing
-    const currentItem = data.find(item => item.service_code?.trim() === selectedServiceCode?.trim());
-    if (currentItem && currentItem.service_description?.trim() === desc) {
     setSelectedServiceDescription(desc);
-      return;
-    }
-    // Otherwise, find the first item with this description
-    const matchingItem = data.find(item => item.service_description?.trim() === desc);
-    const matchingCode = matchingItem?.service_code?.trim() || '';
-    setSelectedServiceDescription(desc);
-    setSelectedServiceCode(matchingCode);
+    setSelectedServiceCode("");
     setSelectedProgram("");
     setSelectedLocationRegion("");
     setSelectedModifier("");
     setSelectedProviderType("");
     setFilterStep(4);
+    setCurrentPage(1);
+
+    // Clear other filter options
     setPrograms([]);
     setLocationRegions([]);
     setModifiers([]);
     setProviderTypes([]);
-    const filters = addDateFilters({
+
+    if (desc) {
+      // NOW load the full table data
+      console.log('🔄 Loading table data for service description:', desc);
+      setIsSearching(true);
+      try {
+        const filters = addDateFilters({
       serviceCategory: selectedServiceCategory,
       state: selectedState,
-      serviceCode: matchingCode // Only use code for backend filtering
-    });
-    await refreshData(filters);
+          serviceDescription: desc,
+          page: "1",
+          itemsPerPage: String(itemsPerPage)
+        });
+        
+        const result = await refreshData(filters);
+        
+        if (result?.data && Array.isArray(result.data)) {
+          console.log('✅ Table data loaded:', result.data.length, 'rows');
+          setTotalCount(result.totalCount);
+          setHasSearched(true);
+        }
+      } catch (error) {
+        console.error('Error loading table data:', error);
+        setLocalError('Failed to load data for selected service description.');
+      } finally {
+        setIsSearching(false);
+      }
+    }
   };
 
   const handleProgramChange = async (program: string) => {
@@ -788,12 +760,27 @@ export default function Dashboard() {
     setStates(filterOptions.states);
   };
 
-  // Update the handleStateChange function
+  // Helper function to fetch fee schedule dates
+  const fetchFeeScheduleDates = async (serviceCategory: string, state: string) => {
+    try {
+      console.log('🔄 Loading fee schedule dates for:', serviceCategory, state);
+      const response = await fetch(`/api/state-payment-comparison?mode=feeScheduleDates&serviceCategory=${encodeURIComponent(serviceCategory)}&state=${encodeURIComponent(state)}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setFeeScheduleDates(data.dates || []);
+        console.log(`✅ Loaded ${data.dates?.length || 0} fee schedule dates`);
+      }
+    } catch (error) {
+      console.error('❌ Error loading fee schedule dates:', error);
+    }
+  };
+
+  // Smart state change - only load filter options, not full data
   const handleStateChange = async (state: string) => {
     console.log('=== State Change ===');
     console.log('Selected state:', state);
     
-    // First update the UI state
     setSelectedState(state);
     setSelectedServiceCode("");
     setSelectedServiceDescription("");
@@ -801,6 +788,9 @@ export default function Dashboard() {
     setSelectedLocationRegion("");
     setSelectedModifier("");
     setSelectedProviderType("");
+    setSelectedFeeScheduleDate("");
+    setStartDate(null);
+    setEndDate(null);
     setFilterStep(3);
     setCurrentPage(1);
 
@@ -812,32 +802,63 @@ export default function Dashboard() {
     setModifiers([]);
     setProviderTypes([]);
 
+    if (!state) {
+      setIsLoadingFilters(false);
+      return;
+    }
+
+    setIsLoadingFilters(true);
     try {
-      // Load filter options for this state
-      await refreshFilters(selectedServiceCategory);
+      // Only fetch filter options (service codes, descriptions, dates) - NO table data yet
+      console.log('🔄 Loading filter options for:', selectedServiceCategory, state);
+      const url = `/api/state-payment-comparison?mode=filters&serviceCategory=${encodeURIComponent(selectedServiceCategory)}&state=${encodeURIComponent(state)}`;
+      console.log('📡 API URL:', url);
       
-      // Then fetch the data with the new state filter
-      const filters = addDateFilters({
-        serviceCategory: selectedServiceCategory,
-        state: state,
-        page: "1",
-        itemsPerPage: String(itemsPerPage)
-      });
+      const response = await fetch(url);
+      console.log('📡 Response status:', response.status);
       
-      console.log('Fetching data with filters:', filters);
-      const result = await refreshData(filters);
-      
-      if (result?.data && Array.isArray(result.data)) {
-        console.log('State filter applied successfully. Data length:', result.data.length);
-        setTotalCount(result.totalCount);
-        setHasSearched(true);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📡 Full API response:', data);
+        
+        // Check if the response has the expected structure
+        if (data.filterOptions) {
+          setServiceCodes(data.filterOptions.serviceCodes || []);
+          setServiceDescriptions(data.filterOptions.serviceDescriptions || []);
+          setPrograms(data.filterOptions.programs || []);
+          setLocationRegions(data.filterOptions.locationRegions || []);
+          setModifiers(data.filterOptions.modifiers || []);
+          setProviderTypes(data.filterOptions.providerTypes || []);
+          
+          // Also load fee schedule dates for this service category and state
+          if (data.filterOptions.feeScheduleDates) {
+            setFeeScheduleDates(data.filterOptions.feeScheduleDates);
       } else {
-        console.error('Invalid response format from refreshData:', result);
-        setLocalError('Failed to apply state filter. Please try again.');
+            setFeeScheduleDates([]);
+          }
+          
+          console.log(`✅ Loaded filter options:`);
+          console.log(`  - Service codes: ${data.filterOptions.serviceCodes?.length || 0}`);
+          console.log(`  - Service descriptions: ${data.filterOptions.serviceDescriptions?.length || 0}`);
+          console.log(`  - Programs: ${data.filterOptions.programs?.length || 0}`);
+          console.log(`  - Location regions: ${data.filterOptions.locationRegions?.length || 0}`);
+          console.log(`  - Provider types: ${data.filterOptions.providerTypes?.length || 0}`);
+          console.log(`  - Modifiers: ${data.filterOptions.modifiers?.length || 0}`);
+          console.log(`  - Fee schedule dates: ${data.filterOptions.feeScheduleDates?.length || 0}`);
+        } else {
+          console.error('❌ API response missing filterOptions:', data);
+          setLocalError('Invalid response format from API');
+        }
+      } else {
+        const errorText = await response.text();
+        console.error('❌ API error:', response.status, errorText);
+        throw new Error(`API returned ${response.status}: ${errorText}`);
       }
     } catch (error) {
-      console.error('Error applying state filter:', error);
-      setLocalError('Failed to apply state filter. Please try again.');
+      console.error('❌ Error loading filter options:', error);
+      setLocalError('Failed to load filter options for selected state.');
+    } finally {
+      setIsLoadingFilters(false);
     }
   };
 
@@ -875,16 +896,7 @@ export default function Dashboard() {
   const locationRegionId = "locationRegionSelect";
   const modifierId = "modifierSelect";
 
-  // Simplified fee schedule dates - let backend handle the filtering
-  const feeScheduleDates = useMemo(() => {
-    if (!data.length) return [];
-    
-    return [...new Set(
-      data
-        .map(item => item.rate_effective_date)
-        .filter((date): date is string => !!date && date.trim() !== '')
-    )].sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-  }, [data]);
+  // Fee schedule dates will be loaded with other filter options
 
   // Optimized data processing - pre-compute expensive operations
   const optimizedData = useMemo(() => {
@@ -972,7 +984,7 @@ export default function Dashboard() {
         setAuthError('Your session has expired. Please sign in again.');
         setLocalError(null);
       } else {
-        setLocalError('Failed to fetch data. Please try again.');
+      setLocalError('Failed to fetch data. Please try again.');
         setAuthError(null);
       }
     } finally {
@@ -1131,7 +1143,7 @@ export default function Dashboard() {
   };
 
   // Add this after state declarations
-  const isStateSelected = !!selectedState;
+  const isStateSelected = !!selectedState && (serviceCodes.length > 0 || serviceDescriptions.length > 0 || feeScheduleDates.length > 0) && !isLoadingFilters;
   const hasAnyPrimaryFilter =
     !!selectedServiceCode ||
     !!selectedServiceDescription ||
@@ -1173,74 +1185,99 @@ export default function Dashboard() {
   // Add date filter handlers
   const handleStartDateChange = async (date: Date | null) => {
     setStartDate(date);
-    if (date && !endDate) {
-      // If only start date is set, don't trigger refresh yet
-      return;
-    }
     if (date && endDate) {
-      // Both dates are set, trigger refresh
-      await refreshData({
-        serviceCategory: selectedServiceCategory,
-        state: selectedState,
-        serviceCode: selectedServiceCode,
-        serviceDescription: selectedServiceDescription,
-        program: selectedProgram,
-        locationRegion: selectedLocationRegion,
-        modifier: selectedModifier,
-        providerType: selectedProviderType,
-        startDate: date.toISOString().split('T')[0],
-        endDate: endDate.toISOString().split('T')[0]
-      });
+      // Both dates are set, load table data
+      console.log('🔄 Loading table data for date range:', date.toISOString().split('T')[0], 'to', endDate.toISOString().split('T')[0]);
+      setCurrentPage(1);
+      setIsSearching(true);
+      
+      try {
+        const result = await refreshData({
+          serviceCategory: selectedServiceCategory,
+          state: selectedState,
+          startDate: date.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0],
+          page: "1",
+          itemsPerPage: String(itemsPerPage)
+        });
+        
+        if (result?.data && Array.isArray(result.data)) {
+          console.log('✅ Table data loaded:', result.data.length, 'rows');
+          setTotalCount(result.totalCount);
+          setHasSearched(true);
+        }
+      } catch (error) {
+        console.error('Error loading table data:', error);
+        setLocalError('Failed to load data for selected date range.');
+      } finally {
+        setIsSearching(false);
+      }
     }
   };
 
   const handleEndDateChange = async (date: Date | null) => {
     setEndDate(date);
     if (date && startDate) {
-      // Both dates are set, trigger refresh
-      await refreshData({
-        serviceCategory: selectedServiceCategory,
-        state: selectedState,
-        serviceCode: selectedServiceCode,
-        serviceDescription: selectedServiceDescription,
-        program: selectedProgram,
-        locationRegion: selectedLocationRegion,
-        modifier: selectedModifier,
-        providerType: selectedProviderType,
-        startDate: startDate.toISOString().split('T')[0],
-        endDate: date.toISOString().split('T')[0]
-      });
+      // Both dates are set, load table data
+      console.log('🔄 Loading table data for date range:', startDate.toISOString().split('T')[0], 'to', date.toISOString().split('T')[0]);
+      setCurrentPage(1);
+      setIsSearching(true);
+      
+      try {
+        const result = await refreshData({
+          serviceCategory: selectedServiceCategory,
+          state: selectedState,
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: date.toISOString().split('T')[0],
+          page: "1",
+          itemsPerPage: String(itemsPerPage)
+        });
+        
+        if (result?.data && Array.isArray(result.data)) {
+          console.log('✅ Table data loaded:', result.data.length, 'rows');
+          setTotalCount(result.totalCount);
+          setHasSearched(true);
+        }
+      } catch (error) {
+        console.error('Error loading table data:', error);
+        setLocalError('Failed to load data for selected date range.');
+      } finally {
+        setIsSearching(false);
+      }
     }
   };
 
   const handleFeeScheduleDateChange = async (feeScheduleDate: string) => {
     setSelectedFeeScheduleDate(feeScheduleDate);
+    setCurrentPage(1);
+    
     if (feeScheduleDate) {
       setStartDate(null);
       setEndDate(null);
-      await refreshData({
-        serviceCategory: selectedServiceCategory,
-        state: selectedState,
-        serviceCode: selectedServiceCode,
-        serviceDescription: selectedServiceDescription,
-        program: selectedProgram,
-        locationRegion: selectedLocationRegion,
-        modifier: selectedModifier,
-        providerType: selectedProviderType,
-        feeScheduleDate: feeScheduleDate
-      });
-    } else {
-      // Clear fee schedule date filter
-      await refreshData({
-        serviceCategory: selectedServiceCategory,
-        state: selectedState,
-        serviceCode: selectedServiceCode,
-        serviceDescription: selectedServiceDescription,
-        program: selectedProgram,
-        locationRegion: selectedLocationRegion,
-        modifier: selectedModifier,
-        providerType: selectedProviderType
-      });
+      
+      // Load table data with fee schedule date filter
+      console.log('🔄 Loading table data for fee schedule date:', feeScheduleDate);
+      setIsSearching(true);
+      try {
+        const result = await refreshData({
+          serviceCategory: selectedServiceCategory,
+          state: selectedState,
+          feeScheduleDate: feeScheduleDate,
+          page: "1",
+          itemsPerPage: String(itemsPerPage)
+        });
+        
+        if (result?.data && Array.isArray(result.data)) {
+          console.log('✅ Table data loaded:', result.data.length, 'rows');
+          setTotalCount(result.totalCount);
+          setHasSearched(true);
+        }
+      } catch (error) {
+        console.error('Error loading table data:', error);
+        setLocalError('Failed to load data for selected fee schedule date.');
+      } finally {
+        setIsSearching(false);
+      }
     }
   };
 
@@ -1411,8 +1448,8 @@ export default function Dashboard() {
                 onChange={(option) => handleFeeScheduleDateChange(option?.value || "")}
                 placeholder="Select Fee Schedule Date"
                 isSearchable
-                isDisabled={!isStateSelected}
-                className={`react-select-container ${!isStateSelected ? 'opacity-50' : ''}`}
+                isDisabled={!selectedState || feeScheduleDates.length === 0 || isLoadingFilters}
+                className={`react-select-container ${!selectedState || feeScheduleDates.length === 0 || isLoadingFilters ? 'opacity-50' : ''}`}
                 classNamePrefix="react-select"
                 menuPortalTarget={document.body}
                 styles={{
@@ -1440,6 +1477,18 @@ export default function Dashboard() {
         {/* Filters */}
         <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg relative z-40">
           <FilterNote step={filterStep} />
+          
+          {/* Loading indicator for filter options */}
+          {isLoadingFilters && (
+            <div className="loader-overlay">
+              <div className="cssloader">
+                <div className="sh1"></div>
+                <div className="sh2"></div>
+                <h4 className="lt">loading filter options</h4>
+              </div>
+            </div>
+          )}
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
             {/* Service Category Selector */}
             <div className="space-y-2">
@@ -1506,8 +1555,8 @@ export default function Dashboard() {
                 placeholder="Select Service Code"
                 isSearchable
                 filterOption={customFilterOption}
-                isDisabled={!isStateSelected || (hasAnyPrimaryFilter && !selectedServiceCode)}
-                className={`react-select-container ${!isStateSelected || (hasAnyPrimaryFilter && !selectedServiceCode) ? 'opacity-50' : ''}`}
+                isDisabled={!selectedState || serviceCodes.length === 0 || isLoadingFilters}
+                className={`react-select-container ${!selectedState || serviceCodes.length === 0 || isLoadingFilters ? 'opacity-50' : ''}`}
                 classNamePrefix="react-select"
               />
               {selectedServiceCode && (
@@ -1541,8 +1590,8 @@ export default function Dashboard() {
                 placeholder="Select Service Description"
                 isSearchable
                 filterOption={customFilterOption}
-                isDisabled={!isStateSelected || (hasAnyPrimaryFilter && !selectedServiceDescription)}
-                className={`react-select-container ${!isStateSelected || (hasAnyPrimaryFilter && !selectedServiceDescription) ? 'opacity-50' : ''}`}
+                isDisabled={!selectedState || serviceDescriptions.length === 0 || isLoadingFilters}
+                className={`react-select-container ${!selectedState || serviceDescriptions.length === 0 || isLoadingFilters ? 'opacity-50' : ''}`}
                 classNamePrefix="react-select"
               />
               {selectedServiceDescription && (
@@ -1682,8 +1731,8 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Only show the table after Search has been clicked and data is loaded */}
-        {!loading && getAreFiltersApplied() && hasSearched && (
+        {/* Show the table when filters are applied and data is loaded */}
+        {!loading && getAreFiltersApplied() && data.length > 0 && (
           <>
           <div 
             className="rounded-lg shadow-lg bg-white relative z-30 overflow-x-auto"

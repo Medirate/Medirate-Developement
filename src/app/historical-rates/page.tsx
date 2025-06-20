@@ -722,8 +722,8 @@ export default function HistoricalRates() {
 
     const checkAuthStatus = async () => {
       try {
-        // Make a simple authenticated request to verify the session is still valid
-        const response = await fetch('/api/user');
+        // Make a lightweight authenticated request to verify the session is still valid
+        const response = await fetch('/api/auth-check');
         if (response.status === 401) {
           console.warn('🔄 Session expired, redirecting to login...');
           setAuthError('Your session has expired. Please sign in again.');
