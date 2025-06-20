@@ -675,10 +675,8 @@ export default function Dashboard() {
     setSelectedModifier("");
     setSelectedProviderType("");
 
-    // Reset dependent filter options
-    setLocationRegions([]);
-    setModifiers([]);
-    setProviderTypes([]);
+    // Don't reset filter options - they're already loaded and should remain available
+    // This allows users to explore different combinations easily
 
     try {
       const filters = addDateFilters({
@@ -700,9 +698,7 @@ export default function Dashboard() {
     setSelectedModifier("");
     setSelectedProviderType("");
 
-    // Reset dependent filter options
-    setModifiers([]);
-    setProviderTypes([]);
+    // Keep all filter options available for user exploration
 
     try {
       const filters = addDateFilters({
@@ -1610,8 +1606,8 @@ export default function Dashboard() {
                 placeholder="Select Program"
                 isSearchable
                 filterOption={customFilterOption}
-                isDisabled={!selectedServiceCode && !selectedServiceDescription}
-                className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                isDisabled={!selectedState || programs.length === 0 || isLoadingFilters}
+                className={`react-select-container ${!selectedState || programs.length === 0 || isLoadingFilters ? 'opacity-50' : ''}`}
                 classNamePrefix="react-select"
               />
               {selectedProgram && (
@@ -1630,8 +1626,8 @@ export default function Dashboard() {
                 placeholder="Select Location/Region"
                 isSearchable
                 filterOption={customFilterOption}
-                isDisabled={!selectedServiceCode && !selectedServiceDescription}
-                className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                isDisabled={!selectedState || locationRegions.length === 0 || isLoadingFilters}
+                className={`react-select-container ${!selectedState || locationRegions.length === 0 || isLoadingFilters ? 'opacity-50' : ''}`}
                 classNamePrefix="react-select"
               />
               {selectedLocationRegion && (
@@ -1650,8 +1646,8 @@ export default function Dashboard() {
                 placeholder="Select Modifier"
                 isSearchable
                 filterOption={customFilterOption}
-                isDisabled={!selectedServiceCode && !selectedServiceDescription}
-                className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                isDisabled={!selectedState || modifiers.length === 0 || isLoadingFilters}
+                className={`react-select-container ${!selectedState || modifiers.length === 0 || isLoadingFilters ? 'opacity-50' : ''}`}
                 classNamePrefix="react-select"
               />
               {selectedModifier && (
@@ -1670,8 +1666,8 @@ export default function Dashboard() {
                 placeholder="Select Provider Type"
                 isSearchable
                 filterOption={customFilterOption}
-                isDisabled={!selectedServiceCode && !selectedServiceDescription}
-                className={`react-select-container ${!selectedServiceCode && !selectedServiceDescription ? 'opacity-50' : ''}`}
+                isDisabled={!selectedState || providerTypes.length === 0 || isLoadingFilters}
+                className={`react-select-container ${!selectedState || providerTypes.length === 0 || isLoadingFilters ? 'opacity-50' : ''}`}
                 classNamePrefix="react-select"
               />
               {selectedProviderType && (

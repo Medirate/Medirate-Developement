@@ -135,6 +135,118 @@ export async function GET(request: Request) {
         const serviceDescriptionsResult = await pool.query(serviceDescriptionsQuery, [serviceCategory, state]);
         otherFilterOptions.serviceDescriptions = serviceDescriptionsResult.rows.map(r => r.service_description).filter(Boolean);
 
+        // Also preload other filter options for this state + category combination
+        const otherFiltersQueries = {
+          programs: `
+            SELECT DISTINCT program 
+            FROM master_data_may_30_cleaned 
+            WHERE TRIM(UPPER(service_category)) = TRIM(UPPER($1))
+              AND TRIM(UPPER(state_name)) = TRIM(UPPER($2))
+              AND program IS NOT NULL 
+              AND program != ''
+            ORDER BY program
+          `,
+          locationRegions: `
+            SELECT DISTINCT location_region 
+            FROM master_data_may_30_cleaned 
+            WHERE TRIM(UPPER(service_category)) = TRIM(UPPER($1))
+              AND TRIM(UPPER(state_name)) = TRIM(UPPER($2))
+              AND location_region IS NOT NULL 
+              AND location_region != ''
+            ORDER BY location_region
+          `,
+          providerTypes: `
+            SELECT DISTINCT provider_type 
+            FROM master_data_may_30_cleaned 
+            WHERE TRIM(UPPER(service_category)) = TRIM(UPPER($1))
+              AND TRIM(UPPER(state_name)) = TRIM(UPPER($2))
+              AND provider_type IS NOT NULL 
+              AND provider_type != ''
+            ORDER BY provider_type
+          `,
+          modifiers: `
+            WITH modifier_data AS (
+              SELECT 
+                CASE 
+                  WHEN modifier_1 IS NOT NULL AND modifier_1 != '' THEN 
+                    CASE WHEN modifier_1_details IS NOT NULL AND modifier_1_details != '' 
+                      THEN modifier_1 || ' - ' || modifier_1_details 
+                      ELSE modifier_1 
+                    END
+                  ELSE NULL 
+                END as modifier
+              FROM master_data_may_30_cleaned 
+              WHERE TRIM(UPPER(service_category)) = TRIM(UPPER($1))
+                AND TRIM(UPPER(state_name)) = TRIM(UPPER($2))
+                AND modifier_1 IS NOT NULL 
+                AND modifier_1 != ''
+              UNION
+              SELECT 
+                CASE 
+                  WHEN modifier_2 IS NOT NULL AND modifier_2 != '' THEN 
+                    CASE WHEN modifier_2_details IS NOT NULL AND modifier_2_details != '' 
+                      THEN modifier_2 || ' - ' || modifier_2_details 
+                      ELSE modifier_2 
+                    END
+                  ELSE NULL 
+                END
+              FROM master_data_may_30_cleaned 
+              WHERE TRIM(UPPER(service_category)) = TRIM(UPPER($1))
+                AND TRIM(UPPER(state_name)) = TRIM(UPPER($2))
+                AND modifier_2 IS NOT NULL 
+                AND modifier_2 != ''
+              UNION
+              SELECT 
+                CASE 
+                  WHEN modifier_3 IS NOT NULL AND modifier_3 != '' THEN 
+                    CASE WHEN modifier_3_details IS NOT NULL AND modifier_3_details != '' 
+                      THEN modifier_3 || ' - ' || modifier_3_details 
+                      ELSE modifier_3 
+                    END
+                  ELSE NULL 
+                END
+              FROM master_data_may_30_cleaned 
+              WHERE TRIM(UPPER(service_category)) = TRIM(UPPER($1))
+                AND TRIM(UPPER(state_name)) = TRIM(UPPER($2))
+                AND modifier_3 IS NOT NULL 
+                AND modifier_3 != ''
+              UNION
+              SELECT 
+                CASE 
+                  WHEN modifier_4 IS NOT NULL AND modifier_4 != '' THEN 
+                    CASE WHEN modifier_4_details IS NOT NULL AND modifier_4_details != '' 
+                      THEN modifier_4 || ' - ' || modifier_4_details 
+                      ELSE modifier_4 
+                    END
+                  ELSE NULL 
+                END
+              FROM master_data_may_30_cleaned 
+              WHERE TRIM(UPPER(service_category)) = TRIM(UPPER($1))
+                AND TRIM(UPPER(state_name)) = TRIM(UPPER($2))
+                AND modifier_4 IS NOT NULL 
+                AND modifier_4 != ''
+            )
+            SELECT DISTINCT modifier 
+            FROM modifier_data 
+            WHERE modifier IS NOT NULL 
+            ORDER BY modifier
+          `
+        };
+
+        // Execute all queries in parallel for better performance
+        const [programsResult, locationRegionsResult, providerTypesResult, modifiersResult] = await Promise.all([
+          pool.query(otherFiltersQueries.programs, [serviceCategory, state]),
+          pool.query(otherFiltersQueries.locationRegions, [serviceCategory, state]),
+          pool.query(otherFiltersQueries.providerTypes, [serviceCategory, state]),
+          pool.query(otherFiltersQueries.modifiers, [serviceCategory, state])
+        ]);
+
+        // Update the filter options
+        otherFilterOptions.programs = programsResult.rows.map(r => r.program).filter(Boolean);
+        otherFilterOptions.locationRegions = locationRegionsResult.rows.map(r => r.location_region).filter(Boolean);
+        otherFilterOptions.providerTypes = providerTypesResult.rows.map(r => r.provider_type).filter(Boolean);
+        otherFilterOptions.modifiers = modifiersResult.rows.map(r => ({ value: r.modifier, label: r.modifier })).filter(Boolean);
+
         // If service code is selected, get all other filter options and data
         if (serviceCode) {
           try {
